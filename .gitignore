@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Android Studio personal files
+.idea/studiobot.xml
+.idea/vcs.xml
