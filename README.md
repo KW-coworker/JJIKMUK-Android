@@ -8,13 +8,13 @@ JJIKMUK은 Jetpack Compose 기반으로 개발하는 Android 앱 프로젝트입
 | --- | --- |
 | 패키지명 | `com.coworker.jjikmuk` |
 | 빌드 설정 | Kotlin DSL (`build.gradle.kts`) |
-| Kotlin | `2.2.10` |
+| Kotlin | `2.4.0` |
 | Gradle | `9.4.1` |
 | Android Gradle Plugin | `9.2.1` |
 | compileSdk | `36.1` |
 | minSdk | `24` |
 | targetSdk | `36` |
-| Java | `11` |
+| Java | `17` |
 | Compose BOM | `2026.02.01` |
 
 ## 기술 스택
@@ -22,6 +22,17 @@ JJIKMUK은 Jetpack Compose 기반으로 개발하는 Android 앱 프로젝트입
 - Kotlin
 - Jetpack Compose
 - Material 3
+- Navigation Compose
+- ViewModel
+- Lifecycle Runtime Compose
+- Coroutine / Flow
+- Hilt
+- Retrofit
+- OkHttp
+- Gson
+- Coil
+- DataStore
+- Room
 - Gradle Version Catalog (`gradle/libs.versions.toml`)
 
 ## 실행 방법
@@ -63,10 +74,12 @@ sdk.dir=/Users/username/Library/Android/sdk
 - 앱 패키지명 `com.coworker.jjikmuk` 설정 완료
 - 기본 Compose 화면 실행 확인 완료
 - 기본 `.gitignore` 설정 완료
+- 기본 앱 의존성 설정 완료
+- Hilt Application 클래스 등록 완료
 
 ## 다음 단계
 
-1. 필요한 앱 의존성을 추가합니다.
-2. 기본 패키지 구조를 생성합니다.
-3. 앱 테마와 네비게이션 구조를 세팅합니다.
-4. `home`, `chat`, `product`, `mypage`, `onboarding` 같은 feature 패키지를 준비합니다.
+1. 기본 패키지 구조를 생성합니다.
+2. 앱 테마와 네비게이션 구조를 세팅합니다.
+3. `home`, `chat`, `product`, `mypage`, `onboarding` 같은 feature 패키지를 준비합니다.
+4. 네트워크, 로컬 저장소, Repository 구조를 세팅합니다.
