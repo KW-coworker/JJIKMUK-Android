@@ -2,8 +2,9 @@
 
 JJIKMUK 디자인 시스템은 다음 서체를 사용합니다.
 
-- Inter: 본문·영문·숫자용 — https://fonts.google.com/specimen/Inter
-- Baloo 2 ExtraBold: 브랜드·강조 문구용 — https://fonts.google.com/specimen/Baloo+2
+- Pretendard: 한글 UI용 — https://github.com/orioncactus/pretendard
+- Inter: 영문 UI·날짜·시간·숫자용 — https://fonts.google.com/specimen/Inter
+- Baloo 2 ExtraBold: 로고·영문 Section Title용 — https://fonts.google.com/specimen/Baloo+2
 
 ## 추가 방법
 
@@ -27,8 +28,20 @@ JJIKMUK 디자인 시스템은 다음 서체를 사용합니다.
 
 - `baloo2_extra_bold.ttf`
 
-`ui/theme/Font.kt`에서는 Inter를 `Inter`, Baloo 2를 `Baloo2`라는
-`FontFamily`로 등록합니다.
+### Pretendard
+
+- `pretendard_thin.ttf`
+- `pretendard_extra_light.ttf`
+- `pretendard_light.ttf`
+- `pretendard_regular.ttf`
+- `pretendard_medium.ttf`
+- `pretendard_semi_bold.ttf`
+- `pretendard_bold.ttf`
+- `pretendard_extra_bold.ttf`
+- `pretendard_black.ttf`
+
+`ui/theme/Font.kt`에서는 Inter, Pretendard, Baloo 2를 각각의 `FontFamily`로
+등록합니다.
 
 ```kotlin
 val InterFontFamily = FontFamily(
@@ -47,6 +60,9 @@ val Baloo2FontFamily = FontFamily(
     Font(resId = R.font.baloo2_extra_bold, weight = FontWeight.ExtraBold),
 )
 ```
+
+한글 UI 토큰은 Pretendard가 기본입니다. 영문 UI·날짜·시간·숫자는 같은 의미
+토큰에 `asEnglish()`를 호출해 Inter를 적용합니다.
 
 폰트 파일은 저장소에 포함됩니다. 따라서 별도의 로컬 설치 없이 새 팀원과 CI
 환경에서도 동일한 폰트로 빌드할 수 있습니다. 폰트를 교체할 때는 해당 서체의
