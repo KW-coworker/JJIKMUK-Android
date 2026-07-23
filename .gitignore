@@ -17,11 +17,6 @@ local.properties
 # Android Studio local settings
 .idea/
 
-# Font resources are added locally after checking their licenses.
-app/src/main/res/font/*.ttf
-app/src/main/res/font/*.otf
-app/src/main/res/font/*.ttc
-
 # Android Studio personal files
 .idea/studiobot.xml
 .idea/vcs.xml

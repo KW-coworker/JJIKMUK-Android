@@ -3,35 +3,58 @@ package com.coworker.jjikmuk.ui.theme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 
 private val LightColorScheme = lightColorScheme(
-    primary = Primary500,
-    onPrimary = White,
-    primaryContainer = Primary100,
-    onPrimaryContainer = Primary700,
-    secondary = Primary600,
-    onSecondary = White,
-    secondaryContainer = Primary50,
-    onSecondaryContainer = Primary700,
-    background = White,
-    onBackground = Neutral900,
-    surface = White,
-    onSurface = Neutral900,
-    surfaceVariant = Neutral50,
-    onSurfaceVariant = Neutral600,
-    outline = Neutral300,
-    outlineVariant = Neutral200,
-    error = Error,
-    onError = White,
-    errorContainer = Warning,
-    onErrorContainer = Neutral900,
+    primary = JjikmukPalette.Primary500,
+    onPrimary = JjikmukPalette.White,
+    primaryContainer = JjikmukPalette.Primary100,
+    onPrimaryContainer = JjikmukPalette.Primary700,
+    secondary = JjikmukPalette.Primary600,
+    onSecondary = JjikmukPalette.White,
+    secondaryContainer = JjikmukPalette.Primary50,
+    onSecondaryContainer = JjikmukPalette.Primary700,
+    background = JjikmukPalette.White,
+    onBackground = JjikmukPalette.Neutral900,
+    surface = JjikmukPalette.White,
+    onSurface = JjikmukPalette.Neutral900,
+    surfaceVariant = JjikmukPalette.Neutral50,
+    onSurfaceVariant = JjikmukPalette.Neutral600,
+    outline = JjikmukPalette.Neutral300,
+    outlineVariant = JjikmukPalette.Neutral200,
+    error = JjikmukPalette.Error,
+    onError = JjikmukPalette.White,
+    errorContainer = JjikmukPalette.Warning,
+    onErrorContainer = JjikmukPalette.Neutral900,
 )
+
+private val LocalJjikmukColors = staticCompositionLocalOf { LightJjikmukColors }
+private val LocalJjikmukTypography = staticCompositionLocalOf { JjikmukTextStyles }
 
 @Composable
 fun JjikmukTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = LightColorScheme,
-        typography = Typography,
-        content = content,
-    )
+    CompositionLocalProvider(
+        LocalJjikmukColors provides LightJjikmukColors,
+        LocalJjikmukTypography provides JjikmukTextStyles,
+    ) {
+        MaterialTheme(
+            colorScheme = LightColorScheme,
+            typography = JjikmukMaterialTypography,
+            content = content,
+        )
+    }
+}
+
+object JjikmukTheme {
+    val colors: JjikmukColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalJjikmukColors.current
+
+    val typography: JjikmukTypography
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalJjikmukTypography.current
 }

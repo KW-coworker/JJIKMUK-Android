@@ -1,32 +1,60 @@
 package com.coworker.jjikmuk.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-private val DefaultTypography = Typography()
+@Immutable
+data class JjikmukTypography(
+    val brand: TextStyle,
+)
 
-val Typography = Typography(
-    displayLarge = DefaultTypography.displayLarge.copy(fontFamily = Inter),
-    displayMedium = DefaultTypography.displayMedium.copy(fontFamily = Inter),
-    displaySmall = DefaultTypography.displaySmall.copy(fontFamily = Inter),
-    headlineLarge = DefaultTypography.headlineLarge.copy(fontFamily = Inter),
-    headlineMedium = DefaultTypography.headlineMedium.copy(fontFamily = Inter),
-    headlineSmall = DefaultTypography.headlineSmall.copy(fontFamily = Inter),
-    titleLarge = DefaultTypography.titleLarge.copy(fontFamily = Inter),
-    titleMedium = DefaultTypography.titleMedium.copy(fontFamily = Inter),
-    titleSmall = DefaultTypography.titleSmall.copy(fontFamily = Inter),
+internal val JjikmukTextStyles = JjikmukTypography(
+    brand = TextStyle(
+        fontFamily = Baloo2FontFamily,
+        fontWeight = FontWeight.ExtraBold,
+    ),
+)
+
+/**
+ * Material 이름을 그대로 사용해 모든 화면에서
+ * `MaterialTheme.typography.bodyLarge` 형태로 접근합니다.
+ */
+internal val JjikmukMaterialTypography = Typography(
+    displayLarge = textStyle(FontWeight.Normal, 57, 64, -0.25),
+    displayMedium = textStyle(FontWeight.Normal, 45, 52),
+    displaySmall = textStyle(FontWeight.Normal, 36, 44),
+    headlineLarge = textStyle(FontWeight.Normal, 32, 40),
+    headlineMedium = textStyle(FontWeight.Normal, 28, 36),
+    headlineSmall = textStyle(FontWeight.Normal, 24, 32),
+    titleLarge = textStyle(FontWeight.Normal, 22, 28),
+    titleMedium = textStyle(FontWeight.Medium, 16, 24, 0.15),
+    titleSmall = textStyle(FontWeight.Medium, 14, 20, 0.1),
     bodyLarge = TextStyle(
-        fontFamily = Inter,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp,
     ),
-    bodyMedium = DefaultTypography.bodyMedium.copy(fontFamily = Inter),
-    bodySmall = DefaultTypography.bodySmall.copy(fontFamily = Inter),
-    labelLarge = DefaultTypography.labelLarge.copy(fontFamily = Inter),
-    labelMedium = DefaultTypography.labelMedium.copy(fontFamily = Inter),
-    labelSmall = DefaultTypography.labelSmall.copy(fontFamily = Inter),
+    bodyMedium = textStyle(FontWeight.Normal, 14, 20, 0.25),
+    bodySmall = textStyle(FontWeight.Normal, 12, 16, 0.4),
+    labelLarge = textStyle(FontWeight.Medium, 14, 20, 0.1),
+    labelMedium = textStyle(FontWeight.Medium, 12, 16, 0.5),
+    labelSmall = textStyle(FontWeight.Medium, 11, 16, 0.5),
+)
+
+private fun textStyle(
+    weight: FontWeight,
+    fontSize: Int,
+    lineHeight: Int,
+    letterSpacing: Double = 0.0,
+) = TextStyle(
+    fontFamily = InterFontFamily,
+    fontWeight = weight,
+    fontSize = fontSize.sp,
+    lineHeight = lineHeight.sp,
+    letterSpacing = letterSpacing.sp,
 )

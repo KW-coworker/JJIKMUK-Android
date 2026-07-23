@@ -5,7 +5,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import com.coworker.jjikmuk.R
 
-val Inter = FontFamily(
+internal val InterFontFamily = FontFamily(
     Font(
         resId = R.font.inter_thin,
         weight = FontWeight.Thin,
@@ -44,9 +44,9 @@ val Inter = FontFamily(
     ),
 )
 
-val Baloo2 = FontFamily(
+internal val Baloo2FontFamily = FontFamily(
     Font(
-        resId = R.font.baloo_regular,
-        weight = FontWeight.Normal,
+        resId = R.font.baloo2_extra_bold,
+        weight = FontWeight.ExtraBold,
     ),
 )
