@@ -144,7 +144,7 @@ private fun HomeContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(androidx.compose.ui.graphics.Color.White)
+            .background(JjikmukTheme.colors.background)
             .padding(innerPadding),
     ) {
         JjikmukTopAppBar(
@@ -171,8 +171,8 @@ private fun HomeContent(
             onSendClick = onSendClick,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 320.dp)
-                .padding(horizontal = 20.dp)
+                .padding(top = 323.dp)
+                .padding(horizontal = 21.dp)
                 .fillMaxWidth(),
         )
 
@@ -180,7 +180,7 @@ private fun HomeContent(
             onClick = onScannerClick,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 22.dp, bottom = 27.dp),
+                .padding(end = 21.dp, bottom = 16.dp),
         )
 
         if (showScanTargetPopup) {
@@ -190,8 +190,7 @@ private fun HomeContent(
                 onDismissRequest = onScanTargetDismiss,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(top = 52.dp),
+                    .padding(top = 77.dp),
             )
         }
     }

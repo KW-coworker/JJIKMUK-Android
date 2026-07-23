@@ -15,7 +15,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral900
 
 @Composable
 fun HomeEmptyContent(
@@ -33,7 +32,7 @@ fun HomeEmptyContent(
         )
         Text(
             text = "오늘은 어떤 음식을 찍어 볼까요?",
-            color = Neutral900,
+            color = JjikmukTheme.colors.textPrimary,
             style = MaterialTheme.typography.bodyLarge,
         )
     }

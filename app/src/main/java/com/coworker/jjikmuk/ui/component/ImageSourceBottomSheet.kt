@@ -3,6 +3,9 @@ package com.coworker.jjikmuk.ui.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,28 +15,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral200
-import com.coworker.jjikmuk.ui.theme.Neutral300
-import com.coworker.jjikmuk.ui.theme.Neutral900
-import com.coworker.jjikmuk.ui.theme.Primary50
-import com.coworker.jjikmuk.ui.theme.White
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +47,7 @@ fun ImageSourceBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         modifier = modifier,
-        containerColor = White,
+        containerColor = JjikmukTheme.colors.surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = {
             ImageSourceBottomSheetHandle()
@@ -57,7 +56,7 @@ fun ImageSourceBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                .padding(start = 18.dp, end = 18.dp, bottom = 26.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ImageSourceOptionItem(
@@ -91,14 +90,14 @@ private fun ImageSourceBottomSheetHandle(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 28.dp),
+            .padding(top = 16.dp, bottom = 21.dp),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .size(width = 36.dp, height = 6.dp)
+                .size(width = 37.dp, height = 6.dp)
                 .background(
-                    color = Neutral300,
+                    color = JjikmukTheme.colors.border,
                     shape = RoundedCornerShape(100.dp),
                 ),
         )
@@ -112,38 +111,37 @@ private fun ImageSourceOptionItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val containerColor = if (isPressed) JjikmukTheme.colors.surfaceSecondary else JjikmukTheme.colors.surface
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(80.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(
-                color = White,
+                color = containerColor,
                 shape = RoundedCornerShape(16.dp),
             )
             .border(
                 width = 1.dp,
-                color = Neutral200,
+                color = JjikmukTheme.colors.borderSubtle,
                 shape = RoundedCornerShape(16.dp),
             )
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = Primary50,
-                    shape = CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            icon()
-        }
+        icon()
         Spacer(modifier = Modifier.size(16.dp))
         Text(
             text = text,
-            color = Neutral900,
+            color = JjikmukTheme.colors.textPrimary,
             style = MaterialTheme.typography.bodyLarge,
         )
     }
@@ -155,11 +153,10 @@ private fun ImageSourceIcon(
     contentDescription: String,
     modifier: Modifier = Modifier,
 ) {
-    Icon(
+    Image(
         painter = painterResource(iconRes),
         contentDescription = contentDescription,
-        tint = androidx.compose.ui.graphics.Color.Unspecified,
-        modifier = modifier.size(28.dp),
+        modifier = modifier.size(48.dp),
     )
 }
 
@@ -171,14 +168,14 @@ private fun ImageSourceBottomSheetPreview() {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Neutral200),
+                .background(JjikmukTheme.colors.borderSubtle),
         ) {
             ImageSourceBottomSheetHandle()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(White)
-                    .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                    .background(JjikmukTheme.colors.surface)
+                    .padding(start = 18.dp, end = 18.dp, bottom = 26.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ImageSourceOptionItem(

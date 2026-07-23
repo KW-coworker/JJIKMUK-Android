@@ -20,9 +20,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral200
-import com.coworker.jjikmuk.ui.theme.Primary50
-import com.coworker.jjikmuk.ui.theme.White
 
 data class ScanTargetProfileUiModel(
     val id: String,
@@ -88,8 +85,8 @@ private fun ScanTargetProfileImage(
             .offset(x = (-rightOffset).dp)
             .size(40.dp)
             .clip(CircleShape)
-            .background(Primary50)
-            .border(width = 2.dp, color = White, shape = CircleShape),
+            .background(JjikmukTheme.colors.brandSubtlest)
+            .border(width = 2.dp, color = JjikmukTheme.colors.surface, shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         if (emoji != null) {
@@ -104,7 +101,7 @@ private fun ScanTargetProfileImage(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Neutral200),
+                    .background(JjikmukTheme.colors.borderSubtle),
             )
         }
     }

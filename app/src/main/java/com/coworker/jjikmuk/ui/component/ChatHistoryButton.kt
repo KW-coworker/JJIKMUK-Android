@@ -14,7 +14,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral600
 
 @Composable
 fun ChatHistoryButton(
@@ -34,7 +33,7 @@ fun ChatHistoryButton(
         Icon(
             painter = painterResource(R.drawable.ic_chat_history),
             contentDescription = "채팅 히스토리",
-            tint = Neutral600,
+            tint = JjikmukTheme.colors.textSecondary,
             modifier = Modifier.size(width = 29.dp, height = 27.dp),
         )
     }

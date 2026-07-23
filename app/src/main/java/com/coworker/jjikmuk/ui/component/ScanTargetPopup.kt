@@ -3,6 +3,7 @@ package com.coworker.jjikmuk.ui.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,14 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.coworker.jjikmuk.ui.theme.Edit
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral100
-import com.coworker.jjikmuk.ui.theme.Neutral200
-import com.coworker.jjikmuk.ui.theme.Neutral50
-import com.coworker.jjikmuk.ui.theme.Neutral600
-import com.coworker.jjikmuk.ui.theme.Neutral900
-import com.coworker.jjikmuk.ui.theme.White
 
 data class ScanTargetMemberUiModel(
     val id: String,
@@ -54,13 +49,14 @@ fun ScanTargetPopup(
     Surface(
         modifier = modifier
             .width(240.dp)
+            .height(306.dp)
             .border(
                 width = 1.dp,
-                color = Neutral100,
+                color = JjikmukTheme.colors.disabled,
                 shape = RoundedCornerShape(16.dp),
             ),
         shape = RoundedCornerShape(16.dp),
-        color = White,
+        color = JjikmukTheme.colors.surface,
         shadowElevation = 8.dp,
     ) {
         Column(
@@ -72,6 +68,7 @@ fun ScanTargetPopup(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(208.dp)
                     .padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
                 members.forEach { member ->
@@ -96,8 +93,8 @@ private fun ScanTargetPopupHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .background(Neutral50)
+            .height(54.dp)
+            .background(JjikmukTheme.colors.surfaceSecondary)
             .border(width = 0.dp, color = Color.Transparent)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -109,19 +106,19 @@ private fun ScanTargetPopupHeader(
         ) {
             Text(
                 text = "♧",
-                color = Edit,
+                color = JjikmukTheme.colors.edit,
                 style = MaterialTheme.typography.labelMedium,
             )
             Text(
                 text = "스캔 대상 설정",
-                color = Neutral900,
+                color = JjikmukTheme.colors.textPrimary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
             )
         }
         Text(
             text = "×",
-            color = Neutral600,
+            color = JjikmukTheme.colors.textSecondary,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.clickable(onClick = onDismissRequest),
         )
@@ -154,17 +151,17 @@ private fun ScanTargetMemberRow(
         ) {
             Text(
                 text = member.name,
-                color = Neutral900,
+                color = JjikmukTheme.colors.textPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 text = member.relation,
-                color = Neutral600,
+                color = JjikmukTheme.colors.textSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Neutral100)
+                    .background(JjikmukTheme.colors.disabled)
                     .padding(horizontal = 8.dp, vertical = 2.dp),
             )
         }
@@ -184,8 +181,8 @@ private fun ScanTargetAvatar(
         modifier = modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(Neutral100)
-            .border(width = 1.dp, color = Neutral200, shape = CircleShape),
+            .background(JjikmukTheme.colors.disabled)
+            .border(width = 1.dp, color = JjikmukTheme.colors.borderSubtle, shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         if (emoji != null) {
@@ -203,7 +200,7 @@ private fun ScanTargetSwitch(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val trackColor = if (checked) Edit else Neutral100
+    val trackColor = if (checked) JjikmukTheme.colors.edit else JjikmukTheme.colors.disabled
     val thumbAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
 
     Box(
@@ -219,7 +216,7 @@ private fun ScanTargetSwitch(
             modifier = Modifier
                 .size(20.dp)
                 .clip(CircleShape)
-                .background(White),
+                .background(JjikmukTheme.colors.surface),
         )
     }
 }
@@ -231,15 +228,15 @@ private fun ScanTargetPopupFooter(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
-            .background(Neutral50)
-            .border(width = 1.dp, color = Neutral200)
+            .height(42.dp)
+            .background(JjikmukTheme.colors.surfaceSecondary)
+            .border(width = 1.dp, color = JjikmukTheme.colors.borderSubtle)
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = "활성화된 가족의 알레르기만 검사합니다.",
-            color = Neutral600,
+            color = JjikmukTheme.colors.textSecondary,
             style = MaterialTheme.typography.labelSmall,
         )
     }
@@ -249,11 +246,10 @@ private fun ScanTargetPopupFooter(
 @Composable
 private fun ScanTargetPopupPreview() {
     JjikmukTheme {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(White)
-                .padding(24.dp),
+                .background(JjikmukTheme.colors.surface)
         ) {
             ScanTargetPopup(
                 members = listOf(
@@ -280,7 +276,7 @@ private fun ScanTargetPopupPreview() {
                 ),
                 onMemberCheckedChange = { _, _ -> },
                 onDismissRequest = {},
-                modifier = Modifier.align(Alignment.TopEnd),
+                modifier = Modifier.offset(x = maxWidth - 240.dp, y = 39.dp),
             )
         }
     }

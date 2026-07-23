@@ -30,9 +30,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral600
-import com.coworker.jjikmuk.ui.theme.Primary100
-import com.coworker.jjikmuk.ui.theme.Primary200
 
 @Composable
 fun JjikmukMessageInputBar(
@@ -51,16 +48,16 @@ fun JjikmukMessageInputBar(
             .shadow(
                 elevation = 20.dp,
                 shape = barShape,
-                ambientColor = Primary100,
-                spotColor = Primary100,
+                ambientColor = JjikmukTheme.colors.brandSubtler,
+                spotColor = JjikmukTheme.colors.brandSubtler,
             )
             .border(
                 width = 1.dp,
-                color = Primary200,
+                color = JjikmukTheme.colors.brandSubtle,
                 shape = barShape,
             ),
         shape = barShape,
-        color = MaterialTheme.colorScheme.surface,
+        color = JjikmukTheme.colors.surface,
     ) {
         Row(
             modifier = Modifier
@@ -73,7 +70,7 @@ fun JjikmukMessageInputBar(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        color = JjikmukTheme.colors.brandSubtlest,
                         shape = CircleShape,
                     )
                     .clickable(onClick = onAddClick),
@@ -90,10 +87,10 @@ fun JjikmukMessageInputBar(
                 onValueChange = onTextChange,
                 modifier = Modifier.weight(1f),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = JjikmukTheme.colors.textPrimary,
                 ),
                 singleLine = true,
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = SolidColor(JjikmukTheme.colors.brand),
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Send,
                 ),
@@ -107,7 +104,7 @@ fun JjikmukMessageInputBar(
                         if (text.isBlank()) {
                             Text(
                                 text = placeholder,
-                                color = Neutral600,
+                                color = JjikmukTheme.colors.textSecondary,
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
