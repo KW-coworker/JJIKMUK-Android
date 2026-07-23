@@ -21,8 +21,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral600
-import com.coworker.jjikmuk.ui.theme.Primary600
 
 enum class MainTab(
     val label: String,
@@ -43,7 +41,7 @@ fun JjikmukBottomNavigationBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
+        color = JjikmukTheme.colors.surface,
         shadowElevation = 8.dp,
     ) {
         Row(
@@ -72,7 +70,7 @@ private fun JjikmukBottomNavigationItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val itemColor = if (selected) Primary600 else Neutral600
+    val itemColor = if (selected) JjikmukTheme.colors.brandStrong else JjikmukTheme.colors.textSecondary
 
     Column(
         modifier = modifier

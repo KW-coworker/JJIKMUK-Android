@@ -32,14 +32,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.domain.model.ChatProductCandidate
 import com.coworker.jjikmuk.feature.chat.presentation.component.ChatMessageBubble
 import com.coworker.jjikmuk.feature.chat.presentation.component.ProductCandidatePicker
 import com.coworker.jjikmuk.ui.component.ImageSourceBottomSheet
 import com.coworker.jjikmuk.ui.component.JjikmukMessageInputBar
+import com.coworker.jjikmuk.ui.component.ScanTargetButton
+import com.coworker.jjikmuk.ui.component.ScanTargetProfileUiModel
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral600
-import com.coworker.jjikmuk.ui.theme.White
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,21 +85,23 @@ fun ChatScreen(
             ChatTopBar(
                 title = title,
                 onBackClick = onBackClick,
+                selectedProfiles = defaultSelectedScanTargetProfiles(),
+                onScanTargetClick = {},
             )
         },
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(White)
+                .background(JjikmukTheme.colors.background)
                 .padding(innerPadding),
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 28.dp,
-                    top = 16.dp,
-                    end = 28.dp,
+                    start = 29.dp,
+                    top = 0.dp,
+                    end = 29.dp,
                     bottom = if (uiState.productCandidates.isEmpty()) 96.dp else 372.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(28.dp),
@@ -141,7 +144,7 @@ fun ChatScreen(
                     },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 20.dp, vertical = 28.dp),
+                        .padding(start = 22.dp, end = 20.dp, bottom = 36.dp),
                 )
             }
         }
@@ -160,11 +163,13 @@ fun ChatScreen(
 private fun ChatTopBar(
     title: String,
     onBackClick: () -> Unit,
+    selectedProfiles: List<ScanTargetProfileUiModel>,
+    onScanTargetClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = White,
+        color = JjikmukTheme.colors.surface,
         shadowElevation = 0.dp,
     ) {
         Box(
@@ -176,7 +181,7 @@ private fun ChatTopBar(
         ) {
             Text(
                 text = "‹",
-                color = Neutral600,
+                color = JjikmukTheme.colors.textSecondary,
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -184,15 +189,34 @@ private fun ChatTopBar(
             )
             Text(
                 text = title,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = JjikmukTheme.colors.textPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.Center),
             )
+            ScanTargetButton(
+                selectedProfiles = selectedProfiles,
+                onClick = onScanTargetClick,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
         }
     }
+}
+
+private fun defaultSelectedScanTargetProfiles(): List<ScanTargetProfileUiModel> {
+    return listOf(
+        ScanTargetProfileUiModel(
+            id = "me",
+            imageResId = R.drawable.ic_launcher_foreground,
+        ),
+        ScanTargetProfileUiModel(
+            id = "spouse",
+            imageResId = R.drawable.ic_launcher_foreground,
+            emoji = "👨🏻",
+        ),
+    )
 }
 
 private fun createChatTitle(message: String): String {

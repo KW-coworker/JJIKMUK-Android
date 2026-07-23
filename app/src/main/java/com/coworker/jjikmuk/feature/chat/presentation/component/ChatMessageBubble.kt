@@ -15,10 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral100
-import com.coworker.jjikmuk.ui.theme.Neutral900
-import com.coworker.jjikmuk.ui.theme.Primary600
-import com.coworker.jjikmuk.ui.theme.White
 
 @Composable
 fun ChatMessageBubble(
@@ -26,8 +22,8 @@ fun ChatMessageBubble(
     isMine: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val bubbleColor = if (isMine) Primary600 else Neutral100
-    val textColor = if (isMine) White else Neutral900
+    val bubbleColor = if (isMine) JjikmukTheme.colors.brandStrong else JjikmukTheme.colors.disabled
+    val textColor = if (isMine) JjikmukTheme.colors.surface else JjikmukTheme.colors.textPrimary
     val alignment = if (isMine) Alignment.CenterEnd else Alignment.CenterStart
     val shape = if (isMine) {
         RoundedCornerShape(
