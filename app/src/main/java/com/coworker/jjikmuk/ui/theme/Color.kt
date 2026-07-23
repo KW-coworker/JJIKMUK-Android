@@ -34,6 +34,28 @@ internal object JjikmukPalette {
     val Edit = Color(0xFF4D84FF)
 }
 
+// 기존 화면과의 소스 호환용 원시 토큰입니다. 신규 UI는 JjikmukTheme.colors를 사용합니다.
+val Primary700 = JjikmukPalette.Primary700
+val Primary600 = JjikmukPalette.Primary600
+val Primary500 = JjikmukPalette.Primary500
+val Primary200 = JjikmukPalette.Primary200
+val Primary100 = JjikmukPalette.Primary100
+val Primary50 = JjikmukPalette.Primary50
+val Neutral900 = JjikmukPalette.Neutral900
+val Neutral600 = JjikmukPalette.Neutral600
+val Neutral400 = JjikmukPalette.Neutral400
+val Neutral350 = JjikmukPalette.Neutral350
+val Neutral300 = JjikmukPalette.Neutral300
+val Neutral200 = JjikmukPalette.Neutral200
+val Neutral100 = JjikmukPalette.Neutral100
+val Neutral50 = JjikmukPalette.Neutral50
+val White = JjikmukPalette.White
+val Info = JjikmukPalette.Info
+val Warning = JjikmukPalette.Warning
+val Pin = JjikmukPalette.Pin
+val Error = JjikmukPalette.Error
+val Edit = JjikmukPalette.Edit
+
 @Immutable
 data class JjikmukColors(
     val brand: Color,

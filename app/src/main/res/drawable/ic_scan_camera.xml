@@ -1,0 +1,38 @@
+<!--
+  ~ Copyright (C) 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="83dp"
+    android:height="83dp"
+    android:viewportWidth="83"
+    android:viewportHeight="83">
+  <path
+      android:pathData="M12,37.5C12,21.208 25.208,8 41.5,8C57.792,8 71,21.208 71,37.5C71,53.792 57.792,67 41.5,67C25.208,67 12,53.792 12,37.5Z"
+      android:fillColor="#138932"/>
+  <path
+      android:pathData="M44.729,27.167H38.271L35.042,31.042H31.167C30.482,31.042 29.824,31.314 29.34,31.798C28.855,32.283 28.583,32.94 28.583,33.625V45.25C28.583,45.935 28.855,46.592 29.34,47.077C29.824,47.561 30.482,47.833 31.167,47.833H51.833C52.519,47.833 53.176,47.561 53.66,47.077C54.145,46.592 54.417,45.935 54.417,45.25V33.625C54.417,32.94 54.145,32.283 53.66,31.798C53.176,31.314 52.519,31.042 51.833,31.042H47.958L44.729,27.167Z"
+      android:strokeLineJoin="round"
+      android:strokeWidth="2"
+      android:fillColor="#ffffff"
+      android:strokeColor="#ffffff"
+      android:strokeLineCap="round"/>
+  <path
+      android:pathData="M41.5,42.667C43.64,42.667 45.375,40.932 45.375,38.792C45.375,36.652 43.64,34.917 41.5,34.917C39.36,34.917 37.625,36.652 37.625,38.792C37.625,40.932 39.36,42.667 41.5,42.667Z"
+      android:strokeLineJoin="round"
+      android:strokeWidth="2"
+      android:fillColor="#ffffff"
+      android:strokeColor="#ffffff"
+      android:strokeLineCap="round"/>
+</vector>
