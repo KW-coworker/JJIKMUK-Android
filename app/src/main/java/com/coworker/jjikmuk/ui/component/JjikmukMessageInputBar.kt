@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +26,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
@@ -39,12 +39,14 @@ fun JjikmukMessageInputBar(
     onAddClick: () -> Unit,
     onSendClick: () -> Unit,
     modifier: Modifier = Modifier,
+    horizontalPadding: Dp = 20.dp,
 ) {
     val barShape = RoundedCornerShape(30.dp)
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = horizontalPadding)
             .shadow(
                 elevation = 20.dp,
                 shape = barShape,
@@ -86,7 +88,7 @@ fun JjikmukMessageInputBar(
                 value = text,
                 onValueChange = onTextChange,
                 modifier = Modifier.weight(1f),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                textStyle = JjikmukTheme.typography.bodyS.copy(
                     color = JjikmukTheme.colors.textPrimary,
                 ),
                 singleLine = true,
@@ -105,7 +107,7 @@ fun JjikmukMessageInputBar(
                             Text(
                                 text = placeholder,
                                 color = JjikmukTheme.colors.textSecondary,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = JjikmukTheme.typography.bodyS,
                             )
                         }
                         innerTextField()
@@ -129,7 +131,7 @@ private fun JjikmukMessageInputBarPreview() {
     JjikmukTheme {
         Row(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
+                .background(JjikmukTheme.colors.background)
                 .padding(24.dp),
         ) {
             JjikmukMessageInputBar(

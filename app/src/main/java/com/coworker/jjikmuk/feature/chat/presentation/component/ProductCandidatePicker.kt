@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,7 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,28 @@ fun ProductCandidatePicker(
     modifier: Modifier = Modifier,
 ) {
     if (candidates.isEmpty()) return
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(ProductCandidateOverlayColor),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        ProductCandidateBottomSheet(
+            candidates = candidates,
+            onCandidateClick = onCandidateClick,
+            onShowMoreClick = onShowMoreClick,
+        )
+    }
+}
+
+@Composable
+private fun ProductCandidateBottomSheet(
+    candidates: List<ChatProductCandidate>,
+    onCandidateClick: (ChatProductCandidate) -> Unit,
+    onShowMoreClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val showMoreInteractionSource = remember { MutableInteractionSource() }
     val isShowMorePressed by showMoreInteractionSource.collectIsPressedAsState()
     val showMoreContainerColor = if (isShowMorePressed) {
@@ -60,8 +84,8 @@ fun ProductCandidatePicker(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp)
-                .padding(top = 16.dp, bottom = 28.dp),
+                .padding(horizontal = 20.dp)
+                .padding(top = 12.dp, bottom = 26.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
@@ -71,6 +95,8 @@ fun ProductCandidatePicker(
                     .clip(RoundedCornerShape(999.dp))
                     .background(JjikmukTheme.colors.border),
             )
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             candidates.take(MAX_VISIBLE_CANDIDATE_COUNT).forEach { candidate ->
                 ProductCandidateCard(
@@ -89,10 +115,9 @@ fun ProductCandidatePicker(
                 interactionSource = showMoreInteractionSource,
             ) {
                 Text(
-                    text = "상품 더보기",
+                    text = "로그인",
                     color = JjikmukTheme.colors.surface,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
                 )
             }
         }
@@ -117,7 +142,7 @@ private fun ProductCandidateCard(
                 shape = RoundedCornerShape(20.dp),
             )
             .clickable(onClick = onClick)
-            .padding(16.dp),
+            .padding(start = 18.dp, top = 13.dp, end = 13.dp, bottom = 13.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -127,23 +152,22 @@ private fun ProductCandidateCard(
             Text(
                 text = candidate.brandName,
                 color = JjikmukTheme.colors.textSecondary,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = candidate.productName,
                 color = JjikmukTheme.colors.textPrimary,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = 2.dp),
             )
 
             Row(
-                modifier = Modifier.padding(top = 28.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 38.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 candidate.allergyLabels.take(MAX_VISIBLE_ALLERGY_COUNT).forEach { label ->
                     AllergyChip(label = label)
@@ -173,7 +197,6 @@ private fun AllergyChip(
         text = "$emoji $label",
         color = JjikmukTheme.colors.error,
         style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Medium,
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(JjikmukTheme.colors.warning)
@@ -190,14 +213,14 @@ private fun AllergyChip(
 private fun ProductImagePlaceholder(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .width(92.dp)
+            .width(89.dp)
             .height(120.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(JjikmukTheme.colors.disabled)
             .border(
                 width = 1.dp,
                 color = JjikmukTheme.colors.borderSubtle,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -211,6 +234,7 @@ private fun ProductImagePlaceholder(modifier: Modifier = Modifier) {
 
 private const val MAX_VISIBLE_CANDIDATE_COUNT = 2
 private const val MAX_VISIBLE_ALLERGY_COUNT = 3
+private val ProductCandidateOverlayColor = Color.Black.copy(alpha = 0.25f)
 
 @Preview(showBackground = true, widthDp = 375)
 @Composable
