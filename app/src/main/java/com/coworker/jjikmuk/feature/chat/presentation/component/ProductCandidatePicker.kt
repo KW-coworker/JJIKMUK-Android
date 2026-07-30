@@ -3,8 +3,6 @@ package com.coworker.jjikmuk.feature.chat.presentation.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,14 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.domain.model.ChatProductCandidate
+import com.coworker.jjikmuk.ui.component.JjikmukLoginButton
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
@@ -65,14 +60,6 @@ private fun ProductCandidateBottomSheet(
     onShowMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val showMoreInteractionSource = remember { MutableInteractionSource() }
-    val isShowMorePressed by showMoreInteractionSource.collectIsPressedAsState()
-    val showMoreContainerColor = if (isShowMorePressed) {
-        JjikmukTheme.colors.brandPressed
-    } else {
-        JjikmukTheme.colors.brandStrong
-    }
-
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -105,21 +92,11 @@ private fun ProductCandidateBottomSheet(
                 )
             }
 
-            Button(
+            JjikmukLoginButton(
                 onClick = onShowMoreClick,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = showMoreContainerColor),
-                interactionSource = showMoreInteractionSource,
-            ) {
-                Text(
-                    text = "로그인",
-                    color = JjikmukTheme.colors.surface,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
+                    .fillMaxWidth(),
+            )
         }
     }
 }
