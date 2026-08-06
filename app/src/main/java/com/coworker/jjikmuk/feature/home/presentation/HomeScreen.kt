@@ -19,8 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.coworker.jjikmuk.feature.home.presentation.component.HomeEmptyContent
 import com.coworker.jjikmuk.R
+import com.coworker.jjikmuk.feature.home.presentation.component.HomeEmptyContent
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
 import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
 import com.coworker.jjikmuk.ui.component.JjikmukMessageInputBar
@@ -29,17 +29,19 @@ import com.coworker.jjikmuk.ui.component.MainTab
 import com.coworker.jjikmuk.ui.component.ImageSourceBottomSheet
 import com.coworker.jjikmuk.ui.component.ScanTargetMemberUiModel
 import com.coworker.jjikmuk.ui.component.ScanTargetPopup
-import com.coworker.jjikmuk.ui.component.ScanTargetProfileUiModel
+import com.coworker.jjikmuk.ui.component.defaultScanTargetMembers
 import com.coworker.jjikmuk.ui.component.rememberJjikmukImageSourceLauncher
+import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onSendMessage: (String) -> Unit,
+    selectedTab: MainTab = MainTab.Home,
+    onTabClick: (MainTab) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var showImageSourceSheet by rememberSaveable { mutableStateOf(false) }
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
     var inputMessage by rememberSaveable { mutableStateOf("") }
@@ -48,38 +50,13 @@ fun HomeScreen(
         onGalleryFinished = { showImageSourceSheet = true },
     )
     val scanTargetMembers = remember {
-        mutableStateListOf(
-            ScanTargetMemberUiModel(
-                id = "me",
-                name = "코워커",
-                relation = "나",
-                isSelected = true,
-            ),
-            ScanTargetMemberUiModel(
-                id = "spouse",
-                name = "김철수",
-                relation = "배우자",
-                emoji = "👨🏻",
-                isSelected = true,
-            ),
-            ScanTargetMemberUiModel(
-                id = "child",
-                name = "김아기",
-                relation = "자녀",
-                emoji = "👶🏻",
-                isSelected = false,
-            ),
-        )
-    }
-    val selectedProfiles = scanTargetMembers
-        .filter { member -> member.isSelected }
-        .map { member ->
-            ScanTargetProfileUiModel(
-                id = member.id,
-                imageResId = R.drawable.ic_launcher_foreground,
-                emoji = member.emoji,
-            )
+        mutableStateListOf<ScanTargetMemberUiModel>().apply {
+            addAll(defaultScanTargetMembers())
         }
+    }
+    val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
+        defaultImageResId = R.drawable.ic_launcher_foreground,
+    )
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -93,7 +70,7 @@ fun HomeScreen(
         bottomBar = {
             JjikmukBottomNavigationBar(
                 selectedTab = selectedTab,
-                onTabClick = { selectedTab = it },
+                onTabClick = onTabClick,
             )
         },
     ) { innerPadding ->
