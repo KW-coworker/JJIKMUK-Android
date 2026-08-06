@@ -8,18 +8,35 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
+import com.coworker.jjikmuk.feature.product.presentation.ProductScreen
+import com.coworker.jjikmuk.ui.component.MainTab
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
 fun JjikmukApp() {
     var chatMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
 
     if (chatMessage == null) {
-        HomeScreen(
-            onSendMessage = { message ->
-                chatMessage = message
-            },
-        )
+        when (selectedTab) {
+            MainTab.Product -> {
+                ProductScreen(
+                    selectedTab = selectedTab,
+                    onTabClick = { tab -> selectedTab = tab },
+                    onScannerClick = {},
+                )
+            }
+
+            else -> {
+                HomeScreen(
+                    selectedTab = selectedTab,
+                    onTabClick = { tab -> selectedTab = tab },
+                    onSendMessage = { message ->
+                        chatMessage = message
+                    },
+                )
+            }
+        }
     } else {
         ChatRoute(
             initialMessage = chatMessage.orEmpty(),
