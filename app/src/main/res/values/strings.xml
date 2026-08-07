@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">JJIKMUK</string>
+    <string name="auth_login">로그인</string>
+    <string name="auth_sign_up">회원가입</string>
 </resources>

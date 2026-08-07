@@ -11,6 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.coworker.jjikmuk.JjikmukAppContent
+import com.coworker.jjikmuk.feature.auth.presentation.choice.AuthChoiceScreen
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
@@ -50,15 +51,12 @@ fun AuthNavHost(
         }
 
         composable(AuthRoute.AuthChoice) {
-            AuthPlaceholderScreen(
-                title = "로그인 / 회원가입 선택",
-                primaryActions = listOf(
-                    PlaceholderAction("로그인") { navController.navigate(AuthRoute.Login) },
-                    PlaceholderAction("회원가입") {
-                        signUpViewModel.reset()
-                        navController.navigate(AuthRoute.SignUpEmail)
-                    },
-                ),
+            AuthChoiceScreen(
+                onLoginClick = { navController.navigate(AuthRoute.Login) },
+                onSignUpClick = {
+                    signUpViewModel.reset()
+                    navController.navigate(AuthRoute.SignUpEmail)
+                },
             )
         }
 
