@@ -16,6 +16,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetEmailRoute
+import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetNewPasswordRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetOtpRoute
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.ConditionsPlaceholderScreen
@@ -128,18 +129,16 @@ private fun androidx.navigation.NavGraphBuilder.passwordResetGraph(
         )
     }
     composable(AuthRoute.PasswordResetNewPassword) {
-        AuthPlaceholderScreen(
-            title = "비밀번호 찾기 - 새 비밀번호 생성",
-            primaryActions = listOf(
-                PlaceholderAction("완료") {
-                    navController.navigate(AuthRoute.PasswordResetComplete) {
-                        popUpTo(AuthRoute.PasswordResetEmail) { inclusive = true }
-                    }
-                },
-            ),
+        PasswordResetNewPasswordRoute(
+            viewModel = viewModel,
             onBackClick = {
                 viewModel.restartFromEmail()
                 navController.popBackStack()
+            },
+            onPasswordChanged = {
+                navController.navigate(AuthRoute.PasswordResetComplete) {
+                    popUpTo(AuthRoute.PasswordResetEmail) { inclusive = true }
+                }
             },
         )
     }

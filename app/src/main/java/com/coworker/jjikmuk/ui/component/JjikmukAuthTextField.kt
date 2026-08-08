@@ -67,6 +67,8 @@ fun JjikmukPasswordTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    isError: Boolean = false,
+    showVisibilityToggle: Boolean = true,
     imeAction: ImeAction = ImeAction.Done,
     onImeAction: () -> Unit = {},
 ) {
@@ -78,7 +80,7 @@ fun JjikmukPasswordTextField(
         placeholder = placeholder,
         textStyle = JjikmukTheme.typography.bodyM,
         placeholderStyle = JjikmukTheme.typography.bodyM,
-        isError = false,
+        isError = isError,
         visualTransformation = if (isPasswordVisible) {
             VisualTransformation.None
         } else {
@@ -89,7 +91,8 @@ fun JjikmukPasswordTextField(
             imeAction = imeAction,
         ),
         keyboardActions = KeyboardActions(onAny = { onImeAction() }),
-        trailingContent = {
+        trailingContent = if (showVisibilityToggle) {
+            {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -112,6 +115,9 @@ fun JjikmukPasswordTextField(
                     modifier = Modifier.size(24.dp),
                 )
             }
+            }
+        } else {
+            null
         },
         modifier = modifier,
     )

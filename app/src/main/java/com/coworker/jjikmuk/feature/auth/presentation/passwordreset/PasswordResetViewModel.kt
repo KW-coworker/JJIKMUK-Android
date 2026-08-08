@@ -36,7 +36,6 @@ class PasswordResetViewModel : ViewModel() {
                 isOtpVerified = false,
                 newPassword = "",
                 newPasswordConfirm = "",
-                passwordError = null,
             )
         }
     }
@@ -94,11 +93,11 @@ class PasswordResetViewModel : ViewModel() {
     }
 
     fun updateNewPassword(password: String) {
-        _uiState.update { it.copy(newPassword = password, passwordError = null) }
+        _uiState.update { it.copy(newPassword = password) }
     }
 
     fun updateNewPasswordConfirm(password: String) {
-        _uiState.update { it.copy(newPasswordConfirm = password, passwordError = null) }
+        _uiState.update { it.copy(newPasswordConfirm = password) }
     }
 
     fun restartFromEmail() {
@@ -111,7 +110,6 @@ class PasswordResetViewModel : ViewModel() {
                 remainingOtpSeconds = 0,
                 newPassword = "",
                 newPasswordConfirm = "",
-                passwordError = null,
             )
         }
     }

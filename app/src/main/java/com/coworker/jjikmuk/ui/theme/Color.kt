@@ -18,7 +18,7 @@ internal object JjikmukPalette {
     val Primary50 = Color(0xFFF3FBF2)
 
     val Neutral900 = Color(0xFF101825)
-    val Neutral600 = Color(0xFF6C7085)
+    val Neutral600 = Color(0xFF667085)
     val Neutral400 = Color(0xFF9BA2B3)
     val Neutral350 = Color(0xFFBDBDBD)
     val Neutral300 = Color(0xFFD0D5DD)
