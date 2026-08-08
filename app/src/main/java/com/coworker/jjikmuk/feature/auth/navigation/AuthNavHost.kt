@@ -16,6 +16,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetEmailRoute
+import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetOtpRoute
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.ConditionsPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
@@ -113,17 +114,17 @@ private fun androidx.navigation.NavGraphBuilder.passwordResetGraph(
         )
     }
     composable(AuthRoute.PasswordResetOtp) {
-        AuthPlaceholderScreen(
-            title = "비밀번호 찾기 - OTP 인증",
-            primaryActions = listOf(
-                PlaceholderAction("인증 성공") {
-                    viewModel.markOtpVerified()
-                    navController.navigate(AuthRoute.PasswordResetNewPassword) {
-                        popUpTo(AuthRoute.PasswordResetOtp) { inclusive = true }
-                    }
-                },
-            ),
-            onBackClick = navController::popBackStack,
+        PasswordResetOtpRoute(
+            viewModel = viewModel,
+            onBackClick = {
+                viewModel.restartFromEmail()
+                navController.popBackStack()
+            },
+            onOtpVerified = {
+                navController.navigate(AuthRoute.PasswordResetNewPassword) {
+                    popUpTo(AuthRoute.PasswordResetOtp) { inclusive = true }
+                }
+            },
         )
     }
     composable(AuthRoute.PasswordResetNewPassword) {

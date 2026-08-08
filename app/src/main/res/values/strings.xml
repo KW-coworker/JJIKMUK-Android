@@ -12,4 +12,12 @@
     <string name="password_reset_email_title">비밀번호를 잊으셨나요?</string>
     <string name="password_reset_email_description">인증을 위해 계정과 연결된\n이메일 주소를 입력해 주세요</string>
     <string name="password_reset_send_code">코드 전송하기</string>
+    <string name="password_reset_otp_title">인증번호 입력</string>
+    <string name="password_reset_otp_description">이메일로 보내드린\n인증번호 4자리를 입력해 주세요</string>
+    <string name="password_reset_otp_remaining_time">남은 인증시간</string>
+    <string name="password_reset_otp_not_received">인증번호를 받지 못하셨나요?</string>
+    <string name="password_reset_otp_resend">재전송</string>
+    <string name="password_reset_otp_resent_message">새로운 인증번호가 전송됐습니다.</string>
+    <string name="password_reset_otp_expired_message">인증시간이 만료되었습니다. 인증번호를 재전송해 주세요.</string>
+    <string name="auth_confirm">확인</string>
 </resources>
