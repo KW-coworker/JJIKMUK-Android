@@ -2,4 +2,11 @@
     <string name="app_name">JJIKMUK</string>
     <string name="auth_login">로그인</string>
     <string name="auth_sign_up">회원가입</string>
+    <string name="auth_email_placeholder">email@example.com</string>
+    <string name="auth_password_placeholder">비밀번호 입력</string>
+    <string name="auth_forgot_password">비밀번호 찾기</string>
+    <string name="auth_google_login">Google 로그인</string>
+    <string name="auth_or_login_with">Or Login with</string>
+    <string name="auth_no_account">계정이 없으신가요?</string>
+    <string name="auth_sign_up_action">회원가입 하기</string>
 </resources>

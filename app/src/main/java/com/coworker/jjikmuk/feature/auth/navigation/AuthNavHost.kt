@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import com.coworker.jjikmuk.JjikmukAppContent
 import com.coworker.jjikmuk.feature.auth.presentation.choice.AuthChoiceScreen
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
+import com.coworker.jjikmuk.feature.auth.presentation.login.LoginRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.ConditionsPlaceholderScreen
@@ -61,23 +62,25 @@ fun AuthNavHost(
         }
 
         composable(AuthRoute.Login) {
-            AuthPlaceholderScreen(
-                title = "로그인",
-                primaryActions = listOf(
-                    PlaceholderAction("로그인 성공") {
+            LoginRoute(
+                viewModel = loginViewModel,
+                onBackClick = navController::popBackStack,
+                onLoginSuccess = {
                         loginViewModel.reset()
                         navigateToHome(navController)
-                    },
-                    PlaceholderAction("비밀번호 찾기") {
-                        passwordResetViewModel.reset()
-                        navController.navigate(AuthRoute.PasswordResetEmail)
-                    },
-                    PlaceholderAction("회원가입하기") {
-                        signUpViewModel.reset()
-                        navController.navigate(AuthRoute.SignUpEmail)
-                    },
-                ),
-                onBackClick = navController::popBackStack,
+                },
+                onForgotPasswordClick = {
+                    passwordResetViewModel.reset()
+                    navController.navigate(AuthRoute.PasswordResetEmail)
+                },
+                onSignUpClick = {
+                    signUpViewModel.reset()
+                    navController.navigate(AuthRoute.SignUpEmail)
+                },
+                onGoogleLoginClick = {
+                    loginViewModel.reset()
+                    navigateToHome(navController)
+                },
             )
         }
 

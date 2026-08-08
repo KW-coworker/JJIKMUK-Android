@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.foundation.Image
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
@@ -30,12 +33,17 @@ fun JjikmukPrimaryButton(
     enabled: Boolean = true,
 ) {
     JjikmukAuthButton(
-        text = text,
         onClick = onClick,
         style = AuthButtonStyle.Primary,
         enabled = enabled,
         modifier = modifier,
-    )
+    ) {
+        Text(
+            text = text,
+            color = if (enabled) JjikmukTheme.colors.surface else JjikmukTheme.colors.textTertiary,
+            style = JjikmukTheme.typography.labelL,
+        )
+    }
 }
 
 @Composable
@@ -46,21 +54,48 @@ fun JjikmukSecondaryButton(
     enabled: Boolean = true,
 ) {
     JjikmukAuthButton(
-        text = text,
         onClick = onClick,
         style = AuthButtonStyle.Secondary,
         enabled = enabled,
         modifier = modifier,
-    )
+    ) {
+        Text(
+            text = text,
+            color = if (enabled) JjikmukTheme.colors.textPrimary else JjikmukTheme.colors.textTertiary,
+            style = JjikmukTheme.typography.labelL,
+        )
+    }
+}
+
+@Composable
+fun JjikmukSecondaryIconButton(
+    icon: Painter,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    JjikmukAuthButton(
+        onClick = onClick,
+        style = AuthButtonStyle.Secondary,
+        enabled = enabled,
+        modifier = modifier,
+    ) {
+        Image(
+            painter = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(26.dp),
+        )
+    }
 }
 
 @Composable
 private fun JjikmukAuthButton(
-    text: String,
     onClick: () -> Unit,
     style: AuthButtonStyle,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -72,11 +107,6 @@ private fun JjikmukAuthButton(
         style == AuthButtonStyle.Primary -> colors.brandStrong
         isPressed -> colors.disabled
         else -> colors.surface
-    }
-    val contentColor = when {
-        !enabled -> colors.textTertiary
-        style == AuthButtonStyle.Primary -> colors.surface
-        else -> colors.textPrimary
     }
     val borderColor = when {
         style == AuthButtonStyle.Primary && enabled -> Color.Transparent
@@ -99,11 +129,7 @@ private fun JjikmukAuthButton(
                 onClick = onClick,
             ),
     ) {
-        Text(
-            text = text,
-            color = contentColor,
-            style = JjikmukTheme.typography.labelL,
-        )
+        content()
     }
 }
 
