@@ -15,6 +15,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.choice.AuthChoiceScreen
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
+import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.ConditionsPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
@@ -105,14 +106,10 @@ private fun androidx.navigation.NavGraphBuilder.passwordResetGraph(
     viewModel: PasswordResetViewModel,
 ) {
     composable(AuthRoute.PasswordResetEmail) {
-        AuthPlaceholderScreen(
-            title = "비밀번호 찾기 - 이메일 입력",
-            primaryActions = listOf(
-                PlaceholderAction("코드 전송하기") {
-                    navController.navigate(AuthRoute.PasswordResetOtp)
-                },
-            ),
+        PasswordResetEmailRoute(
+            viewModel = viewModel,
             onBackClick = navController::popBackStack,
+            onCodeSent = { navController.navigate(AuthRoute.PasswordResetOtp) },
         )
     }
     composable(AuthRoute.PasswordResetOtp) {

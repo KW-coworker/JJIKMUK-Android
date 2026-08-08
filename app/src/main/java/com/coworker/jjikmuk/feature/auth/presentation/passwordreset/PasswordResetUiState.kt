@@ -9,4 +9,7 @@ data class PasswordResetUiState(
     val newPassword: String = "",
     val newPasswordConfirm: String = "",
     val passwordError: String? = null,
-)
+) {
+    val isEmailNotEmpty: Boolean
+        get() = email.isNotEmpty()
+}

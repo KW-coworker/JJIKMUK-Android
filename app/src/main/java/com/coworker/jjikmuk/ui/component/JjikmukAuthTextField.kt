@@ -41,6 +41,7 @@ fun JjikmukEmailTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    isError: Boolean = false,
     imeAction: ImeAction = ImeAction.Next,
     onImeAction: () -> Unit = {},
 ) {
@@ -48,7 +49,9 @@ fun JjikmukEmailTextField(
         value = value,
         onValueChange = onValueChange,
         placeholder = placeholder,
-        textStyle = JjikmukTheme.typography.bodyM.asEnglish(),
+        textStyle = JjikmukTheme.typography.titleM.asEnglish(),
+        placeholderStyle = JjikmukTheme.typography.bodyM.asEnglish(),
+        isError = isError,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Email,
             imeAction = imeAction,
@@ -74,6 +77,8 @@ fun JjikmukPasswordTextField(
         onValueChange = onValueChange,
         placeholder = placeholder,
         textStyle = JjikmukTheme.typography.bodyM,
+        placeholderStyle = JjikmukTheme.typography.bodyM,
+        isError = false,
         visualTransformation = if (isPasswordVisible) {
             VisualTransformation.None
         } else {
@@ -118,6 +123,8 @@ private fun JjikmukAuthTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     textStyle: TextStyle,
+    placeholderStyle: TextStyle,
+    isError: Boolean,
     keyboardOptions: KeyboardOptions,
     keyboardActions: KeyboardActions,
     modifier: Modifier = Modifier,
@@ -141,7 +148,11 @@ private fun JjikmukAuthTextField(
             .height(56.dp)
             .clip(shape)
             .background(colors.surfaceSecondary)
-            .border(1.dp, colors.borderSubtle, shape),
+            .border(
+                width = 1.dp,
+                color = if (isError) colors.error else colors.borderSubtle,
+                shape = shape,
+            ),
         decorationBox = { innerTextField ->
             Box(modifier = Modifier.fillMaxWidth()) {
                 Box(
@@ -157,7 +168,7 @@ private fun JjikmukAuthTextField(
                         androidx.compose.material3.Text(
                             text = placeholder,
                             color = colors.textSecondary,
-                            style = textStyle,
+                            style = placeholderStyle,
                         )
                     }
                     innerTextField()

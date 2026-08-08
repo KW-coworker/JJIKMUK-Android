@@ -9,4 +9,7 @@
     <string name="auth_or_login_with">Or Login with</string>
     <string name="auth_no_account">계정이 없으신가요?</string>
     <string name="auth_sign_up_action">회원가입 하기</string>
+    <string name="password_reset_email_title">비밀번호를 잊으셨나요?</string>
+    <string name="password_reset_email_description">인증을 위해 계정과 연결된\n이메일 주소를 입력해 주세요</string>
+    <string name="password_reset_send_code">코드 전송하기</string>
 </resources>
