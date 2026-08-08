@@ -15,6 +15,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.choice.AuthChoiceScreen
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
+import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetCompleteScreen
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetNewPasswordRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetOtpRoute
@@ -143,18 +144,14 @@ private fun androidx.navigation.NavGraphBuilder.passwordResetGraph(
         )
     }
     composable(AuthRoute.PasswordResetComplete) {
-        AuthPlaceholderScreen(
-            title = "새 비밀번호 생성 완료",
-            primaryActions = listOf(
-                PlaceholderAction("로그인하기") {
-                    viewModel.reset()
-                    navController.navigate(AuthRoute.Login) {
-                        popUpTo(AuthRoute.Login) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-            ),
-            blockSystemBack = true,
+        PasswordResetCompleteScreen(
+            onLoginClick = {
+                viewModel.reset()
+                navController.navigate(AuthRoute.Login) {
+                    popUpTo(AuthRoute.Login) { inclusive = false }
+                    launchSingleTop = true
+                }
+            },
         )
     }
 }
