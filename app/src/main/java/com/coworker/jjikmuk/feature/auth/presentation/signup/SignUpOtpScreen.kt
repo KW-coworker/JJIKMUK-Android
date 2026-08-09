@@ -1,4 +1,4 @@
-package com.coworker.jjikmuk.feature.auth.presentation.passwordreset
+package com.coworker.jjikmuk.feature.auth.presentation.signup
 
 import android.widget.Toast
 import androidx.compose.runtime.Composable
@@ -12,8 +12,8 @@ import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.feature.auth.presentation.common.AuthOtpScreen
 
 @Composable
-fun PasswordResetOtpRoute(
-    viewModel: PasswordResetViewModel,
+fun SignUpOtpRoute(
+    viewModel: SignUpViewModel,
     onBackClick: () -> Unit,
     onOtpVerified: () -> Unit,
     modifier: Modifier = Modifier,
@@ -26,8 +26,8 @@ fun PasswordResetOtpRoute(
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             val message = when (event) {
-                PasswordResetEvent.OtpResent -> resendMessage
-                PasswordResetEvent.OtpExpired -> expiredMessage
+                SignUpEvent.OtpResent -> resendMessage
+                SignUpEvent.OtpExpired -> expiredMessage
             }
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }

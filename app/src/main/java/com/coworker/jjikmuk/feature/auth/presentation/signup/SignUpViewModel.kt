@@ -1,16 +1,28 @@
 package com.coworker.jjikmuk.feature.auth.presentation.signup
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class SignUpViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(SignUpUiState())
     val uiState: StateFlow<SignUpUiState> = _uiState.asStateFlow()
+    private val _events = Channel<SignUpEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
+
+    private var expectedOtp = INITIAL_MOCK_OTP
+    private var otpTimerJob: Job? = null
 
     fun updateEmail(email: String) {
+        otpTimerJob?.cancel()
         val normalizedEmail = email.trim()
         _uiState.update {
             it.copy(
@@ -23,6 +35,7 @@ class SignUpViewModel : ViewModel() {
                 otp = "",
                 otpError = null,
                 isOtpVerified = false,
+                remainingOtpSeconds = 0,
                 password = "",
                 passwordConfirm = "",
                 passwordError = null,
@@ -40,15 +53,46 @@ class SignUpViewModel : ViewModel() {
         val email = _uiState.value.email.trim()
         val error = if (EMAIL_REGEX.matches(email)) null else INVALID_EMAIL_MESSAGE
         _uiState.update { it.copy(emailError = error) }
+        if (error == null) {
+            expectedOtp = INITIAL_MOCK_OTP
+            startOtpTimer()
+        }
         return error == null
     }
 
     fun updateOtp(otp: String) {
-        _uiState.update { it.copy(otp = otp, otpError = null) }
+        _uiState.update {
+            it.copy(
+                otp = otp.filter(Char::isDigit).take(OTP_LENGTH),
+                otpError = null,
+            )
+        }
     }
 
-    fun markOtpVerified() {
-        _uiState.update { it.copy(isOtpVerified = true, otpError = null) }
+    fun verifyOtp(): Boolean {
+        val state = _uiState.value
+        val isValid = state.remainingOtpSeconds > 0 && state.otp == expectedOtp
+        _uiState.update {
+            it.copy(
+                isOtpVerified = isValid,
+                otpError = if (isValid) null else OTP_MISMATCH_MESSAGE,
+            )
+        }
+        if (isValid) otpTimerJob?.cancel()
+        return isValid
+    }
+
+    fun resendOtp() {
+        expectedOtp = RESENT_MOCK_OTP
+        _uiState.update {
+            it.copy(
+                otp = "",
+                otpError = null,
+                isOtpVerified = false,
+            )
+        }
+        startOtpTimer()
+        _events.trySend(SignUpEvent.OtpResent)
     }
 
     fun updatePassword(password: String) {
@@ -86,11 +130,13 @@ class SignUpViewModel : ViewModel() {
     }
 
     fun restartFromEmail() {
+        otpTimerJob?.cancel()
         _uiState.update {
             it.copy(
                 otp = "",
                 otpError = null,
                 isOtpVerified = false,
+                remainingOtpSeconds = 0,
                 password = "",
                 passwordConfirm = "",
                 passwordError = null,
@@ -99,9 +145,35 @@ class SignUpViewModel : ViewModel() {
     }
 
     fun reset() {
+        otpTimerJob?.cancel()
         _uiState.value = SignUpUiState()
     }
+
+    private fun startOtpTimer() {
+        otpTimerJob?.cancel()
+        _uiState.update { it.copy(remainingOtpSeconds = OTP_DURATION_SECONDS) }
+        otpTimerJob = viewModelScope.launch {
+            while (_uiState.value.remainingOtpSeconds > 0) {
+                delay(1_000L)
+                val nextSeconds = (_uiState.value.remainingOtpSeconds - 1).coerceAtLeast(0)
+                _uiState.update { it.copy(remainingOtpSeconds = nextSeconds) }
+                if (nextSeconds == 0) {
+                    _events.send(SignUpEvent.OtpExpired)
+                }
+            }
+        }
+    }
+}
+
+sealed interface SignUpEvent {
+    data object OtpResent : SignUpEvent
+    data object OtpExpired : SignUpEvent
 }
 
 private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
 private const val INVALID_EMAIL_MESSAGE = "올바른 이메일 주소 형식이 아니에요"
+private const val INITIAL_MOCK_OTP = "1133"
+private const val RESENT_MOCK_OTP = "2468"
+private const val OTP_MISMATCH_MESSAGE = "인증번호를 다시 확인해 주세요"
+private const val OTP_LENGTH = 4
+private const val OTP_DURATION_SECONDS = 180

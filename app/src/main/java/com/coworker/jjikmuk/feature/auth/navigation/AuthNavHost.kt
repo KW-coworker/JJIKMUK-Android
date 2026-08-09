@@ -24,6 +24,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.placeholder.ConditionsPlac
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpOtpRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpViewModel
 import kotlinx.coroutines.delay
 
@@ -173,17 +174,17 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
         )
     }
     composable(AuthRoute.SignUpOtp) {
-        AuthPlaceholderScreen(
-            title = "회원가입 - OTP 인증",
-            primaryActions = listOf(
-                PlaceholderAction("인증 성공") {
-                    viewModel.markOtpVerified()
-                    navController.navigate(AuthRoute.SignUpPassword) {
-                        popUpTo(AuthRoute.SignUpOtp) { inclusive = true }
-                    }
-                },
-            ),
-            onBackClick = navController::popBackStack,
+        SignUpOtpRoute(
+            viewModel = viewModel,
+            onBackClick = {
+                viewModel.restartFromEmail()
+                navController.popBackStack()
+            },
+            onOtpVerified = {
+                navController.navigate(AuthRoute.SignUpPassword) {
+                    popUpTo(AuthRoute.SignUpOtp) { inclusive = true }
+                }
+            },
         )
     }
     composable(AuthRoute.SignUpPassword) {

@@ -6,6 +6,7 @@ data class SignUpUiState(
     val otp: String = "",
     val otpError: String? = null,
     val isOtpVerified: Boolean = false,
+    val remainingOtpSeconds: Int = 0,
     val password: String = "",
     val passwordConfirm: String = "",
     val passwordError: String? = null,
@@ -18,4 +19,7 @@ data class SignUpUiState(
 ) {
     val isEmailNotEmpty: Boolean
         get() = email.isNotEmpty()
+
+    val isOtpComplete: Boolean
+        get() = otp.length == 4
 }
