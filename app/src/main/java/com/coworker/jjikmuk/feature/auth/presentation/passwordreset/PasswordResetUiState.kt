@@ -1,5 +1,9 @@
 package com.coworker.jjikmuk.feature.auth.presentation.passwordreset
 
+import com.coworker.jjikmuk.feature.auth.presentation.common.AuthPasswordValidationError
+import com.coworker.jjikmuk.feature.auth.presentation.common.authPasswordValidationError
+import com.coworker.jjikmuk.feature.auth.presentation.common.isAuthPasswordValid
+
 data class PasswordResetUiState(
     val email: String = "",
     val emailError: String? = null,
@@ -16,25 +20,9 @@ data class PasswordResetUiState(
     val isOtpComplete: Boolean
         get() = otp.length == 4
 
-    val newPasswordError: PasswordValidationError?
-        get() = when {
-            newPassword.isNotEmpty() && newPassword.length < MIN_PASSWORD_LENGTH ->
-                PasswordValidationError.TooShort
-            newPassword.length >= MIN_PASSWORD_LENGTH &&
-                newPasswordConfirm.isNotEmpty() &&
-                newPassword != newPasswordConfirm -> PasswordValidationError.Mismatch
-            else -> null
-        }
+    val newPasswordError: AuthPasswordValidationError?
+        get() = authPasswordValidationError(newPassword, newPasswordConfirm)
 
     val isNewPasswordValid: Boolean
-        get() = newPassword.length >= MIN_PASSWORD_LENGTH &&
-            newPasswordConfirm.isNotEmpty() &&
-            newPassword == newPasswordConfirm
+        get() = isAuthPasswordValid(newPassword, newPasswordConfirm)
 }
-
-enum class PasswordValidationError {
-    TooShort,
-    Mismatch,
-}
-
-private const val MIN_PASSWORD_LENGTH = 6

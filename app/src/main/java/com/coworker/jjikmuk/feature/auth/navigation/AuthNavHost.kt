@@ -25,6 +25,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAct
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpOtpRoute
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpPasswordRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpViewModel
 import kotlinx.coroutines.delay
 
@@ -188,11 +189,9 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
         )
     }
     composable(AuthRoute.SignUpPassword) {
-        AuthPlaceholderScreen(
-            title = "회원가입 - 비밀번호 생성",
-            primaryActions = listOf(
-                PlaceholderAction("완료") { navController.navigate(AuthRoute.SignUpNickname) },
-            ),
+        SignUpPasswordRoute(
+            viewModel = viewModel,
+            onPasswordCreated = { navController.navigate(AuthRoute.SignUpNickname) },
             onBackClick = {
                 viewModel.restartFromEmail()
                 navController.popBackStack()

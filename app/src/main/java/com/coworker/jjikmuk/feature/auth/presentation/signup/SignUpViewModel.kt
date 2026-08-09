@@ -38,7 +38,6 @@ class SignUpViewModel : ViewModel() {
                 remainingOtpSeconds = 0,
                 password = "",
                 passwordConfirm = "",
-                passwordError = null,
                 nickname = "",
                 nicknameError = null,
                 hasVegetarianCondition = false,
@@ -96,11 +95,11 @@ class SignUpViewModel : ViewModel() {
     }
 
     fun updatePassword(password: String) {
-        _uiState.update { it.copy(password = password, passwordError = null) }
+        _uiState.update { it.copy(password = password) }
     }
 
     fun updatePasswordConfirm(password: String) {
-        _uiState.update { it.copy(passwordConfirm = password, passwordError = null) }
+        _uiState.update { it.copy(passwordConfirm = password) }
     }
 
     fun updateNickname(nickname: String) {
@@ -139,7 +138,6 @@ class SignUpViewModel : ViewModel() {
                 remainingOtpSeconds = 0,
                 password = "",
                 passwordConfirm = "",
-                passwordError = null,
             )
         }
     }
