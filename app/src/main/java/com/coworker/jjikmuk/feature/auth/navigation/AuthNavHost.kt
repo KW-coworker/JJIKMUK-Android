@@ -24,6 +24,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.placeholder.ConditionsPlac
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpNicknameRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpOtpRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpPasswordRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpViewModel
@@ -199,11 +200,9 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
         )
     }
     composable(AuthRoute.SignUpNickname) {
-        AuthPlaceholderScreen(
-            title = "회원가입 - 닉네임 생성",
-            primaryActions = listOf(
-                PlaceholderAction("완료") { navController.navigate(AuthRoute.SignUpConditions) },
-            ),
+        SignUpNicknameRoute(
+            viewModel = viewModel,
+            onNicknameCreated = { navController.navigate(AuthRoute.SignUpConditions) },
             onBackClick = navController::popBackStack,
         )
     }

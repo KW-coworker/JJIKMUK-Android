@@ -62,6 +62,32 @@ fun JjikmukEmailTextField(
 }
 
 @Composable
+fun JjikmukNicknameTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+    imeAction: ImeAction = ImeAction.Done,
+    onImeAction: () -> Unit = {},
+) {
+    JjikmukAuthTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = placeholder,
+        textStyle = JjikmukTheme.typography.titleM,
+        placeholderStyle = JjikmukTheme.typography.bodyM,
+        isError = isError,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Text,
+            imeAction = imeAction,
+        ),
+        keyboardActions = KeyboardActions(onAny = { onImeAction() }),
+        modifier = modifier,
+    )
+}
+
+@Composable
 fun JjikmukPasswordTextField(
     value: String,
     onValueChange: (String) -> Unit,

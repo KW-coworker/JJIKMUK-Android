@@ -106,6 +106,17 @@ class SignUpViewModel : ViewModel() {
         _uiState.update { it.copy(nickname = nickname, nicknameError = null) }
     }
 
+    fun validateNickname(): Boolean {
+        val nickname = _uiState.value.nickname.trim()
+        val error = if (nickname in FakeSignUpAccounts.registeredNicknames) {
+            DUPLICATE_NICKNAME_MESSAGE
+        } else {
+            null
+        }
+        _uiState.update { it.copy(nicknameError = error) }
+        return nickname.isNotEmpty() && error == null
+    }
+
     fun updateConditions(
         hasVegetarianCondition: Boolean,
         hasAllergyCondition: Boolean,
@@ -168,6 +179,10 @@ sealed interface SignUpEvent {
     data object OtpExpired : SignUpEvent
 }
 
+private object FakeSignUpAccounts {
+    val registeredNicknames = setOf("타로")
+}
+
 private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
 private const val INVALID_EMAIL_MESSAGE = "올바른 이메일 주소 형식이 아니에요"
 private const val INITIAL_MOCK_OTP = "1133"
@@ -175,3 +190,4 @@ private const val RESENT_MOCK_OTP = "2468"
 private const val OTP_MISMATCH_MESSAGE = "인증번호를 다시 확인해 주세요"
 private const val OTP_LENGTH = 4
 private const val OTP_DURATION_SECONDS = 180
+private const val DUPLICATE_NICKNAME_MESSAGE = "이미 사용중인 닉네임입니다"

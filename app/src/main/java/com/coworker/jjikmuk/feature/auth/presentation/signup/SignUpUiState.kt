@@ -31,4 +31,7 @@ data class SignUpUiState(
 
     val isPasswordValid: Boolean
         get() = isAuthPasswordValid(password, passwordConfirm)
+
+    val isNicknameNotBlank: Boolean
+        get() = nickname.isNotBlank()
 }
