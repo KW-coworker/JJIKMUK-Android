@@ -15,4 +15,7 @@ data class SignUpUiState(
     val hasAllergyCondition: Boolean = false,
     val vegetarianDiets: Set<String> = emptySet(),
     val allergies: Set<String> = emptySet(),
-)
+) {
+    val isEmailNotEmpty: Boolean
+        get() = email.isNotEmpty()
+}

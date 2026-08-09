@@ -28,5 +28,12 @@
     <string name="password_reset_complete_title">비밀번호 변경완료</string>
     <string name="password_reset_complete_description">비밀번호를 성공적으로 변경하였습니다</string>
     <string name="password_reset_login_action">로그인하기</string>
+    <string name="sign_up_email_title_prefix">간편하게</string>
+    <string name="sign_up_email_title_first_emphasis">찍</string>
+    <string name="sign_up_email_title_middle">어</string>
+    <string name="sign_up_email_title_second_emphasis">먹</string>
+    <string name="sign_up_email_title_suffix">자!</string>
+    <string name="sign_up_email_description">로그인을 위해\n이메일 주소를 입력해 주세요</string>
+    <string name="sign_up_email_next">다음</string>
     <string name="auth_confirm">확인</string>
 </resources>

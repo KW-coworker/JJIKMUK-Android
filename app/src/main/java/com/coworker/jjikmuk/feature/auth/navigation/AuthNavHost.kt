@@ -23,6 +23,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholde
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.ConditionsPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpViewModel
 import kotlinx.coroutines.delay
 
@@ -162,11 +163,9 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
     state: SignUpUiState,
 ) {
     composable(AuthRoute.SignUpEmail) {
-        AuthPlaceholderScreen(
-            title = "회원가입 - 이메일 입력",
-            primaryActions = listOf(
-                PlaceholderAction("다음") { navController.navigate(AuthRoute.SignUpOtp) },
-            ),
+        SignUpEmailRoute(
+            viewModel = viewModel,
+            onCodeSent = { navController.navigate(AuthRoute.SignUpOtp) },
             onBackClick = {
                 viewModel.reset()
                 navController.popBackStack()
