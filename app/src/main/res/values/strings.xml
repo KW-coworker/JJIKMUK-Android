@@ -103,5 +103,20 @@
     <string name="sign_up_allergy_mustard">머스타드</string>
     <string name="sign_up_allergy_celery">셀러리</string>
     <string name="sign_up_allergy_beef">소고기</string>
+    <string name="sign_up_profile_title">프로필 설정</string>
+    <string name="sign_up_profile_description">앱에서 사용할 프로필 사진과\n최종 정보를 확인해 주세요</string>
+    <string name="sign_up_profile_nickname_label">이름(닉네임)</string>
+    <string name="sign_up_profile_selected_label">선택한 항목</string>
+    <string name="sign_up_profile_edit">수정</string>
+    <string name="sign_up_profile_no_selected_items">선택한 항목이 없습니다</string>
+    <string name="sign_up_profile_photo_title">프로필 사진 변경</string>
+    <string name="sign_up_profile_take_photo">사진 찍기</string>
+    <string name="sign_up_profile_choose_gallery">갤러리에서 선택</string>
+    <string name="sign_up_profile_vegan">비건</string>
+    <string name="sign_up_profile_lacto">락토</string>
+    <string name="sign_up_profile_ovo">오보</string>
+    <string name="sign_up_profile_lacto_ovo">락토 오보</string>
+    <string name="sign_up_profile_pesco">페스코</string>
+    <string name="sign_up_profile_pollo">폴로</string>
     <string name="auth_confirm">확인</string>
 </resources>

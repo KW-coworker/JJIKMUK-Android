@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.feature.auth.presentation.signup
 
+import android.graphics.Bitmap
 import com.coworker.jjikmuk.feature.auth.presentation.common.AuthPasswordValidationError
 import com.coworker.jjikmuk.feature.auth.presentation.common.authPasswordValidationError
 import com.coworker.jjikmuk.feature.auth.presentation.common.isAuthPasswordValid
@@ -18,6 +19,8 @@ data class SignUpUiState(
     val selectedConditions: Set<SignUpCondition> = emptySet(),
     val vegetarianDiet: VegetarianDiet? = null,
     val allergies: Set<String> = emptySet(),
+    val profilePhotoUri: String? = null,
+    val profilePhotoBitmap: Bitmap? = null,
 ) {
     val isEmailNotEmpty: Boolean
         get() = email.isNotEmpty()

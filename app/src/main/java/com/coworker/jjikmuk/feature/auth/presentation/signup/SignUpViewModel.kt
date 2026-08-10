@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.feature.auth.presentation.signup
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -43,6 +44,8 @@ class SignUpViewModel : ViewModel() {
                 selectedConditions = emptySet(),
                 vegetarianDiet = null,
                 allergies = emptySet(),
+                profilePhotoUri = null,
+                profilePhotoBitmap = null,
             )
         }
     }
@@ -155,6 +158,15 @@ class SignUpViewModel : ViewModel() {
                 it.allergies + allergy
             }
             it.copy(allergies = updatedAllergies)
+        }
+    }
+
+    fun updateProfilePhoto(uri: String?, bitmap: Bitmap?) {
+        _uiState.update {
+            it.copy(
+                profilePhotoUri = uri,
+                profilePhotoBitmap = bitmap,
+            )
         }
     }
 

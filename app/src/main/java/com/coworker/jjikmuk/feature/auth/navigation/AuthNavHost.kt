@@ -25,6 +25,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpNicknameRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpOtpRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpPasswordRoute
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpProfileRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpVegetarianRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpViewModel
@@ -235,16 +236,15 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
         )
     }
     composable(AuthRoute.SignUpProfile) {
-        AuthPlaceholderScreen(
-            title = "회원가입 - 프로필 확인",
-            primaryActions = listOf(
-                PlaceholderAction("다음") {
-                    navController.navigate(AuthRoute.SignUpComplete) {
-                        popUpTo(AuthRoute.SignUpEmail) { inclusive = true }
-                    }
-                },
-            ),
+        SignUpProfileRoute(
+            viewModel = viewModel,
+            onEditConditionsClick = { navController.navigate(AuthRoute.SignUpConditions) },
             onBackClick = navController::popBackStack,
+            onNextClick = {
+                navController.navigate(AuthRoute.SignUpComplete) {
+                    popUpTo(AuthRoute.SignUpEmail) { inclusive = true }
+                }
+            },
         )
     }
     composable(AuthRoute.SignUpComplete) {
