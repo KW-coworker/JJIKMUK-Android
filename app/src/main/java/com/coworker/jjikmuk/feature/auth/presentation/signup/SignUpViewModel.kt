@@ -40,8 +40,7 @@ class SignUpViewModel : ViewModel() {
                 passwordConfirm = "",
                 nickname = "",
                 nicknameError = null,
-                hasVegetarianCondition = false,
-                hasAllergyCondition = false,
+                selectedConditions = emptySet(),
                 vegetarianDiets = emptySet(),
                 allergies = emptySet(),
             )
@@ -117,16 +116,25 @@ class SignUpViewModel : ViewModel() {
         return nickname.isNotEmpty() && error == null
     }
 
-    fun updateConditions(
-        hasVegetarianCondition: Boolean,
-        hasAllergyCondition: Boolean,
-    ) {
+    fun toggleCondition(condition: SignUpCondition) {
         _uiState.update {
+            val updatedConditions = if (condition in it.selectedConditions) {
+                it.selectedConditions - condition
+            } else {
+                it.selectedConditions + condition
+            }
             it.copy(
-                hasVegetarianCondition = hasVegetarianCondition,
-                hasAllergyCondition = hasAllergyCondition,
-                vegetarianDiets = if (hasVegetarianCondition) it.vegetarianDiets else emptySet(),
-                allergies = if (hasAllergyCondition) it.allergies else emptySet(),
+                selectedConditions = updatedConditions,
+                vegetarianDiets = if (SignUpCondition.Vegetarian in updatedConditions) {
+                    it.vegetarianDiets
+                } else {
+                    emptySet()
+                },
+                allergies = if (SignUpCondition.Allergy in updatedConditions) {
+                    it.allergies
+                } else {
+                    emptySet()
+                },
             )
         }
     }

@@ -42,5 +42,23 @@
     <string name="sign_up_nickname_description">앱에서 사용할 이름을 생성해 주세요</string>
     <string name="sign_up_nickname_placeholder">닉네임 입력</string>
     <string name="sign_up_nickname_duplicate">이미 사용중인 닉네임입니다</string>
+    <string name="sign_up_conditions_title">맞춤 조건 선택</string>
+    <string name="sign_up_conditions_description">선택한 조건에 맞춰 맞춤형 조건을 제공해요\n(다중 선택 가능)</string>
+    <string name="sign_up_condition_allergy">알러지</string>
+    <string name="sign_up_condition_allergy_description">특정 식재료 제외</string>
+    <string name="sign_up_condition_vegetarian">채식</string>
+    <string name="sign_up_condition_vegetarian_description">비건, 락토, 오보 등</string>
+    <string name="sign_up_condition_low_sugar">저당</string>
+    <string name="sign_up_condition_low_sugar_description">당류 섭취 제한</string>
+    <string name="sign_up_condition_low_sodium">저염</string>
+    <string name="sign_up_condition_low_sodium_description">나트륨 섭취 제한</string>
+    <string name="sign_up_condition_gluten_free">글루텐프리</string>
+    <string name="sign_up_condition_gluten_free_description">밀단백질 제외</string>
+    <string name="sign_up_condition_low_calorie">저칼로리</string>
+    <string name="sign_up_condition_low_calorie_description">다이어트·체중조절</string>
+    <string name="sign_up_condition_low_fat">저지방</string>
+    <string name="sign_up_condition_low_fat_description">지방 섭취 제한</string>
+    <string name="sign_up_condition_high_protein">고단백</string>
+    <string name="sign_up_condition_high_protein_description">단백질 위주 식단</string>
     <string name="auth_confirm">확인</string>
 </resources>

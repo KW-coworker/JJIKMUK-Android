@@ -15,8 +15,7 @@ data class SignUpUiState(
     val passwordConfirm: String = "",
     val nickname: String = "",
     val nicknameError: String? = null,
-    val hasVegetarianCondition: Boolean = false,
-    val hasAllergyCondition: Boolean = false,
+    val selectedConditions: Set<SignUpCondition> = emptySet(),
     val vegetarianDiets: Set<String> = emptySet(),
     val allergies: Set<String> = emptySet(),
 ) {
@@ -34,4 +33,24 @@ data class SignUpUiState(
 
     val isNicknameNotBlank: Boolean
         get() = nickname.isNotBlank()
+
+    val hasVegetarianCondition: Boolean
+        get() = SignUpCondition.Vegetarian in selectedConditions
+
+    val hasAllergyCondition: Boolean
+        get() = SignUpCondition.Allergy in selectedConditions
+
+    val hasSelectedCondition: Boolean
+        get() = selectedConditions.isNotEmpty()
+}
+
+enum class SignUpCondition {
+    Allergy,
+    Vegetarian,
+    LowSugar,
+    LowSodium,
+    GlutenFree,
+    LowCalorie,
+    LowFat,
+    HighProtein,
 }

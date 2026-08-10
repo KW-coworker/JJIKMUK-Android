@@ -20,8 +20,8 @@ import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordRese
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetNewPasswordRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetOtpRoute
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
-import com.coworker.jjikmuk.feature.auth.presentation.placeholder.ConditionsPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpConditionsRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpNicknameRoute
@@ -207,10 +207,8 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
         )
     }
     composable(AuthRoute.SignUpConditions) {
-        ConditionsPlaceholderScreen(
-            hasVegetarianCondition = state.hasVegetarianCondition,
-            hasAllergyCondition = state.hasAllergyCondition,
-            onConditionsChange = viewModel::updateConditions,
+        SignUpConditionsRoute(
+            viewModel = viewModel,
             onNextClick = { navController.navigate(nextRouteAfterConditions(state)) },
             onBackClick = navController::popBackStack,
         )
