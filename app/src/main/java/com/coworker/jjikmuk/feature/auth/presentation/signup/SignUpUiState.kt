@@ -16,7 +16,7 @@ data class SignUpUiState(
     val nickname: String = "",
     val nicknameError: String? = null,
     val selectedConditions: Set<SignUpCondition> = emptySet(),
-    val vegetarianDiets: Set<String> = emptySet(),
+    val vegetarianDiet: VegetarianDiet? = null,
     val allergies: Set<String> = emptySet(),
 ) {
     val isEmailNotEmpty: Boolean
@@ -53,4 +53,13 @@ enum class SignUpCondition {
     LowCalorie,
     LowFat,
     HighProtein,
+}
+
+enum class VegetarianDiet {
+    Vegan,
+    Lacto,
+    Ovo,
+    LactoOvo,
+    Pesco,
+    Pollo,
 }

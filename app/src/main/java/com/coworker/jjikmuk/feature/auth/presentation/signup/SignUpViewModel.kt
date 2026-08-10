@@ -41,7 +41,7 @@ class SignUpViewModel : ViewModel() {
                 nickname = "",
                 nicknameError = null,
                 selectedConditions = emptySet(),
-                vegetarianDiets = emptySet(),
+                vegetarianDiet = null,
                 allergies = emptySet(),
             )
         }
@@ -125,10 +125,10 @@ class SignUpViewModel : ViewModel() {
             }
             it.copy(
                 selectedConditions = updatedConditions,
-                vegetarianDiets = if (SignUpCondition.Vegetarian in updatedConditions) {
-                    it.vegetarianDiets
+                vegetarianDiet = if (SignUpCondition.Vegetarian in updatedConditions) {
+                    it.vegetarianDiet
                 } else {
-                    emptySet()
+                    null
                 },
                 allergies = if (SignUpCondition.Allergy in updatedConditions) {
                     it.allergies
@@ -139,8 +139,8 @@ class SignUpViewModel : ViewModel() {
         }
     }
 
-    fun updateVegetarianDiets(diets: Set<String>) {
-        _uiState.update { it.copy(vegetarianDiets = diets) }
+    fun selectVegetarianDiet(diet: VegetarianDiet) {
+        _uiState.update { it.copy(vegetarianDiet = diet) }
     }
 
     fun updateAllergies(allergies: Set<String>) {

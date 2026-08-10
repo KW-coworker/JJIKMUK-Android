@@ -60,5 +60,19 @@
     <string name="sign_up_condition_low_fat_description">지방 섭취 제한</string>
     <string name="sign_up_condition_high_protein">고단백</string>
     <string name="sign_up_condition_high_protein_description">단백질 위주 식단</string>
+    <string name="sign_up_vegetarian_title">채식 식단 선택</string>
+    <string name="sign_up_vegetarian_description">어떤 채식을 실천하고 계신가요?</string>
+    <string name="sign_up_vegetarian_vegan">비건 (Vegan)</string>
+    <string name="sign_up_vegetarian_vegan_description">오직 식물성 음식만 섭취해요</string>
+    <string name="sign_up_vegetarian_lacto">락토 (Lacto)</string>
+    <string name="sign_up_vegetarian_lacto_description">식물성 음식과 유제품을 섭취해요</string>
+    <string name="sign_up_vegetarian_ovo">오보 (Ovo)</string>
+    <string name="sign_up_vegetarian_ovo_description">식물성 음식과 계란을 섭취해요</string>
+    <string name="sign_up_vegetarian_lacto_ovo">락토 오보 (Lacto - Ovo)</string>
+    <string name="sign_up_vegetarian_lacto_ovo_description">식물성 음식, 유제품, 계란을 섭취해요</string>
+    <string name="sign_up_vegetarian_pesco">페스코 (Pesco)</string>
+    <string name="sign_up_vegetarian_pesco_description">채식에 해산물까지 섭취해요</string>
+    <string name="sign_up_vegetarian_pollo">폴로 (Pollo)</string>
+    <string name="sign_up_vegetarian_pollo_description">채식, 해산물, 가금류까지 섭취해요</string>
     <string name="auth_confirm">확인</string>
 </resources>

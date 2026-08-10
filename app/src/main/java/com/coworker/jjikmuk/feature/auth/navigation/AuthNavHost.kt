@@ -2,9 +2,7 @@ package com.coworker.jjikmuk.feature.auth.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -22,11 +20,12 @@ import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordRese
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpConditionsRoute
-import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpNicknameRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpOtpRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpPasswordRoute
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpVegetarianRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpViewModel
 import kotlinx.coroutines.delay
 
@@ -38,8 +37,6 @@ fun AuthNavHost(
     passwordResetViewModel: PasswordResetViewModel = viewModel(),
     signUpViewModel: SignUpViewModel = viewModel(),
 ) {
-    val signUpState by signUpViewModel.uiState.collectAsStateWithLifecycle()
-
     NavHost(
         navController = navController,
         startDestination = AuthRoute.Splash,
@@ -99,7 +96,6 @@ fun AuthNavHost(
         signUpGraph(
             navController = navController,
             viewModel = signUpViewModel,
-            state = signUpState,
         )
 
         composable(AuthRoute.Home) {
@@ -163,7 +159,6 @@ private fun androidx.navigation.NavGraphBuilder.passwordResetGraph(
 private fun androidx.navigation.NavGraphBuilder.signUpGraph(
     navController: NavHostController,
     viewModel: SignUpViewModel,
-    state: SignUpUiState,
 ) {
     composable(AuthRoute.SignUpEmail) {
         SignUpEmailRoute(
@@ -209,20 +204,25 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
     composable(AuthRoute.SignUpConditions) {
         SignUpConditionsRoute(
             viewModel = viewModel,
-            onNextClick = { navController.navigate(nextRouteAfterConditions(state)) },
+            onNextClick = {
+                navController.navigate(nextRouteAfterConditions(viewModel.uiState.value))
+            },
             onBackClick = navController::popBackStack,
         )
     }
     composable(AuthRoute.SignUpVegetarian) {
-        AuthPlaceholderScreen(
-            title = "회원가입 - 채식 식단 선택",
-            primaryActions = listOf(
-                PlaceholderAction("선택 완료") {
-                    navController.navigate(
-                        if (state.hasAllergyCondition) AuthRoute.SignUpAllergies else AuthRoute.SignUpProfile,
-                    )
-                },
-            ),
+        SignUpVegetarianRoute(
+            viewModel = viewModel,
+            onNextClick = {
+                val latestState = viewModel.uiState.value
+                navController.navigate(
+                    if (latestState.hasAllergyCondition) {
+                        AuthRoute.SignUpAllergies
+                    } else {
+                        AuthRoute.SignUpProfile
+                    },
+                )
+            },
             onBackClick = navController::popBackStack,
         )
     }
@@ -265,7 +265,9 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
     }
 }
 
-private fun nextRouteAfterConditions(state: SignUpUiState): String = when {
+private fun nextRouteAfterConditions(
+    state: SignUpUiState,
+): String = when {
     state.hasVegetarianCondition -> AuthRoute.SignUpVegetarian
     state.hasAllergyCondition -> AuthRoute.SignUpAllergies
     else -> AuthRoute.SignUpProfile
