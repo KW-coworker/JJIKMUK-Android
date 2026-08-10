@@ -118,26 +118,26 @@ OTP 인증 후에는 `SignUpOtp` 화면으로 다시 돌아갈 수 없다. `Sign
 
 ```text
 SignUpConditions
-├─ 채식 선택 → SignUpVegetarian
-├─ 채식 미선택 + 알레르기 선택 → SignUpAllergies
+├─ 알레르기 선택 → SignUpAllergies
+├─ 알레르기 미선택 + 채식 선택 → SignUpVegetarian
 ├─ 둘 다 미선택 → SignUpProfile
 └─ 뒤로가기 → SignUpNickname
 
-SignUpVegetarian
-├─ 알레르기 선택 → SignUpAllergies
-├─ 알레르기 미선택 → SignUpProfile
+SignUpAllergies
+├─ 채식 선택 → SignUpVegetarian
+├─ 채식 미선택 → SignUpProfile
 └─ 뒤로가기 → SignUpConditions
 
-SignUpAllergies
+SignUpVegetarian
 ├─ 선택 완료 → SignUpProfile
 └─ 뒤로가기
-   ├─ 채식 선택 → SignUpVegetarian
-   └─ 채식 미선택 → SignUpConditions
+   ├─ 알레르기 선택 → SignUpAllergies
+   └─ 알레르기 미선택 → SignUpConditions
 
 SignUpProfile
 ├─ 다음 → SignUpComplete
 └─ 뒤로가기
-   ├─ 채식 선택 + 알레르기 선택 → SignUpAllergies
+   ├─ 채식 선택 + 알레르기 선택 → SignUpVegetarian
    ├─ 채식 선택 + 알레르기 미선택 → SignUpVegetarian
    ├─ 채식 미선택 + 알레르기 선택 → SignUpAllergies
    └─ 둘 다 미선택 → SignUpConditions

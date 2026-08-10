@@ -147,6 +147,17 @@ class SignUpViewModel : ViewModel() {
         _uiState.update { it.copy(allergies = allergies) }
     }
 
+    fun toggleAllergy(allergy: String) {
+        _uiState.update {
+            val updatedAllergies = if (allergy in it.allergies) {
+                it.allergies - allergy
+            } else {
+                it.allergies + allergy
+            }
+            it.copy(allergies = updatedAllergies)
+        }
+    }
+
     fun restartFromEmail() {
         otpTimerJob?.cancel()
         _uiState.update {

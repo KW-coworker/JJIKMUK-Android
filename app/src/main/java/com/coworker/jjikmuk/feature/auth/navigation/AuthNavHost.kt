@@ -20,6 +20,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordRese
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpConditionsRoute
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpAllergiesRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpNicknameRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpOtpRoute
@@ -213,25 +214,23 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
     composable(AuthRoute.SignUpVegetarian) {
         SignUpVegetarianRoute(
             viewModel = viewModel,
+            onNextClick = { navController.navigate(AuthRoute.SignUpProfile) },
+            onBackClick = navController::popBackStack,
+        )
+    }
+    composable(AuthRoute.SignUpAllergies) {
+        SignUpAllergiesRoute(
+            viewModel = viewModel,
             onNextClick = {
                 val latestState = viewModel.uiState.value
                 navController.navigate(
-                    if (latestState.hasAllergyCondition) {
-                        AuthRoute.SignUpAllergies
+                    if (latestState.hasVegetarianCondition) {
+                        AuthRoute.SignUpVegetarian
                     } else {
                         AuthRoute.SignUpProfile
                     },
                 )
             },
-            onBackClick = navController::popBackStack,
-        )
-    }
-    composable(AuthRoute.SignUpAllergies) {
-        AuthPlaceholderScreen(
-            title = "회원가입 - 알레르기 항목 선택",
-            primaryActions = listOf(
-                PlaceholderAction("선택 완료") { navController.navigate(AuthRoute.SignUpProfile) },
-            ),
             onBackClick = navController::popBackStack,
         )
     }
@@ -268,8 +267,8 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
 private fun nextRouteAfterConditions(
     state: SignUpUiState,
 ): String = when {
-    state.hasVegetarianCondition -> AuthRoute.SignUpVegetarian
     state.hasAllergyCondition -> AuthRoute.SignUpAllergies
+    state.hasVegetarianCondition -> AuthRoute.SignUpVegetarian
     else -> AuthRoute.SignUpProfile
 }
 

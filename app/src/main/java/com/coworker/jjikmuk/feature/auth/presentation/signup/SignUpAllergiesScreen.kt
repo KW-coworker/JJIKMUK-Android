@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,40 +32,41 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
+import com.coworker.jjikmuk.ui.component.JjikmukAllergyChip
 import com.coworker.jjikmuk.ui.component.JjikmukAuthTopBar
 import com.coworker.jjikmuk.ui.component.JjikmukPrimaryButton
 import com.coworker.jjikmuk.ui.component.JjikmukVerticalScrollIndicator
-import com.coworker.jjikmuk.ui.component.JjikmukVegetarianDietCard
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
-fun SignUpVegetarianRoute(
+fun SignUpAllergiesRoute(
     viewModel: SignUpViewModel,
     onBackClick: () -> Unit,
     onNextClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    SignUpVegetarianScreen(
+    SignUpAllergiesScreen(
         uiState = uiState,
-        onDietClick = viewModel::selectVegetarianDiet,
+        onAllergyClick = viewModel::toggleAllergy,
         onBackClick = onBackClick,
         onNextClick = onNextClick,
         modifier = modifier,
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SignUpVegetarianScreen(
+fun SignUpAllergiesScreen(
     uiState: SignUpUiState,
-    onDietClick: (VegetarianDiet) -> Unit,
+    onAllergyClick: (String) -> Unit,
     onBackClick: () -> Unit,
     onNextClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = JjikmukTheme.colors
-    val diets = vegetarianDietItems()
-    val dietScrollState = rememberScrollState()
+    val scrollState = rememberScrollState()
+    val selectedCount = uiState.allergies.size
     BackHandler(onBack = onBackClick)
 
     Column(
@@ -87,12 +90,12 @@ fun SignUpVegetarianScreen(
                     .offset(y = 6.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.sign_up_vegetarian_title),
+                    text = stringResource(R.string.sign_up_allergies_title),
                     color = colors.textPrimary,
                     style = JjikmukTheme.typography.h1,
                 )
                 Text(
-                    text = stringResource(R.string.sign_up_vegetarian_description),
+                    text = stringResource(R.string.sign_up_allergies_description),
                     color = colors.textSecondary,
                     style = JjikmukTheme.typography.bodyL,
                     modifier = Modifier.padding(top = 18.dp),
@@ -104,29 +107,30 @@ fun SignUpVegetarianScreen(
                     .align(Alignment.TopCenter)
                     .offset(y = 140.dp)
                     .fillMaxWidth()
-                    .height(429.dp)
+                    .height(403.dp)
                     .clipToBounds(),
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(dietScrollState)
+                        .verticalScroll(scrollState)
                         .padding(start = 22.dp, end = 22.dp, bottom = 16.dp),
                 ) {
-                    diets.forEach { item ->
-                        JjikmukVegetarianDietCard(
-                            title = stringResource(item.titleRes),
-                            description = stringResource(item.descriptionRes),
-                            selected = uiState.vegetarianDiet == item.type,
-                            onClick = { onDietClick(item.type) },
+                    allergyItems.forEach { item ->
+                        JjikmukAllergyChip(
+                            emoji = item.emoji,
+                            label = stringResource(item.labelRes),
+                            selected = item.id in uiState.allergies,
+                            onSelectedChange = { onAllergyClick(item.id) },
                         )
                     }
                 }
 
                 JjikmukVerticalScrollIndicator(
-                    scrollValue = dietScrollState.value,
-                    scrollMaxValue = dietScrollState.maxValue,
+                    scrollValue = scrollState.value,
+                    scrollMaxValue = scrollState.maxValue,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .padding(end = 6.dp),
@@ -134,12 +138,12 @@ fun SignUpVegetarianScreen(
             }
 
             JjikmukPrimaryButton(
-                text = stringResource(R.string.sign_up_email_next),
+                text = stringResource(R.string.sign_up_allergies_selected_count, selectedCount),
                 onClick = onNextClick,
-                enabled = uiState.vegetarianDiet != null,
+                enabled = selectedCount > 0,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(start = 22.dp, end = 18.dp)
+                    .padding(horizontal = 22.dp)
                     .offset(y = 569.dp)
                     .zIndex(1f),
             )
@@ -147,30 +151,63 @@ fun SignUpVegetarianScreen(
     }
 }
 
-private data class VegetarianDietItem(
-    val type: VegetarianDiet,
-    @StringRes val titleRes: Int,
-    @StringRes val descriptionRes: Int,
+data class AllergyItem(
+    val id: String,
+    val emoji: String,
+    @StringRes val labelRes: Int,
 )
 
-private fun vegetarianDietItems() = listOf(
-    VegetarianDietItem(VegetarianDiet.Vegan, R.string.sign_up_vegetarian_vegan, R.string.sign_up_vegetarian_vegan_description),
-    VegetarianDietItem(VegetarianDiet.Lacto, R.string.sign_up_vegetarian_lacto, R.string.sign_up_vegetarian_lacto_description),
-    VegetarianDietItem(VegetarianDiet.Ovo, R.string.sign_up_vegetarian_ovo, R.string.sign_up_vegetarian_ovo_description),
-    VegetarianDietItem(VegetarianDiet.LactoOvo, R.string.sign_up_vegetarian_lacto_ovo, R.string.sign_up_vegetarian_lacto_ovo_description),
-    VegetarianDietItem(VegetarianDiet.Pesco, R.string.sign_up_vegetarian_pesco, R.string.sign_up_vegetarian_pesco_description),
-    VegetarianDietItem(VegetarianDiet.Pollo, R.string.sign_up_vegetarian_pollo, R.string.sign_up_vegetarian_pollo_description),
+val allergyItems = listOf(
+    AllergyItem("egg", "🥚", R.string.sign_up_allergy_egg),
+    AllergyItem("milk", "🥛", R.string.sign_up_allergy_milk),
+    AllergyItem("soy", "🫘", R.string.sign_up_allergy_soy),
+    AllergyItem("wheat", "🍞", R.string.sign_up_allergy_wheat),
+    AllergyItem("pork", "🥓", R.string.sign_up_allergy_pork),
+    AllergyItem("chicken", "🍗", R.string.sign_up_allergy_chicken),
+    AllergyItem("shrimp", "🦐", R.string.sign_up_allergy_shrimp),
+    AllergyItem("crab", "🦀", R.string.sign_up_allergy_crab),
+    AllergyItem("squid", "🦑", R.string.sign_up_allergy_squid),
+    AllergyItem("mackerel", "🐟", R.string.sign_up_allergy_mackerel),
+    AllergyItem("shellfish", "🐚", R.string.sign_up_allergy_shellfish),
+    AllergyItem("oyster", "🦪", R.string.sign_up_allergy_oyster),
+    AllergyItem("mussel", "🦪", R.string.sign_up_allergy_mussel),
+    AllergyItem("abalone", "🐚", R.string.sign_up_allergy_abalone),
+    AllergyItem("peach", "🍑", R.string.sign_up_allergy_peach),
+    AllergyItem("tomato", "🍅", R.string.sign_up_allergy_tomato),
+    AllergyItem("peanut", "🥜", R.string.sign_up_allergy_peanut),
+    AllergyItem("walnut", "🌰", R.string.sign_up_allergy_walnut),
+    AllergyItem("buckwheat", "🍜", R.string.sign_up_allergy_buckwheat),
+    AllergyItem("pine_nut", "🫘", R.string.sign_up_allergy_pine_nut),
+    AllergyItem("sulfites", "🧪", R.string.sign_up_allergy_sulfites),
+    AllergyItem("sesame", "🧂", R.string.sign_up_allergy_sesame),
+    AllergyItem("almond", "🫘", R.string.sign_up_allergy_almond),
+    AllergyItem("mustard", "🍯", R.string.sign_up_allergy_mustard),
+    AllergyItem("celery", "🥒", R.string.sign_up_allergy_celery),
+    AllergyItem("beef", "🥩", R.string.sign_up_allergy_beef),
 )
 
 private val AUTH_STATUS_BAR_COLOR = Color(0xFFFCFCFF)
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 1014)
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
-private fun SignUpVegetarianPreview() {
+private fun SignUpAllergiesEmptyPreview() {
     JjikmukTheme {
-        SignUpVegetarianScreen(
-            uiState = SignUpUiState(vegetarianDiet = VegetarianDiet.Vegan),
-            onDietClick = {},
+        SignUpAllergiesScreen(
+            uiState = SignUpUiState(),
+            onAllergyClick = {},
+            onBackClick = {},
+            onNextClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SignUpAllergiesSelectedPreview() {
+    JjikmukTheme {
+        SignUpAllergiesScreen(
+            uiState = SignUpUiState(allergies = setOf("crab", "squid")),
+            onAllergyClick = {},
             onBackClick = {},
             onNextClick = {},
         )
