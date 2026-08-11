@@ -260,7 +260,7 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
     }
 }
 
-private fun nextRouteAfterConditions(
+internal fun nextRouteAfterConditions(
     state: SignUpUiState,
 ): String = when {
     state.hasAllergyCondition -> AuthRoute.SignUpAllergies

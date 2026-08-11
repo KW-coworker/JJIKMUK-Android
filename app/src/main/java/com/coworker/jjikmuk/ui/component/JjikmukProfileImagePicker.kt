@@ -100,3 +100,14 @@ private fun JjikmukProfileImagePickerPreview() {
         )
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+private fun JjikmukSelectedProfileImagePickerPreview() {
+    JjikmukTheme {
+        JjikmukProfileImagePicker(
+            imageModel = R.drawable.ic_profile_default,
+            onClick = {},
+        )
+    }
+}

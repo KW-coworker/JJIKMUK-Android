@@ -207,6 +207,23 @@ private fun AuthOtpEmptyPreview() {
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
+private fun AuthOtpCompletePreview() {
+    JjikmukTheme {
+        AuthOtpScreen(
+            otp = "1133",
+            otpError = null,
+            remainingOtpSeconds = 152,
+            isOtpComplete = true,
+            onOtpChange = {},
+            onBackClick = {},
+            onResendClick = {},
+            onConfirmClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
 private fun AuthOtpErrorPreview() {
     JjikmukTheme {
         AuthOtpScreen(

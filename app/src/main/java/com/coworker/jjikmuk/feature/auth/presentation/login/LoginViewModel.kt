@@ -11,15 +11,15 @@ class LoginViewModel : ViewModel() {
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun updateEmail(email: String) {
-        _uiState.update { it.copy(email = email, emailError = null, loginError = null) }
+        _uiState.update { it.copy(email = email, loginError = null) }
     }
 
     fun updatePassword(password: String) {
-        _uiState.update { it.copy(password = password, passwordError = null, loginError = null) }
+        _uiState.update { it.copy(password = password, loginError = null) }
     }
 
     fun clearPassword() {
-        _uiState.update { it.copy(password = "", passwordError = null, loginError = null) }
+        _uiState.update { it.copy(password = "", loginError = null) }
     }
 
     fun login(): Boolean {

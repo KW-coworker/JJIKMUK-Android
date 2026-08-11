@@ -166,6 +166,19 @@ private val AUTH_STATUS_BAR_COLOR = Color(0xFFFCFCFF)
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 1014)
 @Composable
+private fun SignUpVegetarianEmptyPreview() {
+    JjikmukTheme {
+        SignUpVegetarianScreen(
+            uiState = SignUpUiState(),
+            onDietClick = {},
+            onBackClick = {},
+            onNextClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 1014)
+@Composable
 private fun SignUpVegetarianPreview() {
     JjikmukTheme {
         SignUpVegetarianScreen(

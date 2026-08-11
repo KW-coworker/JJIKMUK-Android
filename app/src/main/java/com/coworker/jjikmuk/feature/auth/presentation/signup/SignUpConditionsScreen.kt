@@ -167,7 +167,7 @@ fun SignUpConditionsScreen(
             JjikmukPrimaryButton(
                 text = stringResource(R.string.sign_up_email_next),
                 onClick = onNextClick,
-                enabled = uiState.hasSelectedCondition,
+                enabled = true,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(start = 22.dp, end = 18.dp)

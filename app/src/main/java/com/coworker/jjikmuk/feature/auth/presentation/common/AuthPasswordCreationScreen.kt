@@ -172,3 +172,51 @@ private fun AuthPasswordCreationScreenPreview() {
         )
     }
 }
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun AuthPasswordTooShortPreview() {
+    JjikmukTheme {
+        AuthPasswordCreationScreen(
+            title = "비밀번호 생성",
+            description = "비밀번호를 설정해 주세요\n비밀번호는 6자리 이상이어야 합니다",
+            passwordPlaceholder = "비밀번호 설정",
+            passwordConfirmPlaceholder = "비밀번호 확인",
+            password = "123",
+            passwordConfirm = "123",
+            validationError = AuthPasswordValidationError.TooShort,
+            isPasswordValid = false,
+            passwordTooShortMessage = "비밀번호는 6자리 이상이어야 합니다.",
+            passwordMismatchMessage = "비밀번호가 일치하지 않습니다.",
+            confirmButtonText = "확인",
+            onPasswordChange = {},
+            onPasswordConfirmChange = {},
+            onBackClick = {},
+            onConfirmClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun AuthPasswordMismatchPreview() {
+    JjikmukTheme {
+        AuthPasswordCreationScreen(
+            title = "비밀번호 생성",
+            description = "비밀번호를 설정해 주세요\n비밀번호는 6자리 이상이어야 합니다",
+            passwordPlaceholder = "비밀번호 설정",
+            passwordConfirmPlaceholder = "비밀번호 확인",
+            password = "password123",
+            passwordConfirm = "different123",
+            validationError = AuthPasswordValidationError.Mismatch,
+            isPasswordValid = false,
+            passwordTooShortMessage = "비밀번호는 6자리 이상이어야 합니다.",
+            passwordMismatchMessage = "비밀번호가 일치하지 않습니다.",
+            confirmButtonText = "확인",
+            onPasswordChange = {},
+            onPasswordConfirmChange = {},
+            onBackClick = {},
+            onConfirmClick = {},
+        )
+    }
+}

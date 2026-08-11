@@ -368,3 +368,23 @@ private fun SignUpProfileEmptyPreview() {
         )
     }
 }
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SignUpProfileManyItemsPreview() {
+    JjikmukTheme {
+        SignUpProfileScreen(
+            uiState = SignUpUiState(
+                nickname = "코워커",
+                selectedConditions = SignUpCondition.entries.toSet(),
+                vegetarianDiet = VegetarianDiet.Vegan,
+                allergies = allergyItems.map { it.id }.toSet(),
+            ),
+            onNicknameChange = {},
+            onPhotoClick = {},
+            onEditConditionsClick = {},
+            onBackClick = {},
+            onNextClick = {},
+        )
+    }
+}
