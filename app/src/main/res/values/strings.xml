@@ -118,5 +118,7 @@
     <string name="sign_up_profile_lacto_ovo">락토 오보</string>
     <string name="sign_up_profile_pesco">페스코</string>
     <string name="sign_up_profile_pollo">폴로</string>
+    <string name="sign_up_complete_title">회원가입 완료</string>
+    <string name="sign_up_complete_description">계정을 성공적으로 생성하였습니다</string>
     <string name="auth_confirm">확인</string>
 </resources>

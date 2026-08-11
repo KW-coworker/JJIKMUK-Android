@@ -143,7 +143,7 @@ SignUpProfile
    └─ 둘 다 미선택 → SignUpConditions
 
 SignUpComplete
-└─ 확인 → Login
+└─ 로그인하기 → Login
 ```
 
 조건부 화면의 뒤로가기는 사용자가 실제로 통과한 직전 단계와 일치해야 한다. 화면 route만 보고 추측하지 않고 `SignUpUiState`에 보존된 맞춤 조건 선택값을 기준으로 목적지를 결정한다.

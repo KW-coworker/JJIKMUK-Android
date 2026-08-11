@@ -18,9 +18,9 @@ import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordRese
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetNewPasswordRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetOtpRoute
 import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
-import com.coworker.jjikmuk.feature.auth.presentation.placeholder.PlaceholderAction
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpConditionsRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpAllergiesRoute
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpCompleteScreen
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpNicknameRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpOtpRoute
@@ -248,18 +248,14 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
         )
     }
     composable(AuthRoute.SignUpComplete) {
-        AuthPlaceholderScreen(
-            title = "회원가입 완료",
-            primaryActions = listOf(
-                PlaceholderAction("확인") {
-                    viewModel.reset()
-                    navController.navigate(AuthRoute.Login) {
-                        popUpTo(AuthRoute.AuthChoice) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-            ),
-            blockSystemBack = true,
+        SignUpCompleteScreen(
+            onLoginClick = {
+                viewModel.reset()
+                navController.navigate(AuthRoute.Login) {
+                    popUpTo(AuthRoute.AuthChoice) { inclusive = false }
+                    launchSingleTop = true
+                }
+            },
         )
     }
 }

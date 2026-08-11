@@ -1,4 +1,4 @@
-package com.coworker.jjikmuk.feature.auth.presentation.passwordreset
+package com.coworker.jjikmuk.feature.auth.presentation.signup
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -9,13 +9,13 @@ import com.coworker.jjikmuk.ui.component.JjikmukAuthCompleteScreen
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
-fun PasswordResetCompleteScreen(
+fun SignUpCompleteScreen(
     onLoginClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     JjikmukAuthCompleteScreen(
-        title = stringResource(R.string.password_reset_complete_title),
-        description = stringResource(R.string.password_reset_complete_description),
+        title = stringResource(R.string.sign_up_complete_title),
+        description = stringResource(R.string.sign_up_complete_description),
         buttonText = stringResource(R.string.password_reset_login_action),
         onButtonClick = onLoginClick,
         modifier = modifier,
@@ -24,8 +24,8 @@ fun PasswordResetCompleteScreen(
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
-private fun PasswordResetCompleteScreenPreview() {
+private fun SignUpCompleteScreenPreview() {
     JjikmukTheme {
-        PasswordResetCompleteScreen(onLoginClick = {})
+        SignUpCompleteScreen(onLoginClick = {})
     }
 }
