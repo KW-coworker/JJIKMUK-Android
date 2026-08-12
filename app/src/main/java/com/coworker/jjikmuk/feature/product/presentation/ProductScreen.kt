@@ -3,8 +3,12 @@ package com.coworker.jjikmuk.feature.product.presentation
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -28,6 +33,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -42,23 +48,36 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.coworker.jjikmuk.R
+import com.coworker.jjikmuk.domain.model.ProductDetail
+import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.coworker.jjikmuk.feature.product.presentation.component.JjikmukProductCard
 import com.coworker.jjikmuk.feature.product.presentation.component.JjikmukProductCardSize
 import com.coworker.jjikmuk.feature.product.presentation.component.JjikmukProductCardUiModel
 import com.coworker.jjikmuk.ui.component.JjikmukBackButton
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
 import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
+import com.coworker.jjikmuk.ui.component.JjikmukProductListCard
+import com.coworker.jjikmuk.ui.component.JjikmukProductListCardUiModel
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
@@ -75,6 +94,39 @@ fun ProductScreen(
     onTabClick: (MainTab) -> Unit,
     onScannerClick: () -> Unit,
     modifier: Modifier = Modifier,
+    productViewModel: ProductViewModel = hiltViewModel(),
+) {
+    val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
+    val detailUiState by productViewModel.detailUiState.collectAsStateWithLifecycle()
+
+    ProductScreenContent(
+        selectedTab = selectedTab,
+        onTabClick = onTabClick,
+        onScannerClick = onScannerClick,
+        searchUiState = searchUiState,
+        onSearchQueryChange = productViewModel::onSearchQueryChange,
+        onClearSearchQuery = productViewModel::clearSearchQuery,
+        onResetSearchState = productViewModel::resetSearchState,
+        onSearchSubmit = productViewModel::searchProducts,
+        detailUiState = detailUiState,
+        onLoadProductDetail = productViewModel::loadProductDetail,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun ProductScreenContent(
+    selectedTab: MainTab,
+    onTabClick: (MainTab) -> Unit,
+    onScannerClick: () -> Unit,
+    searchUiState: ProductSearchUiState,
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearchQuery: () -> Unit,
+    onResetSearchState: () -> Unit,
+    onSearchSubmit: (String) -> Unit,
+    detailUiState: ProductDetailUiState,
+    onLoadProductDetail: (String?) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val scanTargetMembers = remember {
         mutableStateListOf<ScanTargetMemberUiModel>().apply {
@@ -86,6 +138,21 @@ fun ProductScreen(
     )
     val recentSearchKeywords = remember {
         mutableStateListOf("오트밀", "아몬드브리즈", "비건 식빵", "무염버터")
+    }
+    fun addRecentSearchKeyword(keyword: String) {
+        val trimmedKeyword = keyword.trim()
+        if (trimmedKeyword.length < 2) return
+
+        recentSearchKeywords.remove(trimmedKeyword)
+        recentSearchKeywords.add(0, trimmedKeyword)
+
+        while (recentSearchKeywords.size > 8) {
+            recentSearchKeywords.removeAt(recentSearchKeywords.lastIndex)
+        }
+    }
+    fun submitProductSearch(keyword: String) {
+        addRecentSearchKeyword(keyword)
+        onSearchSubmit(keyword)
     }
 
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
@@ -126,7 +193,22 @@ fun ProductScreen(
 
                 ProductDestination.Search -> {
                     ProductSearchTopBar(
+                        query = searchUiState.query,
+                        onQueryChange = onSearchQueryChange,
+                        onClearClick = onClearSearchQuery,
+                        onSearchClick = { submitProductSearch(searchUiState.query) },
                         onBackClick = { currentDestination = ProductDestination.Overview },
+                    )
+                }
+
+                ProductDestination.Detail -> {
+                    JjikmukTopAppBar(
+                        selectedProfiles = selectedProfiles,
+                        onScanTargetClick = { showScanTargetPopup = true },
+                        leading = JjikmukTopAppBarLeading.Back(
+                            onClick = { currentDestination = ProductDestination.Search },
+                        ),
+                        showBottomDivider = true,
                     )
                 }
             }
@@ -149,7 +231,10 @@ fun ProductScreen(
             when (currentDestination) {
                 ProductDestination.Overview -> {
                     ProductContent(
-                        onSearchClick = { currentDestination = ProductDestination.Search },
+                        onSearchClick = {
+                            onResetSearchState()
+                            currentDestination = ProductDestination.Search
+                        },
                         onRecommendationMoreClick = {
                             currentDestination = ProductDestination.RecommendationList
                         },
@@ -180,9 +265,32 @@ fun ProductScreen(
 
                 ProductDestination.Search -> {
                     ProductSearchContent(
+                        searchUiState = searchUiState,
                         recentKeywords = recentSearchKeywords,
+                        onKeywordClick = { keyword ->
+                            onSearchQueryChange(keyword)
+                            submitProductSearch(keyword)
+                        },
                         onDeleteRecentKeyword = { keyword -> recentSearchKeywords.remove(keyword) },
                         onClearRecentKeywords = { recentSearchKeywords.clear() },
+                        onFilterClick = { showProductFilterSheet = true },
+                        onProductClick = { product ->
+                            onLoadProductDetail(product.barcode)
+                            currentDestination = ProductDestination.Detail
+                        },
+                    )
+                }
+
+                ProductDestination.Detail -> {
+                    ProductDetailContent(
+                        detailUiState = detailUiState,
+                    )
+
+                    JjikmukDraggableScannerFab(
+                        onClick = onScannerClick,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 21.dp, bottom = 16.dp),
                     )
                 }
             }
@@ -205,12 +313,19 @@ fun ProductScreen(
                 )
             }
 
-            if (showProductFilterSheet && currentDestination == ProductDestination.RecommendationList) {
+            if (
+                showProductFilterSheet &&
+                currentDestination in listOf(ProductDestination.RecommendationList, ProductDestination.Search)
+            ) {
                 ProductFilterOverlay(
                     selectedSort = selectedSort,
                     selectedCategory = selectedCategory,
                     selectedProfileFilter = selectedProfileFilter,
-                    productCount = 8,
+                    productCount = if (currentDestination == ProductDestination.Search) {
+                        searchUiState.products.size
+                    } else {
+                        8
+                    },
                     onSortSelected = { selectedSort = it },
                     onCategorySelected = { selectedCategory = it },
                     onProfileFilterSelected = { selectedProfileFilter = it },
@@ -321,6 +436,10 @@ private fun ProductSearchBar(
 
 @Composable
 private fun ProductSearchTopBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearClick: () -> Unit,
+    onSearchClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -345,13 +464,25 @@ private fun ProductSearchTopBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             JjikmukBackButton(onClick = onBackClick)
-            ProductSearchInputField(modifier = Modifier.weight(1f))
+            ProductSearchInputField(
+                query = query,
+                onQueryChange = onQueryChange,
+                onClearClick = onClearClick,
+                onSearchClick = onSearchClick,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
 
 @Composable
-private fun ProductSearchInputField(modifier: Modifier = Modifier) {
+private fun ProductSearchInputField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearClick: () -> Unit,
+    onSearchClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier
             .height(43.dp)
@@ -365,25 +496,94 @@ private fun ProductSearchInputField(modifier: Modifier = Modifier) {
             .padding(start = 17.dp, end = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "어떤 안심 상품을 찾으시나요?",
-            color = JjikmukTheme.colors.textSecondary,
-            style = JjikmukTheme.typography.bodyS,
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            singleLine = true,
+            textStyle = JjikmukTheme.typography.bodyS.copy(
+                color = JjikmukTheme.colors.textPrimary,
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
+                onSearch = { onSearchClick() },
+            ),
             modifier = Modifier.weight(1f),
-            maxLines = 1,
+            decorationBox = { innerTextField ->
+                if (query.isBlank()) {
+                    Text(
+                        text = "어떤 안심 상품을 찾으시나요?",
+                        color = JjikmukTheme.colors.textSecondary,
+                        style = JjikmukTheme.typography.bodyS,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                innerTextField()
+            },
         )
-        Icon(
-            painter = painterResource(R.drawable.ic_product_search),
-            contentDescription = null,
-            tint = JjikmukTheme.colors.textSecondary,
-            modifier = Modifier.size(20.dp),
-        )
+
+        if (query.isBlank()) {
+            Icon(
+                painter = painterResource(R.drawable.ic_product_search),
+                contentDescription = "상품 검색",
+                tint = JjikmukTheme.colors.textSecondary,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable(onClick = onSearchClick),
+            )
+        } else {
+            Surface(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable(onClick = onClearClick),
+                color = JjikmukTheme.colors.textTertiary,
+                shape = CircleShape,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "×",
+                        color = JjikmukTheme.colors.surface,
+                        style = JjikmukTheme.typography.labelS,
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
 private fun ProductSearchContent(
+    searchUiState: ProductSearchUiState,
     recentKeywords: List<String>,
+    onKeywordClick: (String) -> Unit,
+    onDeleteRecentKeyword: (String) -> Unit,
+    onClearRecentKeywords: () -> Unit,
+    onFilterClick: () -> Unit,
+    onProductClick: (ProductSearchResult) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (searchUiState.hasSearched) {
+        ProductSearchResultContent(
+            searchUiState = searchUiState,
+            onFilterClick = onFilterClick,
+            onProductClick = onProductClick,
+            modifier = modifier,
+        )
+    } else {
+        ProductSearchInitialContent(
+            recentKeywords = recentKeywords,
+            onKeywordClick = onKeywordClick,
+            onDeleteRecentKeyword = onDeleteRecentKeyword,
+            onClearRecentKeywords = onClearRecentKeywords,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun ProductSearchInitialContent(
+    recentKeywords: List<String>,
+    onKeywordClick: (String) -> Unit,
     onDeleteRecentKeyword: (String) -> Unit,
     onClearRecentKeywords: () -> Unit,
     modifier: Modifier = Modifier,
@@ -409,6 +609,7 @@ private fun ProductSearchContent(
 
             ProductRecentSearchChips(
                 keywords = recentKeywords,
+                onKeywordClick = onKeywordClick,
                 onDeleteClick = onDeleteRecentKeyword,
                 modifier = Modifier.padding(top = 12.dp),
             )
@@ -429,9 +630,586 @@ private fun ProductSearchContent(
                     ProductPopularSearchRow(
                         rank = index + 1,
                         keyword = keyword,
+                        onClick = { onKeywordClick(keyword) },
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ProductSearchResultContent(
+    searchUiState: ProductSearchUiState,
+    onFilterClick: () -> Unit,
+    onProductClick: (ProductSearchResult) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(JjikmukTheme.colors.surface),
+    ) {
+        ProductSearchResultHeader(
+            query = searchUiState.submittedQuery,
+            productCount = searchUiState.products.size,
+            onFilterClick = onFilterClick,
+        )
+
+        when {
+            searchUiState.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = JjikmukTheme.colors.brand)
+                }
+            }
+
+            searchUiState.errorMessage != null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = searchUiState.errorMessage,
+                        color = JjikmukTheme.colors.textSecondary,
+                        style = JjikmukTheme.typography.bodyM,
+                    )
+                }
+            }
+
+            searchUiState.products.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "검색 결과가 없어요.",
+                        color = JjikmukTheme.colors.textSecondary,
+                        style = JjikmukTheme.typography.bodyM,
+                    )
+                }
+            }
+
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(
+                        items = searchUiState.products,
+                        key = { product -> product.barcode ?: product.productName },
+                    ) { product ->
+                        JjikmukProductListCard(
+                            product = product.toProductListCardUiModel(),
+                            onClick = { onProductClick(product) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductSearchResultHeader(
+    query: String,
+    productCount: Int,
+    onFilterClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(53.dp)
+            .background(JjikmukTheme.colors.surface)
+            .border(
+                width = 0.5.dp,
+                color = JjikmukTheme.colors.borderSubtle,
+                shape = RoundedCornerShape(0.dp),
+            )
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = JjikmukTheme.colors.textPrimary)) {
+                    append("‘")
+                    append(query)
+                    append("' ")
+                }
+                append("검색 결과 ")
+                withStyle(SpanStyle(color = JjikmukTheme.colors.brand)) {
+                    append(productCount.toString())
+                    append("건")
+                }
+            },
+            color = JjikmukTheme.colors.textSecondary,
+            style = JjikmukTheme.typography.labelM,
+        )
+
+        Surface(
+            modifier = Modifier
+                .height(32.dp)
+                .clickable(onClick = onFilterClick),
+            color = JjikmukTheme.colors.disabled,
+            shape = RoundedCornerShape(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_filter_sliders),
+                    contentDescription = null,
+                    tint = JjikmukTheme.colors.textSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = "상세필터",
+                    color = JjikmukTheme.colors.textSecondary,
+                    style = JjikmukTheme.typography.labelS,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductDetailContent(
+    detailUiState: ProductDetailUiState,
+    modifier: Modifier = Modifier,
+) {
+    when {
+        detailUiState.isLoading -> {
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = JjikmukTheme.colors.brand)
+            }
+        }
+
+        detailUiState.errorMessage != null -> {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = detailUiState.errorMessage,
+                    color = JjikmukTheme.colors.textSecondary,
+                    style = JjikmukTheme.typography.bodyM,
+                )
+            }
+        }
+
+        detailUiState.product != null -> {
+            ProductDetailLoadedContent(
+                product = detailUiState.product,
+                modifier = modifier,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProductDetailLoadedContent(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .background(JjikmukTheme.colors.surface),
+    ) {
+        ProductDetailImageBanner(product = product)
+        ProductDetailInfoSection(product = product)
+    }
+}
+
+@Composable
+private fun ProductDetailImageBanner(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(343.dp)
+            .background(JjikmukTheme.colors.surface)
+            .border(
+                width = 0.5.dp,
+                color = JjikmukTheme.colors.borderSubtle,
+                shape = RoundedCornerShape(0.dp),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (product.imageUrl.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .width(164.dp)
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(JjikmukTheme.colors.disabled),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "상품\n이미지",
+                    color = JjikmukTheme.colors.textSecondary,
+                    style = JjikmukTheme.typography.titleL,
+                )
+            }
+        } else {
+            AsyncImage(
+                model = product.imageUrl,
+                contentDescription = product.productName,
+                modifier = Modifier
+                    .width(164.dp)
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
+            )
+        }
+
+        Text(
+            text = "● ○ ○",
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.caption.asEnglish(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 18.dp),
+        )
+
+        Text(
+            text = "♥",
+            color = JjikmukTheme.colors.error,
+            style = JjikmukTheme.typography.h1,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 28.dp, bottom = 21.dp),
+        )
+    }
+}
+
+@Composable
+private fun ProductDetailInfoSection(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 28.dp, top = 29.dp, end = 28.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = product.brandName,
+                    color = JjikmukTheme.colors.textSecondary,
+                    style = JjikmukTheme.typography.h3,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = product.productName,
+                    color = JjikmukTheme.colors.textPrimary,
+                    style = JjikmukTheme.typography.h1,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+
+            Surface(
+                modifier = Modifier.size(81.dp),
+                color = JjikmukTheme.colors.brandSubtle,
+                shape = CircleShape,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (product.isDangerous) "!" else "☺",
+                        color = JjikmukTheme.colors.brandPressed,
+                        style = JjikmukTheme.typography.h1.asEnglish(),
+                    )
+                }
+            }
+        }
+
+        ProductDetailNutritionCard(product = product)
+
+        ProductNutritionRows(product = product)
+
+        Text(
+            text = "1일 영양성분 기준치에 대한 비율(%)은 2,000kcal 기준이므로\n개인의 필요열량에 따라 다를 수 있습니다",
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.bodyS,
+        )
+
+        ProductRawMaterialsBox(product = product)
+    }
+}
+
+@Composable
+private fun ProductDetailNutritionCard(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Text(
+            text = "영양 성분",
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.titleL,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(137.dp),
+            color = JjikmukTheme.colors.info,
+            shape = RoundedCornerShape(14.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 19.dp, vertical = 15.dp),
+                horizontalArrangement = Arrangement.spacedBy(15.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ProductMacroBars(product = product)
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    ProductMacroStatusRow(
+                        color = JjikmukTheme.colors.error,
+                        label = "탄수화물",
+                        percent = product.macroPercents.carbs,
+                    )
+                    ProductMacroStatusRow(
+                        color = JjikmukTheme.colors.edit,
+                        label = "단백질",
+                        percent = product.macroPercents.protein,
+                    )
+                    ProductMacroStatusRow(
+                        color = Color(0xFFFFD66D),
+                        label = "지방",
+                        percent = product.macroPercents.fat,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductMacroBars(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    ProductMacroDonutChart(
+        carbsPercent = product.macroPercents.carbs,
+        proteinPercent = product.macroPercents.protein,
+        fatPercent = product.macroPercents.fat,
+        modifier = modifier
+            .width(111.dp)
+            .height(107.dp),
+    )
+}
+
+@Composable
+private fun ProductMacroDonutChart(
+    carbsPercent: Double?,
+    proteinPercent: Double?,
+    fatPercent: Double?,
+    modifier: Modifier = Modifier,
+) {
+    val emptyChartColor = JjikmukTheme.colors.surfaceSecondary
+    val chartItems = listOf(
+        JjikmukTheme.colors.error to carbsPercent.orZero(),
+        JjikmukTheme.colors.edit to proteinPercent.orZero(),
+        Color(0xFFFFD66D) to fatPercent.orZero(),
+    )
+    val totalPercent = chartItems.sumOf { (_, percent) -> percent }.takeIf { percent -> percent > 0.0 }
+        ?: 100.0
+
+    Canvas(modifier = modifier) {
+        val strokeWidth = 20.dp.toPx()
+        val outerDiameter = size.minDimension
+        val arcSize = outerDiameter - strokeWidth
+        val arcTopLeft = androidx.compose.ui.geometry.Offset(
+            x = (size.width - arcSize) / 2,
+            y = (size.height - arcSize) / 2,
+        )
+        var startAngle = -90f
+
+        drawArc(
+            color = emptyChartColor,
+            startAngle = 0f,
+            sweepAngle = 360f,
+            useCenter = false,
+            topLeft = arcTopLeft,
+            size = androidx.compose.ui.geometry.Size(arcSize, arcSize),
+            style = Stroke(
+                width = strokeWidth,
+                cap = StrokeCap.Butt,
+            ),
+        )
+
+        chartItems.forEach { (color, percent) ->
+            if (percent <= 0.0) return@forEach
+
+            val sweepAngle = (percent / totalPercent * 360f).toFloat()
+            drawArc(
+                color = color,
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = androidx.compose.ui.geometry.Size(arcSize, arcSize),
+                style = Stroke(
+                    width = strokeWidth,
+                    cap = StrokeCap.Butt,
+                ),
+            )
+            startAngle += sweepAngle
+        }
+    }
+}
+
+private fun Double?.orZero(): Double = this ?: 0.0
+
+@Composable
+private fun ProductMacroStatusRow(
+    color: Color,
+    label: String,
+    percent: Double?,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.width(155.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(13.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color),
+        )
+        Text(
+            text = label,
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.labelM,
+            modifier = Modifier
+                .padding(start = 9.dp)
+                .weight(1f),
+        )
+        Text(
+            text = percent.toPercentText(),
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.labelM.asEnglish(),
+        )
+    }
+}
+
+@Composable
+private fun ProductNutritionRows(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ProductNutritionRow("총 칼로리", product.nutrition.energyKcal.toAmountText("kcal"))
+        ProductNutritionRow("단백질", product.nutrition.proteinG.toAmountText("g"))
+        ProductNutritionRow("지방", product.nutrition.fatG.toAmountText("g"))
+        ProductNutritionRow("탄수화물", product.nutrition.carbsG.toAmountText("g"))
+    }
+}
+
+@Composable
+private fun ProductNutritionRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    val dividerColor = JjikmukTheme.colors.borderSubtle
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .drawBehind {
+                drawLine(
+                    color = dividerColor,
+                    start = androidx.compose.ui.geometry.Offset(0f, size.height),
+                    end = androidx.compose.ui.geometry.Offset(size.width, size.height),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(
+                        intervals = floatArrayOf(4.dp.toPx(), 4.dp.toPx()),
+                    ),
+                )
+            }
+            .padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.bodyL,
+        )
+        Text(
+            text = value,
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.bodyL.asEnglish(),
+        )
+    }
+}
+
+@Composable
+private fun ProductRawMaterialsBox(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(100.dp),
+        color = JjikmukTheme.colors.disabled,
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                text = product.rawMaterials?.takeIf(String::isNotBlank) ?: "원재료 정보가 없어요.",
+                color = JjikmukTheme.colors.textPrimary,
+                style = JjikmukTheme.typography.bodyM,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -491,6 +1269,7 @@ private fun ProductSearchSectionHeader(
 @Composable
 private fun ProductRecentSearchChips(
     keywords: List<String>,
+    onKeywordClick: (String) -> Unit,
     onDeleteClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -502,6 +1281,7 @@ private fun ProductRecentSearchChips(
         keywords.forEach { keyword ->
             ProductRecentSearchChip(
                 keyword = keyword,
+                onClick = { onKeywordClick(keyword) },
                 onDeleteClick = { onDeleteClick(keyword) },
             )
         }
@@ -511,11 +1291,14 @@ private fun ProductRecentSearchChips(
 @Composable
 private fun ProductRecentSearchChip(
     keyword: String,
+    onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.height(32.dp),
+        modifier = modifier
+            .height(32.dp)
+            .clickable(onClick = onClick),
         color = JjikmukTheme.colors.surfaceSecondary,
         shape = CircleShape,
         border = androidx.compose.foundation.BorderStroke(
@@ -548,6 +1331,7 @@ private fun ProductRecentSearchChip(
 private fun ProductPopularSearchRow(
     rank: Int,
     keyword: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -555,7 +1339,7 @@ private fun ProductPopularSearchRow(
             .fillMaxWidth()
             .height(44.dp)
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = {}),
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -1252,20 +2036,60 @@ private fun List<JjikmukProductCardUiModel>.sortedBy(
         ProductSortOption.HighPrice -> sortedByDescending { product -> product.name }
     }
 
+private fun ProductSearchResult.toProductListCardUiModel(): JjikmukProductListCardUiModel =
+    JjikmukProductListCardUiModel(
+        brandName = brandName,
+        productName = productName,
+        barcode = barcode,
+        imageUrl = imageUrl,
+        allergyLabels = allergyLabels,
+    )
+
+private fun Double?.toPercentText(): String =
+    if (this == null) {
+        "-"
+    } else {
+        "${formatOneDecimal()}%"
+    }
+
+private fun Double?.toAmountText(unit: String): String =
+    if (this == null) {
+        "-"
+    } else {
+        "${formatOneDecimal()} $unit"
+    }
+
+private fun Double.formatOneDecimal(): String {
+    val roundedValue = kotlin.math.round(this * 10) / 10.0
+    return if (roundedValue % 1.0 == 0.0) {
+        roundedValue.toInt().toString()
+    } else {
+        roundedValue.toString()
+    }
+}
+
 private enum class ProductDestination {
     Overview,
     RecommendationList,
     Search,
+    Detail,
 }
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun ProductScreenPreview() {
     JjikmukTheme {
-        ProductScreen(
+        ProductScreenContent(
             selectedTab = MainTab.Product,
             onTabClick = {},
             onScannerClick = {},
+            searchUiState = ProductSearchUiState(),
+            onSearchQueryChange = {},
+            onClearSearchQuery = {},
+            onResetSearchState = {},
+            onSearchSubmit = {},
+            detailUiState = ProductDetailUiState(),
+            onLoadProductDetail = {},
         )
     }
 }
