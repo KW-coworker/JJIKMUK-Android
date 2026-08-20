@@ -16,7 +16,7 @@ import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
-fun ChatHistoryButton(
+fun JjikmukBackButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -31,18 +31,18 @@ fun ChatHistoryButton(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_chat_history),
-            contentDescription = "채팅 히스토리",
+            painter = painterResource(R.drawable.ic_arrow_back),
+            contentDescription = "뒤로가기",
             tint = JjikmukTheme.colors.textSecondary,
-            modifier = Modifier.size(width = 29.dp, height = 27.dp),
+            modifier = Modifier.size(30.dp),
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun ChatHistoryButtonPreview() {
+private fun JjikmukBackButtonPreview() {
     JjikmukTheme {
-        ChatHistoryButton(onClick = {})
+        JjikmukBackButton(onClick = {})
     }
 }

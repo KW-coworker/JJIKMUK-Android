@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,8 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral600
-import com.coworker.jjikmuk.ui.theme.Primary600
+import com.coworker.jjikmuk.ui.theme.asEnglish
 
 enum class MainTab(
     val label: String,
@@ -43,16 +41,16 @@ fun JjikmukBottomNavigationBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
+        color = JjikmukTheme.colors.surface,
         shadowElevation = 8.dp,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
-                .padding(horizontal = 18.dp),
+                .height(91.dp)
+                .padding(start = 31.dp, top = 8.dp, end = 27.dp, bottom = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
         ) {
             MainTab.entries.forEach { tab ->
                 JjikmukBottomNavigationItem(
@@ -72,7 +70,7 @@ private fun JjikmukBottomNavigationItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val itemColor = if (selected) Primary600 else Neutral600
+    val itemColor = if (selected) JjikmukTheme.colors.brandStrong else JjikmukTheme.colors.textSecondary
 
     Column(
         modifier = modifier
@@ -90,7 +88,7 @@ private fun JjikmukBottomNavigationItem(
         Text(
             text = tab.label,
             color = itemColor,
-            style = MaterialTheme.typography.labelSmall,
+            style = JjikmukTheme.typography.caption.asEnglish(),
         )
     }
 }

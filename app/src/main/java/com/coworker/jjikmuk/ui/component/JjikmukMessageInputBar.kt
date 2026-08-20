@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,12 +26,10 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import com.coworker.jjikmuk.ui.theme.Neutral600
-import com.coworker.jjikmuk.ui.theme.Primary100
-import com.coworker.jjikmuk.ui.theme.Primary200
 
 @Composable
 fun JjikmukMessageInputBar(
@@ -42,25 +39,27 @@ fun JjikmukMessageInputBar(
     onAddClick: () -> Unit,
     onSendClick: () -> Unit,
     modifier: Modifier = Modifier,
+    horizontalPadding: Dp = 20.dp,
 ) {
     val barShape = RoundedCornerShape(30.dp)
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = horizontalPadding)
             .shadow(
                 elevation = 20.dp,
                 shape = barShape,
-                ambientColor = Primary100,
-                spotColor = Primary100,
+                ambientColor = JjikmukTheme.colors.brandSubtler,
+                spotColor = JjikmukTheme.colors.brandSubtler,
             )
             .border(
                 width = 1.dp,
-                color = Primary200,
+                color = JjikmukTheme.colors.brandSubtle,
                 shape = barShape,
             ),
         shape = barShape,
-        color = MaterialTheme.colorScheme.surface,
+        color = JjikmukTheme.colors.surface,
     ) {
         Row(
             modifier = Modifier
@@ -73,7 +72,7 @@ fun JjikmukMessageInputBar(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        color = JjikmukTheme.colors.brandSubtlest,
                         shape = CircleShape,
                     )
                     .clickable(onClick = onAddClick),
@@ -89,11 +88,11 @@ fun JjikmukMessageInputBar(
                 value = text,
                 onValueChange = onTextChange,
                 modifier = Modifier.weight(1f),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
+                textStyle = JjikmukTheme.typography.bodyS.copy(
+                    color = JjikmukTheme.colors.textPrimary,
                 ),
                 singleLine = true,
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = SolidColor(JjikmukTheme.colors.brand),
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Send,
                 ),
@@ -107,8 +106,8 @@ fun JjikmukMessageInputBar(
                         if (text.isBlank()) {
                             Text(
                                 text = placeholder,
-                                color = Neutral600,
-                                style = MaterialTheme.typography.bodyMedium,
+                                color = JjikmukTheme.colors.textSecondary,
+                                style = JjikmukTheme.typography.bodyS,
                             )
                         }
                         innerTextField()
@@ -132,7 +131,7 @@ private fun JjikmukMessageInputBarPreview() {
     JjikmukTheme {
         Row(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
+                .background(JjikmukTheme.colors.background)
                 .padding(24.dp),
         ) {
             JjikmukMessageInputBar(

@@ -52,7 +52,7 @@ fun JjikmukDraggableScannerFab(
                     )
                 },
             )
-            .size(83.dp)
+            .size(59.dp)
             .then(
                 Modifier.offset {
                     IntOffset(
