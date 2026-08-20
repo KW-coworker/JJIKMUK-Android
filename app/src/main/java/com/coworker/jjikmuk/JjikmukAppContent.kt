@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.coworker.jjikmuk.feature.chat.presentation.ChatHistoryScreen
 import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
 import com.coworker.jjikmuk.feature.product.presentation.ProductScreen
@@ -31,10 +32,23 @@ fun JjikmukAppContent() {
                     )
                 }
 
+                MainTab.History -> {
+                    ChatHistoryScreen(
+                        selectedTab = selectedTab,
+                        onTabClick = { tab -> selectedTab = tab },
+                        onBackClick = { selectedTab = MainTab.Home },
+                        onChatClick = { history ->
+                            chatMessage = history.title
+                        },
+                        onScannerClick = { showScanner = true },
+                    )
+                }
+
                 else -> {
                     HomeScreen(
                         selectedTab = selectedTab,
                         onTabClick = { tab -> selectedTab = tab },
+                        onChatHistoryClick = { selectedTab = MainTab.History },
                         onSendMessage = { message -> chatMessage = message },
                         onScannerClick = { showScanner = true },
                     )
