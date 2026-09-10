@@ -72,7 +72,7 @@ fun ScannerMainRoute(
                     ScannerResultStatus.Safe
                 }
             } else {
-                comparedProductCount = (comparedProductCount + 1).coerceAtMost(3)
+                comparedProductCount = (comparedProductCount + 1).coerceAtMost(8)
             }
         },
         onCompareListClick = { showCompareList = true },
@@ -89,9 +89,12 @@ fun ScannerMainRoute(
     }
 
     if (showCompareList) {
-        ScannerCompareListPlaceholderSheet(
+        ScannerCompareListBottomSheet(
             productCount = comparedProductCount,
             onDismissRequest = { showCompareList = false },
+            onRemoveProduct = {
+                comparedProductCount = (comparedProductCount - 1).coerceAtLeast(0)
+            },
             onCompareClick = {
                 showCompareList = false
                 onCompareListClick()
