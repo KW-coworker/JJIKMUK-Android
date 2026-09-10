@@ -14,30 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-enum class ScannerResultPlaceholder {
-    Safe,
-    Warning,
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ScannerResultPlaceholderSheet(
-    result: ScannerResultPlaceholder,
-    onDismissRequest: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismissRequest) {
-        PlaceholderSheetContent(
-            title = if (result == ScannerResultPlaceholder.Safe) {
-                "일반 스캔 - 안심 상품 (임시)"
-            } else {
-                "일반 스캔 - 위험 상품 (임시)"
-            },
-            description = "다음 단계에서 Figma UI로 교체할 화면입니다.",
-            onDismissRequest = onDismissRequest,
-        )
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScannerCompareListPlaceholderSheet(

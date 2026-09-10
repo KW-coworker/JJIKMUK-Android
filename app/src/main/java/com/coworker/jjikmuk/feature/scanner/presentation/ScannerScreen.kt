@@ -52,8 +52,8 @@ fun ScannerMainRoute(
     modifier: Modifier = Modifier,
 ) {
     var mode by rememberSaveable { mutableStateOf(ScannerMode.Normal) }
-    var normalResult by rememberSaveable { mutableStateOf<ScannerResultPlaceholder?>(null) }
-    var nextNormalResult by rememberSaveable { mutableStateOf(ScannerResultPlaceholder.Safe) }
+    var normalResult by rememberSaveable { mutableStateOf<ScannerResultStatus?>(null) }
+    var nextNormalResult by rememberSaveable { mutableStateOf(ScannerResultStatus.Safe) }
     var comparedProductCount by rememberSaveable { mutableStateOf(1) }
     var showCompareList by rememberSaveable { mutableStateOf(false) }
 
@@ -66,10 +66,10 @@ fun ScannerMainRoute(
         onShutterClick = {
             if (mode == ScannerMode.Normal) {
                 normalResult = nextNormalResult
-                nextNormalResult = if (nextNormalResult == ScannerResultPlaceholder.Safe) {
-                    ScannerResultPlaceholder.Warning
+                nextNormalResult = if (nextNormalResult == ScannerResultStatus.Safe) {
+                    ScannerResultStatus.Warning
                 } else {
-                    ScannerResultPlaceholder.Safe
+                    ScannerResultStatus.Safe
                 }
             } else {
                 comparedProductCount = (comparedProductCount + 1).coerceAtMost(3)
@@ -80,9 +80,11 @@ fun ScannerMainRoute(
     )
 
     normalResult?.let { result ->
-        ScannerResultPlaceholderSheet(
-            result = result,
+        ScannerResultBottomSheet(
+            result = sampleScannerResult(result),
             onDismissRequest = { normalResult = null },
+            onProductDetailClick = {},
+            onSecondaryActionClick = {},
         )
     }
 
