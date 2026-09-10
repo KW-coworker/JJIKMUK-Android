@@ -6,7 +6,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.coworker.jjikmuk.feature.scanner.presentation.ScannerAnalysisReportPlaceholder
+import com.coworker.jjikmuk.feature.scanner.presentation.ScannerAnalysisReportScreen
 import com.coworker.jjikmuk.feature.scanner.presentation.ScannerMainRoute
 
 @Composable
@@ -32,7 +32,7 @@ fun ScannerNavHost(
         }
 
         composable(ScannerRoute.AnalysisReport) {
-            ScannerAnalysisReportPlaceholder(
+            ScannerAnalysisReportScreen(
                 onBackClick = navController::popBackStack,
             )
         }
