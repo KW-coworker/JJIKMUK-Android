@@ -38,6 +38,7 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 @Composable
 fun HomeScreen(
     onSendMessage: (String) -> Unit,
+    onScannerClick: () -> Unit = {},
     selectedTab: MainTab = MainTab.Home,
     onTabClick: (MainTab) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -88,7 +89,7 @@ fun HomeScreen(
                     onSendMessage(message)
                 }
             },
-            onScannerClick = {},
+            onScannerClick = onScannerClick,
             onScanTargetDismiss = { showScanTargetPopup = false },
             onScanTargetCheckedChange = { memberId, checked ->
                 val memberIndex = scanTargetMembers.indexOfFirst { member -> member.id == memberId }

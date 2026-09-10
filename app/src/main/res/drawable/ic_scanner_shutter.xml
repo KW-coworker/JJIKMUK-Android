@@ -1,0 +1,41 @@
+<!--
+  ~ Copyright (C) 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="90dp"
+    android:height="90dp"
+    android:viewportWidth="90"
+    android:viewportHeight="90">
+  <path
+      android:pathData="M1.866,44.376a42.285,42.501 0,1 0,84.569 0a42.285,42.501 0,1 0,-84.569 0z"
+      android:fillColor="#EAECF0"/>
+  <path
+      android:pathData="M11.193,44.531a33.111,33.281 0,1 0,66.223 0a33.111,33.281 0,1 0,-66.223 0z"
+      android:fillColor="#16A635"/>
+  <path
+      android:pathData="M46.965,34.166H40.507L37.278,38.041H33.403C32.717,38.041 32.06,38.313 31.576,38.798C31.091,39.282 30.819,39.939 30.819,40.624V52.249C30.819,52.935 31.091,53.592 31.576,54.076C32.06,54.561 32.717,54.833 33.403,54.833H54.069C54.754,54.833 55.411,54.561 55.896,54.076C56.38,53.592 56.653,52.935 56.653,52.249V40.624C56.653,39.939 56.38,39.282 55.896,38.798C55.411,38.313 54.754,38.041 54.069,38.041H50.194L46.965,34.166Z"
+      android:strokeLineJoin="round"
+      android:strokeWidth="2"
+      android:fillColor="#ffffff"
+      android:strokeColor="#ffffff"
+      android:strokeLineCap="round"/>
+  <path
+      android:pathData="M43.736,49.666C45.876,49.666 47.611,47.931 47.611,45.791C47.611,43.651 45.876,41.916 43.736,41.916C41.596,41.916 39.861,43.651 39.861,45.791C39.861,47.931 41.596,49.666 43.736,49.666Z"
+      android:strokeLineJoin="round"
+      android:strokeWidth="2"
+      android:fillColor="#ffffff"
+      android:strokeColor="#ffffff"
+      android:strokeLineCap="round"/>
+</vector>
