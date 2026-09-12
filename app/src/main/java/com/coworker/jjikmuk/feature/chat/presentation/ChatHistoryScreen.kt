@@ -133,6 +133,10 @@ fun ChatHistoryScreen(
                             selectedChatIds.remove(historyId)
                         }
                     },
+                    onDeleteSelectedClick = {
+                        chatHistories.removeAll { history -> history.id in selectedChatIds }
+                        selectedChatIds.clear()
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -525,6 +529,7 @@ private fun ChatHistoryEditContent(
     selectedChatIds: List<String>,
     onSelectAllClick: () -> Unit,
     onChatCheckedChange: (historyId: String, checked: Boolean) -> Unit,
+    onDeleteSelectedClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
@@ -555,7 +560,7 @@ private fun ChatHistoryEditContent(
                     textColor = Color(0xFFE7000B),
                     backgroundColor = Color(0xFFFEF2F2),
                     borderColor = Color(0xFFFFE2E2),
-                    onClick = {},
+                    onClick = onDeleteSelectedClick,
                 )
                 ChatHistoryActionButton(
                     text = "편집",
@@ -652,25 +657,20 @@ private fun ChatHistorySelectionCircle(
     checked: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .size(if (checked) 26.dp else 24.dp)
-            .clip(CircleShape)
-            .background(if (checked) Color(0xFF2B7FFF) else Color.Transparent)
-            .border(
-                width = 2.dp,
-                color = if (checked) JjikmukTheme.colors.surface else JjikmukTheme.colors.border,
-                shape = CircleShape,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (checked) {
-            Text(
-                text = "✓",
-                color = JjikmukTheme.colors.surface,
-                style = JjikmukTheme.typography.labelS,
-            )
-        }
+    if (checked) {
+        Icon(
+            painter = painterResource(R.drawable.ic_condition_check),
+            contentDescription = null,
+            tint = Color.Unspecified,
+            modifier = modifier.size(26.dp),
+        )
+    } else {
+        Box(
+            modifier = modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(JjikmukTheme.colors.disabled),
+        )
     }
 }
 
