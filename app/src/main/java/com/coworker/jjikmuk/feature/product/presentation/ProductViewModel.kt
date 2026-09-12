@@ -2,6 +2,7 @@ package com.coworker.jjikmuk.feature.product.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.coworker.jjikmuk.data.local.preference.RecentSearchKeywordStore
 import com.coworker.jjikmuk.domain.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ProductViewModel @Inject constructor(
     private val productRepository: ProductRepository,
+    private val recentSearchKeywordStore: RecentSearchKeywordStore,
 ) : ViewModel() {
 
     private val _searchUiState = MutableStateFlow(ProductSearchUiState())
@@ -21,6 +23,17 @@ class ProductViewModel @Inject constructor(
 
     private val _detailUiState = MutableStateFlow(ProductDetailUiState())
     val detailUiState: StateFlow<ProductDetailUiState> = _detailUiState.asStateFlow()
+
+    private val _recentSearchKeywords = MutableStateFlow<List<String>>(emptyList())
+    val recentSearchKeywords: StateFlow<List<String>> = _recentSearchKeywords.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            recentSearchKeywordStore.keywords.collect { keywords ->
+                _recentSearchKeywords.value = keywords
+            }
+        }
+    }
 
     fun onSearchQueryChange(query: String) {
         _searchUiState.update { state ->
@@ -55,6 +68,10 @@ class ProductViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            recentSearchKeywordStore.addKeyword(trimmedKeyword)
+        }
+
+        viewModelScope.launch {
             _searchUiState.update { state ->
                 state.copy(
                     query = trimmedKeyword,
@@ -84,6 +101,18 @@ class ProductViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+    }
+
+    fun deleteRecentSearchKeyword(keyword: String) {
+        viewModelScope.launch {
+            recentSearchKeywordStore.deleteKeyword(keyword)
+        }
+    }
+
+    fun clearRecentSearchKeywords() {
+        viewModelScope.launch {
+            recentSearchKeywordStore.clearKeywords()
         }
     }
 

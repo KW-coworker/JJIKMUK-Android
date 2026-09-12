@@ -6,9 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,7 +56,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -78,6 +74,7 @@ import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
 import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
 import com.coworker.jjikmuk.ui.component.JjikmukProductListCard
 import com.coworker.jjikmuk.ui.component.JjikmukProductListCardUiModel
+import com.coworker.jjikmuk.ui.component.JjikmukSearchField
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
@@ -98,16 +95,20 @@ fun ProductScreen(
 ) {
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
     val detailUiState by productViewModel.detailUiState.collectAsStateWithLifecycle()
+    val recentSearchKeywords by productViewModel.recentSearchKeywords.collectAsStateWithLifecycle()
 
     ProductScreenContent(
         selectedTab = selectedTab,
         onTabClick = onTabClick,
         onScannerClick = onScannerClick,
         searchUiState = searchUiState,
+        recentSearchKeywords = recentSearchKeywords,
         onSearchQueryChange = productViewModel::onSearchQueryChange,
         onClearSearchQuery = productViewModel::clearSearchQuery,
         onResetSearchState = productViewModel::resetSearchState,
         onSearchSubmit = productViewModel::searchProducts,
+        onDeleteRecentKeyword = productViewModel::deleteRecentSearchKeyword,
+        onClearRecentKeywords = productViewModel::clearRecentSearchKeywords,
         detailUiState = detailUiState,
         onLoadProductDetail = productViewModel::loadProductDetail,
         modifier = modifier,
@@ -120,10 +121,13 @@ private fun ProductScreenContent(
     onTabClick: (MainTab) -> Unit,
     onScannerClick: () -> Unit,
     searchUiState: ProductSearchUiState,
+    recentSearchKeywords: List<String>,
     onSearchQueryChange: (String) -> Unit,
     onClearSearchQuery: () -> Unit,
     onResetSearchState: () -> Unit,
     onSearchSubmit: (String) -> Unit,
+    onDeleteRecentKeyword: (String) -> Unit,
+    onClearRecentKeywords: () -> Unit,
     detailUiState: ProductDetailUiState,
     onLoadProductDetail: (String?) -> Unit,
     modifier: Modifier = Modifier,
@@ -136,22 +140,7 @@ private fun ProductScreenContent(
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
         defaultImageResId = R.drawable.ic_launcher_foreground,
     )
-    val recentSearchKeywords = remember {
-        mutableStateListOf("오트밀", "아몬드브리즈", "비건 식빵", "무염버터")
-    }
-    fun addRecentSearchKeyword(keyword: String) {
-        val trimmedKeyword = keyword.trim()
-        if (trimmedKeyword.length < 2) return
-
-        recentSearchKeywords.remove(trimmedKeyword)
-        recentSearchKeywords.add(0, trimmedKeyword)
-
-        while (recentSearchKeywords.size > 8) {
-            recentSearchKeywords.removeAt(recentSearchKeywords.lastIndex)
-        }
-    }
     fun submitProductSearch(keyword: String) {
-        addRecentSearchKeyword(keyword)
         onSearchSubmit(keyword)
     }
 
@@ -271,8 +260,8 @@ private fun ProductScreenContent(
                             onSearchQueryChange(keyword)
                             submitProductSearch(keyword)
                         },
-                        onDeleteRecentKeyword = { keyword -> recentSearchKeywords.remove(keyword) },
-                        onClearRecentKeywords = { recentSearchKeywords.clear() },
+                        onDeleteRecentKeyword = onDeleteRecentKeyword,
+                        onClearRecentKeywords = onClearRecentKeywords,
                         onFilterClick = { showProductFilterSheet = true },
                         onProductClick = { product ->
                             onLoadProductDetail(product.barcode)
@@ -399,39 +388,21 @@ private fun ProductSearchBar(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = modifier
-            .height(51.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(JjikmukTheme.colors.surfaceSecondary)
-            .border(
-                width = 1.dp,
-                color = JjikmukTheme.colors.borderSubtle,
-                shape = RoundedCornerShape(16.dp),
-            )
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier
-                },
-            )
-            .padding(start = 16.dp, end = 17.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_product_search),
-            contentDescription = null,
-            tint = JjikmukTheme.colors.textSecondary,
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            text = "어떤 안심 상품을 찾으시나요?",
-            color = JjikmukTheme.colors.textSecondary,
-            style = JjikmukTheme.typography.bodyM,
-            modifier = Modifier.padding(start = 9.dp),
-        )
-    }
+    JjikmukSearchField(
+        value = "",
+        onValueChange = {},
+        placeholder = "어떤 안심 상품을 찾으시나요?",
+        readOnly = true,
+        height = 51.dp,
+        radius = 16.dp,
+        textStyle = JjikmukTheme.typography.bodyM,
+        placeholderStyle = JjikmukTheme.typography.bodyM,
+        leadingIcon = true,
+        showSearchIcon = false,
+        showClearButton = false,
+        onClick = onClick,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -483,72 +454,14 @@ private fun ProductSearchInputField(
     onSearchClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .height(43.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(JjikmukTheme.colors.surfaceSecondary)
-            .border(
-                width = 1.dp,
-                color = JjikmukTheme.colors.borderSubtle,
-                shape = RoundedCornerShape(12.dp),
-            )
-            .padding(start = 17.dp, end = 15.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BasicTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            singleLine = true,
-            textStyle = JjikmukTheme.typography.bodyS.copy(
-                color = JjikmukTheme.colors.textPrimary,
-            ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(
-                onSearch = { onSearchClick() },
-            ),
-            modifier = Modifier.weight(1f),
-            decorationBox = { innerTextField ->
-                if (query.isBlank()) {
-                    Text(
-                        text = "어떤 안심 상품을 찾으시나요?",
-                        color = JjikmukTheme.colors.textSecondary,
-                        style = JjikmukTheme.typography.bodyS,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                innerTextField()
-            },
-        )
-
-        if (query.isBlank()) {
-            Icon(
-                painter = painterResource(R.drawable.ic_product_search),
-                contentDescription = "상품 검색",
-                tint = JjikmukTheme.colors.textSecondary,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable(onClick = onSearchClick),
-            )
-        } else {
-            Surface(
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable(onClick = onClearClick),
-                color = JjikmukTheme.colors.textTertiary,
-                shape = CircleShape,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "×",
-                        color = JjikmukTheme.colors.surface,
-                        style = JjikmukTheme.typography.labelS,
-                    )
-                }
-            }
-        }
-    }
+    JjikmukSearchField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = "어떤 안심 상품을 찾으시나요?",
+        onClearClick = onClearClick,
+        onSearchClick = onSearchClick,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -600,21 +513,23 @@ private fun ProductSearchInitialContent(
                 .background(JjikmukTheme.colors.surface)
                 .padding(horizontal = 20.dp, vertical = 24.dp),
         ) {
-            ProductSearchSectionHeader(
-                title = "최근 검색어",
-                iconResId = R.drawable.ic_recent_search,
-                actionText = "전체 삭제",
-                onActionClick = onClearRecentKeywords,
-            )
+            if (recentKeywords.isNotEmpty()) {
+                ProductSearchSectionHeader(
+                    title = "최근 검색어",
+                    iconResId = R.drawable.ic_recent_search,
+                    actionText = "전체 삭제",
+                    onActionClick = onClearRecentKeywords,
+                )
 
-            ProductRecentSearchChips(
-                keywords = recentKeywords,
-                onKeywordClick = onKeywordClick,
-                onDeleteClick = onDeleteRecentKeyword,
-                modifier = Modifier.padding(top = 12.dp),
-            )
+                ProductRecentSearchChips(
+                    keywords = recentKeywords,
+                    onKeywordClick = onKeywordClick,
+                    onDeleteClick = onDeleteRecentKeyword,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
+            }
 
             ProductSearchSectionHeader(
                 title = "인기 검색어",
@@ -2084,10 +1999,13 @@ private fun ProductScreenPreview() {
             onTabClick = {},
             onScannerClick = {},
             searchUiState = ProductSearchUiState(),
+            recentSearchKeywords = emptyList(),
             onSearchQueryChange = {},
             onClearSearchQuery = {},
             onResetSearchState = {},
             onSearchSubmit = {},
+            onDeleteRecentKeyword = {},
+            onClearRecentKeywords = {},
             detailUiState = ProductDetailUiState(),
             onLoadProductDetail = {},
         )
