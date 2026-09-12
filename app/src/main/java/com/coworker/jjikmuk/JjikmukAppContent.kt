@@ -18,6 +18,7 @@ import com.coworker.jjikmuk.ui.component.MainTab
 @Composable
 fun JjikmukAppContent() {
     var chatMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var chatConversationId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var showScanner by rememberSaveable { mutableStateOf(false) }
 
@@ -38,9 +39,11 @@ fun JjikmukAppContent() {
                         onTabClick = { tab -> selectedTab = tab },
                         onBackClick = { selectedTab = MainTab.Home },
                         onChatClick = { history ->
+                            chatConversationId = history.id
                             chatMessage = history.title
                         },
                         onNewChatClick = {
+                            chatConversationId = null
                             chatMessage = ""
                         },
                         onScannerClick = { showScanner = true },
@@ -52,15 +55,22 @@ fun JjikmukAppContent() {
                         selectedTab = selectedTab,
                         onTabClick = { tab -> selectedTab = tab },
                         onChatHistoryClick = { selectedTab = MainTab.History },
-                        onSendMessage = { message -> chatMessage = message },
+                        onSendMessage = { message ->
+                            chatConversationId = null
+                            chatMessage = message
+                        },
                         onScannerClick = { showScanner = true },
                     )
                 }
             }
         } else {
             ChatRoute(
+                conversationId = chatConversationId,
                 initialMessage = chatMessage.orEmpty(),
-                onBackClick = { chatMessage = null },
+                onBackClick = {
+                    chatConversationId = null
+                    chatMessage = null
+                },
             )
         }
 

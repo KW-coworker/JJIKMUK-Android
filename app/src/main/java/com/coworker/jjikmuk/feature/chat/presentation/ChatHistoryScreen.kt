@@ -45,6 +45,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
 import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
@@ -67,7 +69,9 @@ fun ChatHistoryScreen(
     onNewChatClick: () -> Unit = {},
     onScannerClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    viewModel: ChatHistoryViewModel = hiltViewModel(),
 ) {
+    val chatHistories by viewModel.histories.collectAsStateWithLifecycle()
     var isEditMode by rememberSaveable { mutableStateOf(false) }
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
     val selectedChatIds = remember { mutableStateListOf<String>() }
@@ -79,11 +83,6 @@ fun ChatHistoryScreen(
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
         defaultImageResId = R.drawable.ic_launcher_foreground,
     )
-    val chatHistories = remember {
-        mutableStateListOf<ChatHistoryUiModel>().apply {
-            addAll(defaultChatHistories())
-        }
-    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -136,7 +135,7 @@ fun ChatHistoryScreen(
                         }
                     },
                     onDeleteSelectedClick = {
-                        chatHistories.removeAll { history -> history.id in selectedChatIds }
+                        viewModel.deleteChats(selectedChatIds.toList())
                         selectedChatIds.clear()
                     },
                     modifier = Modifier.fillMaxSize(),
@@ -147,8 +146,9 @@ fun ChatHistoryScreen(
                     onEditClick = { isEditMode = true },
                     onNewChatClick = onNewChatClick,
                     onChatClick = onChatClick,
+                    onPinChatClick = viewModel::togglePinned,
                     onDeleteChatClick = { history ->
-                        chatHistories.removeAll { chatHistory -> chatHistory.id == history.id }
+                        viewModel.deleteChat(history.id)
                         selectedChatIds.remove(history.id)
                     },
                     modifier = Modifier.fillMaxSize(),
@@ -188,6 +188,7 @@ private fun ChatHistoryContent(
     onEditClick: () -> Unit,
     onNewChatClick: () -> Unit,
     onChatClick: (ChatHistoryUiModel) -> Unit,
+    onPinChatClick: (ChatHistoryUiModel) -> Unit,
     onDeleteChatClick: (ChatHistoryUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -199,6 +200,7 @@ private fun ChatHistoryContent(
         ChatHistoryList(
             histories = histories,
             onChatClick = onChatClick,
+            onPinChatClick = onPinChatClick,
             onDeleteChatClick = onDeleteChatClick,
             contentPadding = PaddingValues(bottom = 120.dp),
         )
@@ -323,6 +325,7 @@ private fun ChatHistoryActionButton(
 private fun ChatHistoryList(
     histories: List<ChatHistoryUiModel>,
     onChatClick: (ChatHistoryUiModel) -> Unit,
+    onPinChatClick: (ChatHistoryUiModel) -> Unit,
     onDeleteChatClick: (ChatHistoryUiModel) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -335,6 +338,7 @@ private fun ChatHistoryList(
             SwipeableChatHistoryRow(
                 history = history,
                 onClick = { onChatClick(history) },
+                onPinClick = { onPinChatClick(history) },
                 onDeleteClick = { onDeleteChatClick(history) },
             )
         }
@@ -345,6 +349,7 @@ private fun ChatHistoryList(
 private fun SwipeableChatHistoryRow(
     history: ChatHistoryUiModel,
     onClick: () -> Unit,
+    onPinClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -365,6 +370,10 @@ private fun SwipeableChatHistoryRow(
         ChatHistorySwipeActionBackground(
             offsetPx = rowOffsetPx,
             revealWidthPx = revealWidthPx,
+            onPinClick = {
+                rowOffsetPx = 0f
+                onPinClick()
+            },
             onDeleteClick = {
                 rowOffsetPx = 0f
                 onDeleteClick()
@@ -425,6 +434,7 @@ private fun SwipeableChatHistoryRow(
 private fun ChatHistorySwipeActionBackground(
     offsetPx: Float,
     revealWidthPx: Float,
+    onPinClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -467,7 +477,13 @@ private fun ChatHistorySwipeActionBackground(
                     .then(iconPadding)
                     .size(ChatHistorySwipeIconSize)
                     .then(
-                        if (isDeleteAction) {
+                        if (isPinAction) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onPinClick,
+                            )
+                        } else if (isDeleteAction) {
                             Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -695,21 +711,12 @@ data class ChatHistoryUiModel(
     val title: String,
     val preview: String,
     val time: String,
+    val isPinned: Boolean = false,
 )
 
 private val ChatHistoryRowHeight = 80.dp
 private val ChatHistorySwipeActionWidth = 80.dp
 private val ChatHistorySwipeIconSize = 30.dp
-
-private fun defaultChatHistories(): List<ChatHistoryUiModel> =
-    List(5) { index ->
-        ChatHistoryUiModel(
-            id = "chat-$index",
-            title = "포키 블루베리의 맛...",
-            preview = if (index == 0) "Secondary line of text" else "포키 맛 종류에는 뭐뭐....",
-            time = "12:00 am",
-        )
-    }
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable

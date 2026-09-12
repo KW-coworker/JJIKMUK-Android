@@ -1,7 +1,9 @@
 package com.coworker.jjikmuk.di
 
 import com.coworker.jjikmuk.data.repository.ChatRepositoryImpl
+import com.coworker.jjikmuk.data.repository.ChatHistoryRepositoryImpl
 import com.coworker.jjikmuk.data.repository.ProductRepositoryImpl
+import com.coworker.jjikmuk.domain.repository.ChatHistoryRepository
 import com.coworker.jjikmuk.domain.repository.ChatRepository
 import com.coworker.jjikmuk.domain.repository.ProductRepository
 import dagger.Binds
@@ -19,6 +21,12 @@ abstract class RepositoryModule {
     abstract fun bindChatRepository(
         impl: ChatRepositoryImpl,
     ): ChatRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindChatHistoryRepository(
+        impl: ChatHistoryRepositoryImpl,
+    ): ChatHistoryRepository
 
     @Binds
     @Singleton
