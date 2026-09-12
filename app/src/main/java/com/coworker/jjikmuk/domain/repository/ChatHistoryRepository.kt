@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 interface ChatHistoryRepository {
     fun observeConversations(): Flow<List<ChatConversation>>
 
+    fun observeConversations(query: String): Flow<List<ChatConversation>>
+
     fun observeMessages(conversationId: String): Flow<List<ChatSavedMessage>>
 
     suspend fun createConversation(

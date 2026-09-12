@@ -20,6 +20,12 @@ class ChatHistoryRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun observeConversations(query: String): Flow<List<ChatConversation>> {
+        return chatHistoryDao.observeConversations(query).map { conversations ->
+            conversations.map { conversation -> conversation.toDomain() }
+        }
+    }
+
     override fun observeMessages(conversationId: String): Flow<List<ChatSavedMessage>> {
         return chatHistoryDao.observeMessages(conversationId).map { messages ->
             messages.map { message -> message.toDomain() }

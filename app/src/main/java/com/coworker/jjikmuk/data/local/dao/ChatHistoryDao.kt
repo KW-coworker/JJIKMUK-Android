@@ -22,6 +22,37 @@ interface ChatHistoryDao {
 
     @Query(
         """
+        SELECT
+            conversation.id,
+            conversation.title,
+            CASE
+                WHEN conversation.preview LIKE '%' || :query || '%' THEN conversation.preview
+                WHEN conversation.title LIKE '%' || :query || '%' THEN conversation.preview
+                ELSE (
+                    SELECT matchedMessage.text
+                    FROM chat_messages AS matchedMessage
+                    WHERE matchedMessage.conversationId = conversation.id
+                        AND matchedMessage.text LIKE '%' || :query || '%'
+                    ORDER BY matchedMessage.createdAt DESC, matchedMessage.id DESC
+                    LIMIT 1
+                )
+            END AS preview,
+            conversation.isPinned,
+            conversation.createdAt,
+            conversation.updatedAt
+        FROM chat_conversations AS conversation
+        LEFT JOIN chat_messages AS message
+            ON conversation.id = message.conversationId
+        WHERE conversation.title LIKE '%' || :query || '%'
+            OR conversation.preview LIKE '%' || :query || '%'
+            OR message.text LIKE '%' || :query || '%'
+        ORDER BY conversation.isPinned DESC, conversation.updatedAt DESC
+        """,
+    )
+    fun observeConversations(query: String): Flow<List<ChatConversationEntity>>
+
+    @Query(
+        """
         SELECT *
         FROM chat_messages
         WHERE conversationId = :conversationId

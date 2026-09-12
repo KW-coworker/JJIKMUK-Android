@@ -72,6 +72,7 @@ fun ChatHistoryScreen(
     viewModel: ChatHistoryViewModel = hiltViewModel(),
 ) {
     val chatHistories by viewModel.histories.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     var isEditMode by rememberSaveable { mutableStateOf(false) }
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
     val selectedChatIds = remember { mutableStateListOf<String>() }
@@ -143,6 +144,8 @@ fun ChatHistoryScreen(
             } else {
                 ChatHistoryContent(
                     histories = chatHistories,
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = viewModel::updateSearchQuery,
                     onEditClick = { isEditMode = true },
                     onNewChatClick = onNewChatClick,
                     onChatClick = onChatClick,
@@ -185,6 +188,8 @@ fun ChatHistoryScreen(
 @Composable
 private fun ChatHistoryContent(
     histories: List<ChatHistoryUiModel>,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onEditClick: () -> Unit,
     onNewChatClick: () -> Unit,
     onChatClick: (ChatHistoryUiModel) -> Unit,
@@ -194,6 +199,8 @@ private fun ChatHistoryContent(
 ) {
     Column(modifier = modifier) {
         ChatHistoryHeader(
+            searchQuery = searchQuery,
+            onSearchQueryChange = onSearchQueryChange,
             onEditClick = onEditClick,
             onNewChatClick = onNewChatClick,
         )
@@ -209,6 +216,8 @@ private fun ChatHistoryContent(
 
 @Composable
 private fun ChatHistoryHeader(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onEditClick: () -> Unit,
     onNewChatClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -231,6 +240,8 @@ private fun ChatHistoryHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ChatHistorySearchBar(
+                query = searchQuery,
+                onQueryChange = onSearchQueryChange,
                 modifier = Modifier.weight(1f),
             )
             ChatHistoryNewChatButton(
@@ -274,15 +285,15 @@ private fun ChatHistoryNewChatButton(
 
 @Composable
 private fun ChatHistorySearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-
     JjikmukSearchField(
         value = query,
-        onValueChange = { query = it },
+        onValueChange = onQueryChange,
         placeholder = "채팅 내역 검색",
-        onClearClick = { query = "" },
+        onClearClick = { onQueryChange("") },
         modifier = modifier,
     )
 }
