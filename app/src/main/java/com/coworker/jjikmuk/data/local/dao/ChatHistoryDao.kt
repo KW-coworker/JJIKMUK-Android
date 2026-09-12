@@ -93,10 +93,22 @@ interface ChatHistoryDao {
         updatedAt: Long,
     )
 
-    @Query("UPDATE chat_conversations SET isPinned = :isPinned WHERE id = :conversationId")
+    @Query(
+        """
+        UPDATE chat_conversations
+        SET
+            isPinned = :isPinned,
+            updatedAt = CASE
+                WHEN :isPinned THEN :updatedAt
+                ELSE updatedAt
+            END
+        WHERE id = :conversationId
+        """,
+    )
     suspend fun updatePinned(
         conversationId: String,
         isPinned: Boolean,
+        updatedAt: Long,
     )
 
     @Query("DELETE FROM chat_conversations WHERE id = :conversationId")

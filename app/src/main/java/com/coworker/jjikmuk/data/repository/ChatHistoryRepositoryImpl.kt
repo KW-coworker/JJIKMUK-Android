@@ -90,6 +90,7 @@ class ChatHistoryRepositoryImpl @Inject constructor(
         chatHistoryDao.updatePinned(
             conversationId = conversationId,
             isPinned = isPinned,
+            updatedAt = System.currentTimeMillis(),
         )
     }
 

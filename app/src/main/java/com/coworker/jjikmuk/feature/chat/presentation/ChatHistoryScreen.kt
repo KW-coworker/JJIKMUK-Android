@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -32,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +66,7 @@ import com.coworker.jjikmuk.ui.component.ScanTargetPopup
 import com.coworker.jjikmuk.ui.component.defaultScanTargetMembers
 import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
+import kotlinx.coroutines.launch
 
 @Composable
 fun ChatHistoryScreen(
@@ -202,6 +206,9 @@ private fun ChatHistoryContent(
     onDeleteChatClick: (ChatHistoryUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
     Column(modifier = modifier) {
         ChatHistoryHeader(
             searchQuery = searchQuery,
@@ -212,8 +219,14 @@ private fun ChatHistoryContent(
         ChatHistoryList(
             histories = histories,
             searchQuery = searchQuery,
+            listState = listState,
             onChatClick = onChatClick,
-            onPinChatClick = onPinChatClick,
+            onPinChatClick = { history ->
+                onPinChatClick(history)
+                coroutineScope.launch {
+                    listState.animateScrollToItem(0)
+                }
+            },
             onDeleteChatClick = onDeleteChatClick,
             contentPadding = PaddingValues(bottom = 120.dp),
         )
@@ -342,6 +355,7 @@ private fun ChatHistoryActionButton(
 private fun ChatHistoryList(
     histories: List<ChatHistoryUiModel>,
     searchQuery: String,
+    listState: androidx.compose.foundation.lazy.LazyListState,
     onChatClick: (ChatHistoryUiModel) -> Unit,
     onPinChatClick: (ChatHistoryUiModel) -> Unit,
     onDeleteChatClick: (ChatHistoryUiModel) -> Unit,
@@ -349,6 +363,7 @@ private fun ChatHistoryList(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = contentPadding,
     ) {
@@ -481,6 +496,27 @@ private fun ChatHistorySwipeActionBackground(
     } else {
         Modifier.padding(end = (ChatHistorySwipeActionWidth - ChatHistorySwipeIconSize) / 2)
     }
+    val actionModifier = when {
+        isPinAction -> Modifier
+            .width(ChatHistorySwipeActionWidth)
+            .fillMaxHeight()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onPinClick,
+            )
+
+        isDeleteAction -> Modifier
+            .width(ChatHistorySwipeActionWidth)
+            .fillMaxHeight()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDeleteClick,
+            )
+
+        else -> Modifier
+    }
 
     Box(
         modifier = modifier
@@ -489,32 +525,17 @@ private fun ChatHistorySwipeActionBackground(
             .background(backgroundColor),
     ) {
         if (iconResId != null) {
-            Icon(
-                painter = painterResource(iconResId),
-                contentDescription = null,
-                tint = Color.Unspecified,
-                modifier = Modifier
-                    .align(iconAlignment)
-                    .then(iconPadding)
-                    .size(ChatHistorySwipeIconSize)
-                    .then(
-                        if (isPinAction) {
-                            Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onPinClick,
-                            )
-                        } else if (isDeleteAction) {
-                            Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onDeleteClick,
-                            )
-                        } else {
-                            Modifier
-                        },
-                    ),
-            )
+            Box(
+                modifier = actionModifier.align(iconAlignment),
+                contentAlignment = iconAlignment,
+            ) {
+                Icon(
+                    painter = painterResource(iconResId),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = iconPadding.size(ChatHistorySwipeIconSize),
+                )
+            }
         }
     }
 }
@@ -539,12 +560,10 @@ private fun ChatHistoryRow(
                 .padding(start = 30.dp, top = 16.dp, end = 30.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                text = history.title.highlightSearchQuery(searchQuery),
-                color = JjikmukTheme.colors.textPrimary,
-                style = JjikmukTheme.typography.h3,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            ChatHistoryTitle(
+                title = history.title,
+                searchQuery = searchQuery,
+                isPinned = history.isPinned,
                 modifier = Modifier.width(190.dp),
             )
             Row(
@@ -666,12 +685,10 @@ private fun ChatHistorySelectableRow(
                 .width(190.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                text = history.title.highlightSearchQuery(searchQuery),
-                color = JjikmukTheme.colors.textPrimary,
-                style = JjikmukTheme.typography.h3,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            ChatHistoryTitle(
+                title = history.title,
+                searchQuery = searchQuery,
+                isPinned = history.isPinned,
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
@@ -731,6 +748,37 @@ private fun ChatHistorySelectionCircle(
     }
 }
 
+@Composable
+private fun ChatHistoryTitle(
+    title: String,
+    searchQuery: String,
+    isPinned: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (isPinned) {
+            Icon(
+                painter = painterResource(R.drawable.ic_chat_pin),
+                contentDescription = "고정된 대화",
+                tint = ChatHistoryPinnedIconColor,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(
+            text = title.highlightSearchQuery(searchQuery),
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.h3,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+    }
+}
+
 data class ChatHistoryUiModel(
     val id: String,
     val title: String,
@@ -742,6 +790,7 @@ data class ChatHistoryUiModel(
 private val ChatHistoryRowHeight = 80.dp
 private val ChatHistorySwipeActionWidth = 80.dp
 private val ChatHistorySwipeIconSize = 30.dp
+private val ChatHistoryPinnedIconColor = Color(0xFFFBBF24)
 
 @Composable
 private fun String.highlightSearchQuery(
