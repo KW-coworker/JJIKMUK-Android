@@ -209,6 +209,8 @@ private fun defaultSelectedScanTargetProfiles(): List<ScanTargetProfileUiModel> 
 
 private fun createChatTitle(message: String): String {
     val trimmedMessage = message.trim()
+    if (trimmedMessage.isEmpty()) return "새 대화"
+
     return if (trimmedMessage.length <= CHAT_TITLE_MAX_LENGTH) {
         trimmedMessage
     } else {

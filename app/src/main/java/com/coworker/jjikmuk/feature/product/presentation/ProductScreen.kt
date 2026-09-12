@@ -6,9 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,7 +56,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -78,6 +74,7 @@ import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
 import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
 import com.coworker.jjikmuk.ui.component.JjikmukProductListCard
 import com.coworker.jjikmuk.ui.component.JjikmukProductListCardUiModel
+import com.coworker.jjikmuk.ui.component.JjikmukSearchField
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
@@ -399,39 +396,21 @@ private fun ProductSearchBar(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = modifier
-            .height(51.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(JjikmukTheme.colors.surfaceSecondary)
-            .border(
-                width = 1.dp,
-                color = JjikmukTheme.colors.borderSubtle,
-                shape = RoundedCornerShape(16.dp),
-            )
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier
-                },
-            )
-            .padding(start = 16.dp, end = 17.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_product_search),
-            contentDescription = null,
-            tint = JjikmukTheme.colors.textSecondary,
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            text = "어떤 안심 상품을 찾으시나요?",
-            color = JjikmukTheme.colors.textSecondary,
-            style = JjikmukTheme.typography.bodyM,
-            modifier = Modifier.padding(start = 9.dp),
-        )
-    }
+    JjikmukSearchField(
+        value = "",
+        onValueChange = {},
+        placeholder = "어떤 안심 상품을 찾으시나요?",
+        readOnly = true,
+        height = 51.dp,
+        radius = 16.dp,
+        textStyle = JjikmukTheme.typography.bodyM,
+        placeholderStyle = JjikmukTheme.typography.bodyM,
+        leadingIcon = true,
+        showSearchIcon = false,
+        showClearButton = false,
+        onClick = onClick,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -483,72 +462,14 @@ private fun ProductSearchInputField(
     onSearchClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .height(43.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(JjikmukTheme.colors.surfaceSecondary)
-            .border(
-                width = 1.dp,
-                color = JjikmukTheme.colors.borderSubtle,
-                shape = RoundedCornerShape(12.dp),
-            )
-            .padding(start = 17.dp, end = 15.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BasicTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            singleLine = true,
-            textStyle = JjikmukTheme.typography.bodyS.copy(
-                color = JjikmukTheme.colors.textPrimary,
-            ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(
-                onSearch = { onSearchClick() },
-            ),
-            modifier = Modifier.weight(1f),
-            decorationBox = { innerTextField ->
-                if (query.isBlank()) {
-                    Text(
-                        text = "어떤 안심 상품을 찾으시나요?",
-                        color = JjikmukTheme.colors.textSecondary,
-                        style = JjikmukTheme.typography.bodyS,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                innerTextField()
-            },
-        )
-
-        if (query.isBlank()) {
-            Icon(
-                painter = painterResource(R.drawable.ic_product_search),
-                contentDescription = "상품 검색",
-                tint = JjikmukTheme.colors.textSecondary,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable(onClick = onSearchClick),
-            )
-        } else {
-            Surface(
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable(onClick = onClearClick),
-                color = JjikmukTheme.colors.textTertiary,
-                shape = CircleShape,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "×",
-                        color = JjikmukTheme.colors.surface,
-                        style = JjikmukTheme.typography.labelS,
-                    )
-                }
-            }
-        }
-    }
+    JjikmukSearchField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = "어떤 안심 상품을 찾으시나요?",
+        onClearClick = onClearClick,
+        onSearchClick = onSearchClick,
+        modifier = modifier,
+    )
 }
 
 @Composable

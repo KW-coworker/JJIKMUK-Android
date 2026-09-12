@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
 import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
+import com.coworker.jjikmuk.ui.component.JjikmukSearchField
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
@@ -63,6 +64,7 @@ fun ChatHistoryScreen(
     onTabClick: (MainTab) -> Unit = {},
     onBackClick: () -> Unit = {},
     onChatClick: (ChatHistoryUiModel) -> Unit = {},
+    onNewChatClick: () -> Unit = {},
     onScannerClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -143,6 +145,7 @@ fun ChatHistoryScreen(
                 ChatHistoryContent(
                     histories = chatHistories,
                     onEditClick = { isEditMode = true },
+                    onNewChatClick = onNewChatClick,
                     onChatClick = onChatClick,
                     onDeleteChatClick = { history ->
                         chatHistories.removeAll { chatHistory -> chatHistory.id == history.id }
@@ -183,12 +186,16 @@ fun ChatHistoryScreen(
 private fun ChatHistoryContent(
     histories: List<ChatHistoryUiModel>,
     onEditClick: () -> Unit,
+    onNewChatClick: () -> Unit,
     onChatClick: (ChatHistoryUiModel) -> Unit,
     onDeleteChatClick: (ChatHistoryUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        ChatHistoryHeader(onEditClick = onEditClick)
+        ChatHistoryHeader(
+            onEditClick = onEditClick,
+            onNewChatClick = onNewChatClick,
+        )
         ChatHistoryList(
             histories = histories,
             onChatClick = onChatClick,
@@ -201,6 +208,7 @@ private fun ChatHistoryContent(
 @Composable
 private fun ChatHistoryHeader(
     onEditClick: () -> Unit,
+    onNewChatClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -223,6 +231,9 @@ private fun ChatHistoryHeader(
             ChatHistorySearchBar(
                 modifier = Modifier.weight(1f),
             )
+            ChatHistoryNewChatButton(
+                onClick = onNewChatClick,
+            )
             ChatHistoryActionButton(
                 text = "편집",
                 textColor = JjikmukTheme.colors.edit,
@@ -235,38 +246,43 @@ private fun ChatHistoryHeader(
 }
 
 @Composable
-private fun ChatHistorySearchBar(
+private fun ChatHistoryNewChatButton(
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
-            .height(43.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(JjikmukTheme.colors.surfaceSecondary)
-            .border(
-                width = 1.dp,
-                color = JjikmukTheme.colors.borderSubtle,
-                shape = RoundedCornerShape(12.dp),
-            )
-            .padding(start = 17.dp, end = 17.dp),
-        contentAlignment = Alignment.CenterStart,
+            .size(40.dp)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = "채팅 내역 검색",
-            color = JjikmukTheme.colors.textSecondary,
-            style = JjikmukTheme.typography.bodyS,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
         Icon(
-            painter = painterResource(R.drawable.ic_product_search),
-            contentDescription = "채팅 내역 검색",
-            tint = JjikmukTheme.colors.textSecondary,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(20.dp),
+            painter = painterResource(R.drawable.ic_chat_new),
+            contentDescription = "새 대화",
+            tint = Color.Unspecified,
+            modifier = Modifier.size(40.dp),
         )
     }
+}
+
+@Composable
+private fun ChatHistorySearchBar(
+    modifier: Modifier = Modifier,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+
+    JjikmukSearchField(
+        value = query,
+        onValueChange = { query = it },
+        placeholder = "채팅 내역 검색",
+        onClearClick = { query = "" },
+        modifier = modifier,
+    )
 }
 
 @Composable

@@ -25,12 +25,14 @@ class ChatViewModel @Inject constructor(
     private var nextMessageId = 1L
 
     fun start(initialMessage: String) {
-        if (this.initialMessage == initialMessage) return
+        if (this.initialMessage == initialMessage && initialMessage.isNotBlank()) return
 
         this.initialMessage = initialMessage
         pendingProductQuestion = null
         _uiState.value = ChatUiState()
         nextMessageId = 1L
+        if (initialMessage.isBlank()) return
+
         sendMessage(initialMessage)
     }
 

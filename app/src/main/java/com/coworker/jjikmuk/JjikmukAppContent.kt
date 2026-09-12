@@ -40,6 +40,9 @@ fun JjikmukAppContent() {
                         onChatClick = { history ->
                             chatMessage = history.title
                         },
+                        onNewChatClick = {
+                            chatMessage = ""
+                        },
                         onScannerClick = { showScanner = true },
                     )
                 }
