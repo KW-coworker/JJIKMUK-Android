@@ -41,7 +41,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -123,6 +127,7 @@ fun ChatHistoryScreen(
             if (isEditMode) {
                 ChatHistoryEditContent(
                     histories = chatHistories,
+                    searchQuery = searchQuery,
                     selectedChatIds = selectedChatIds,
                     onSelectAllClick = {
                         selectedChatIds.clear()
@@ -206,6 +211,7 @@ private fun ChatHistoryContent(
         )
         ChatHistoryList(
             histories = histories,
+            searchQuery = searchQuery,
             onChatClick = onChatClick,
             onPinChatClick = onPinChatClick,
             onDeleteChatClick = onDeleteChatClick,
@@ -335,6 +341,7 @@ private fun ChatHistoryActionButton(
 @Composable
 private fun ChatHistoryList(
     histories: List<ChatHistoryUiModel>,
+    searchQuery: String,
     onChatClick: (ChatHistoryUiModel) -> Unit,
     onPinChatClick: (ChatHistoryUiModel) -> Unit,
     onDeleteChatClick: (ChatHistoryUiModel) -> Unit,
@@ -348,6 +355,7 @@ private fun ChatHistoryList(
         items(histories, key = { history -> history.id }) { history ->
             SwipeableChatHistoryRow(
                 history = history,
+                searchQuery = searchQuery,
                 onClick = { onChatClick(history) },
                 onPinClick = { onPinChatClick(history) },
                 onDeleteClick = { onDeleteChatClick(history) },
@@ -359,6 +367,7 @@ private fun ChatHistoryList(
 @Composable
 private fun SwipeableChatHistoryRow(
     history: ChatHistoryUiModel,
+    searchQuery: String,
     onClick: () -> Unit,
     onPinClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -429,6 +438,7 @@ private fun SwipeableChatHistoryRow(
         ) {
             ChatHistoryRow(
                 history = history,
+                searchQuery = searchQuery,
                 onClick = {
                     if (rowOffsetPx == 0f) {
                         onClick()
@@ -512,6 +522,7 @@ private fun ChatHistorySwipeActionBackground(
 @Composable
 private fun ChatHistoryRow(
     history: ChatHistoryUiModel,
+    searchQuery: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -529,7 +540,7 @@ private fun ChatHistoryRow(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = history.title,
+                text = history.title.highlightSearchQuery(searchQuery),
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.h3,
                 maxLines = 1,
@@ -542,7 +553,7 @@ private fun ChatHistoryRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = history.preview,
+                    text = history.preview.highlightSearchQuery(searchQuery),
                     color = JjikmukTheme.colors.textSecondary,
                     style = JjikmukTheme.typography.bodyS,
                     maxLines = 1,
@@ -569,6 +580,7 @@ private fun ChatHistoryRow(
 @Composable
 private fun ChatHistoryEditContent(
     histories: List<ChatHistoryUiModel>,
+    searchQuery: String,
     selectedChatIds: List<String>,
     onSelectAllClick: () -> Unit,
     onChatCheckedChange: (historyId: String, checked: Boolean) -> Unit,
@@ -621,6 +633,7 @@ private fun ChatHistoryEditContent(
             items(histories, key = { history -> history.id }) { history ->
                 ChatHistorySelectableRow(
                     history = history,
+                    searchQuery = searchQuery,
                     checked = history.id in selectedChatIds,
                     onCheckedChange = { checked ->
                         onChatCheckedChange(history.id, checked)
@@ -634,6 +647,7 @@ private fun ChatHistoryEditContent(
 @Composable
 private fun ChatHistorySelectableRow(
     history: ChatHistoryUiModel,
+    searchQuery: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -653,7 +667,7 @@ private fun ChatHistorySelectableRow(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = history.title,
+                text = history.title.highlightSearchQuery(searchQuery),
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.h3,
                 maxLines = 1,
@@ -664,7 +678,7 @@ private fun ChatHistorySelectableRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = history.preview,
+                    text = history.preview.highlightSearchQuery(searchQuery),
                     color = JjikmukTheme.colors.textSecondary,
                     style = JjikmukTheme.typography.bodyS,
                     maxLines = 1,
@@ -728,6 +742,39 @@ data class ChatHistoryUiModel(
 private val ChatHistoryRowHeight = 80.dp
 private val ChatHistorySwipeActionWidth = 80.dp
 private val ChatHistorySwipeIconSize = 30.dp
+
+@Composable
+private fun String.highlightSearchQuery(
+    searchQuery: String,
+) = buildAnnotatedString {
+    val query = searchQuery.trim()
+    if (query.isEmpty()) {
+        append(this@highlightSearchQuery)
+        return@buildAnnotatedString
+    }
+
+    val matchStartIndex = this@highlightSearchQuery.indexOf(
+        string = query,
+        ignoreCase = true,
+    )
+
+    if (matchStartIndex < 0) {
+        append(this@highlightSearchQuery)
+        return@buildAnnotatedString
+    }
+
+    val matchEndIndex = matchStartIndex + query.length
+    append(this@highlightSearchQuery.substring(0, matchStartIndex))
+    withStyle(
+        SpanStyle(
+            color = JjikmukTheme.colors.brand,
+            fontWeight = FontWeight.Bold,
+        ),
+    ) {
+        append(this@highlightSearchQuery.substring(matchStartIndex, matchEndIndex))
+    }
+    append(this@highlightSearchQuery.substring(matchEndIndex))
+}
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
