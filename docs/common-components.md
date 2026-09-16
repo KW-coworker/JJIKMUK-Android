@@ -4,6 +4,8 @@
 
 이 문서는 `app/src/main/java/com/coworker/jjikmuk/ui/component`에 있는 공개 Compose 컴포넌트를 팀원이 재사용할 수 있도록 정리한 명세다. 노션에 옮길 때도 아래 표를 기준으로 사용한다.
 
+알레르기·식이조건의 ID, 이름과 아이콘은 [`food-preference-catalog.md`](food-preference-catalog.md)를 따른다.
+
 - **컴포넌트명**은 Kotlin의 `@Composable` 함수명이다.
 - 화면 전용 조합은 `feature/**/presentation`에 두고, 여러 화면에서 재사용하는 UI만 `ui/component`에 둔다.
 - 모든 컴포넌트는 가능한 한 `JjikmukTheme`의 색상·타이포그래피를 사용한다.

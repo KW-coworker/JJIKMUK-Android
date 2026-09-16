@@ -53,6 +53,8 @@ import com.coworker.jjikmuk.ui.component.JjikmukNicknameTextField
 import com.coworker.jjikmuk.ui.component.JjikmukPrimaryButton
 import com.coworker.jjikmuk.ui.component.JjikmukProfileImagePicker
 import com.coworker.jjikmuk.ui.component.JjikmukSelectedItemChip
+import com.coworker.jjikmuk.ui.catalog.DietaryCondition
+import com.coworker.jjikmuk.ui.catalog.FoodAllergy
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -305,32 +307,38 @@ private data class ProfileSelectedItem(
 
 @Composable
 private fun profileSelectedItems(uiState: SignUpUiState): List<ProfileSelectedItem> = buildList {
-    allergyItems
+    FoodAllergy.entries
         .filter { it.id in uiState.allergies }
-        .forEach { add(ProfileSelectedItem(it.emoji, stringResource(it.labelRes))) }
+        .forEach { add(ProfileSelectedItem(it.icon, stringResource(it.labelRes))) }
 
     if (uiState.hasVegetarianCondition) {
-        val dietLabel = when (uiState.vegetarianDiet) {
-            VegetarianDiet.Vegan -> R.string.sign_up_profile_vegan
-            VegetarianDiet.Lacto -> R.string.sign_up_profile_lacto
-            VegetarianDiet.Ovo -> R.string.sign_up_profile_ovo
-            VegetarianDiet.LactoOvo -> R.string.sign_up_profile_lacto_ovo
-            VegetarianDiet.Pesco -> R.string.sign_up_profile_pesco
-            VegetarianDiet.Pollo -> R.string.sign_up_profile_pollo
+        val dietaryCondition = when (uiState.vegetarianDiet) {
+            VegetarianDiet.Vegan -> DietaryCondition.VEGAN
+            VegetarianDiet.Lacto -> DietaryCondition.LACTO
+            VegetarianDiet.Ovo -> DietaryCondition.OVO
+            VegetarianDiet.LactoOvo -> DietaryCondition.LACTO_OVO
+            VegetarianDiet.Pesco -> DietaryCondition.PESCO
+            VegetarianDiet.Pollo -> DietaryCondition.POLLO
             null -> null
         }
-        dietLabel?.let { add(ProfileSelectedItem("🥗", stringResource(it))) }
+        dietaryCondition?.let {
+            add(ProfileSelectedItem(it.icon, stringResource(it.labelRes)))
+        }
     }
 
     val conditions = listOf(
-        SignUpCondition.LowSugar to ProfileSelectedItem("📉", stringResource(R.string.sign_up_condition_low_sugar)),
-        SignUpCondition.LowSodium to ProfileSelectedItem("🧂", stringResource(R.string.sign_up_condition_low_sodium)),
-        SignUpCondition.GlutenFree to ProfileSelectedItem("🌾", stringResource(R.string.sign_up_condition_gluten_free)),
-        SignUpCondition.LowCalorie to ProfileSelectedItem("🏃", stringResource(R.string.sign_up_condition_low_calorie)),
-        SignUpCondition.LowFat to ProfileSelectedItem("🥑", stringResource(R.string.sign_up_condition_low_fat)),
-        SignUpCondition.HighProtein to ProfileSelectedItem("💪", stringResource(R.string.sign_up_condition_high_protein)),
+        SignUpCondition.LowSugar to DietaryCondition.LOW_SUGAR,
+        SignUpCondition.LowSodium to DietaryCondition.LOW_SODIUM,
+        SignUpCondition.GlutenFree to DietaryCondition.GLUTEN_FREE,
+        SignUpCondition.LowCalorie to DietaryCondition.LOW_CALORIE,
+        SignUpCondition.LowFat to DietaryCondition.LOW_FAT,
+        SignUpCondition.HighProtein to DietaryCondition.HIGH_PROTEIN,
     )
-    conditions.filter { it.first in uiState.selectedConditions }.forEach { add(it.second) }
+    conditions
+        .filter { it.first in uiState.selectedConditions }
+        .forEach { (_, item) ->
+            add(ProfileSelectedItem(item.icon, stringResource(item.labelRes)))
+        }
 }
 
 private val AUTH_STATUS_BAR_COLOR = Color(0xFFFCFCFF)
@@ -378,7 +386,7 @@ private fun SignUpProfileManyItemsPreview() {
                 nickname = "코워커",
                 selectedConditions = SignUpCondition.entries.toSet(),
                 vegetarianDiet = VegetarianDiet.Vegan,
-                allergies = allergyItems.map { it.id }.toSet(),
+                allergies = FoodAllergy.entries.map { it.id }.toSet(),
             ),
             onNicknameChange = {},
             onPhotoClick = {},

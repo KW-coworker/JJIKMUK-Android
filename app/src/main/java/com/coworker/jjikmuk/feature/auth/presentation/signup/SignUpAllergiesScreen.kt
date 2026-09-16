@@ -1,7 +1,6 @@
 package com.coworker.jjikmuk.feature.auth.presentation.signup
 
 import androidx.activity.compose.BackHandler
-import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +35,7 @@ import com.coworker.jjikmuk.ui.component.JjikmukAllergyChip
 import com.coworker.jjikmuk.ui.component.JjikmukAuthTopBar
 import com.coworker.jjikmuk.ui.component.JjikmukPrimaryButton
 import com.coworker.jjikmuk.ui.component.JjikmukVerticalScrollIndicator
+import com.coworker.jjikmuk.ui.catalog.FoodAllergy
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
@@ -118,9 +118,9 @@ fun SignUpAllergiesScreen(
                         .verticalScroll(scrollState)
                         .padding(start = 22.dp, end = 22.dp, bottom = 16.dp),
                 ) {
-                    allergyItems.forEach { item ->
+                    FoodAllergy.entries.forEach { item ->
                         JjikmukAllergyChip(
-                            emoji = item.emoji,
+                            emoji = item.icon,
                             label = stringResource(item.labelRes),
                             selected = item.id in uiState.allergies,
                             onSelectedChange = { onAllergyClick(item.id) },
@@ -150,41 +150,6 @@ fun SignUpAllergiesScreen(
         }
     }
 }
-
-data class AllergyItem(
-    val id: String,
-    val emoji: String,
-    @StringRes val labelRes: Int,
-)
-
-val allergyItems = listOf(
-    AllergyItem("egg", "🥚", R.string.sign_up_allergy_egg),
-    AllergyItem("milk", "🥛", R.string.sign_up_allergy_milk),
-    AllergyItem("soy", "🫘", R.string.sign_up_allergy_soy),
-    AllergyItem("wheat", "🍞", R.string.sign_up_allergy_wheat),
-    AllergyItem("pork", "🥓", R.string.sign_up_allergy_pork),
-    AllergyItem("chicken", "🍗", R.string.sign_up_allergy_chicken),
-    AllergyItem("shrimp", "🦐", R.string.sign_up_allergy_shrimp),
-    AllergyItem("crab", "🦀", R.string.sign_up_allergy_crab),
-    AllergyItem("squid", "🦑", R.string.sign_up_allergy_squid),
-    AllergyItem("mackerel", "🐟", R.string.sign_up_allergy_mackerel),
-    AllergyItem("shellfish", "🐚", R.string.sign_up_allergy_shellfish),
-    AllergyItem("oyster", "🦪", R.string.sign_up_allergy_oyster),
-    AllergyItem("mussel", "🦪", R.string.sign_up_allergy_mussel),
-    AllergyItem("abalone", "🐚", R.string.sign_up_allergy_abalone),
-    AllergyItem("peach", "🍑", R.string.sign_up_allergy_peach),
-    AllergyItem("tomato", "🍅", R.string.sign_up_allergy_tomato),
-    AllergyItem("peanut", "🥜", R.string.sign_up_allergy_peanut),
-    AllergyItem("walnut", "🌰", R.string.sign_up_allergy_walnut),
-    AllergyItem("buckwheat", "🍜", R.string.sign_up_allergy_buckwheat),
-    AllergyItem("pine_nut", "🫘", R.string.sign_up_allergy_pine_nut),
-    AllergyItem("sulfites", "🧪", R.string.sign_up_allergy_sulfites),
-    AllergyItem("sesame", "🧂", R.string.sign_up_allergy_sesame),
-    AllergyItem("almond", "🫘", R.string.sign_up_allergy_almond),
-    AllergyItem("mustard", "🍯", R.string.sign_up_allergy_mustard),
-    AllergyItem("celery", "🥒", R.string.sign_up_allergy_celery),
-    AllergyItem("beef", "🥩", R.string.sign_up_allergy_beef),
-)
 
 private val AUTH_STATUS_BAR_COLOR = Color(0xFFFCFCFF)
 

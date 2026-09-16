@@ -21,10 +21,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.coworker.jjikmuk.ui.catalog.FoodAllergy
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 data class JjikmukProductListCardUiModel(
@@ -81,7 +83,7 @@ fun JjikmukProductListCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 product.allergyLabels.take(MAX_VISIBLE_ALLERGY_COUNT).forEach { label ->
-                    JjikmukAllergyChip(label = label)
+                    ProductAllergyLabelChip(label = label)
                 }
             }
         }
@@ -94,19 +96,15 @@ fun JjikmukProductListCard(
 }
 
 @Composable
-fun JjikmukAllergyChip(
+private fun ProductAllergyLabelChip(
     label: String,
     modifier: Modifier = Modifier,
 ) {
-    val emoji = when (label) {
-        "우유" -> "🥛"
-        "땅콩" -> "🥜"
-        "새우" -> "🦐"
-        "밀" -> "🌾"
-        "대두" -> "🫘"
-        "계란" -> "🥚"
-        else -> "·"
-    }
+    val context = LocalContext.current
+    val emoji = FoodAllergy.entries
+        .firstOrNull { item -> context.getString(item.labelRes) == label }
+        ?.icon
+        ?: "·"
 
     Text(
         text = "$emoji $label",
