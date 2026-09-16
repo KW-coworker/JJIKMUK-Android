@@ -41,11 +41,14 @@ interface ChatHistoryDao {
             conversation.createdAt,
             conversation.updatedAt
         FROM chat_conversations AS conversation
-        LEFT JOIN chat_messages AS message
-            ON conversation.id = message.conversationId
         WHERE conversation.title LIKE '%' || :query || '%'
             OR conversation.preview LIKE '%' || :query || '%'
-            OR message.text LIKE '%' || :query || '%'
+            OR EXISTS (
+                SELECT 1
+                FROM chat_messages AS message
+                WHERE message.conversationId = conversation.id
+                    AND message.text LIKE '%' || :query || '%'
+            )
         ORDER BY conversation.isPinned DESC, conversation.updatedAt DESC
         """,
     )
