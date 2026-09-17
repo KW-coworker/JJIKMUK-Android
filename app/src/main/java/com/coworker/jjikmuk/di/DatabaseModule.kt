@@ -2,7 +2,10 @@ package com.coworker.jjikmuk.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.coworker.jjikmuk.data.local.dao.ChatHistoryDao
+import com.coworker.jjikmuk.data.local.dao.FamilyProfileDao
 import com.coworker.jjikmuk.data.local.database.JjikmukDatabase
 import dagger.Module
 import dagger.Provides
@@ -24,7 +27,9 @@ object DatabaseModule {
             context,
             JjikmukDatabase::class.java,
             DATABASE_NAME,
-        ).build()
+        )
+            .addMigrations(MIGRATION_1_2)
+            .build()
     }
 
     @Provides
@@ -35,5 +40,34 @@ object DatabaseModule {
         return database.chatHistoryDao()
     }
 
+    @Provides
+    @Singleton
+    fun provideFamilyProfileDao(
+        database: JjikmukDatabase,
+    ): FamilyProfileDao {
+        return database.familyProfileDao()
+    }
+
     private const val DATABASE_NAME = "jjikmuk.db"
+
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS family_profiles (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    emoji TEXT NOT NULL,
+                    relation TEXT NOT NULL,
+                    isMe INTEGER NOT NULL,
+                    vegetarian TEXT NOT NULL,
+                    allergies TEXT NOT NULL,
+                    preferences TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+    }
 }

@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import com.coworker.jjikmuk.feature.chat.presentation.ChatHistoryScreen
 import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.DietConditionManagementScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.MyPageScreen
 import com.coworker.jjikmuk.feature.product.presentation.ProductScreen
 import com.coworker.jjikmuk.feature.scanner.navigation.ScannerNavHost
 import com.coworker.jjikmuk.ui.component.MainTab
@@ -21,10 +23,15 @@ fun JjikmukAppContent() {
     var chatConversationId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var showScanner by rememberSaveable { mutableStateOf(false) }
+    var showDietConditionManagement by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (chatMessage == null) {
-            when (selectedTab) {
+            if (showDietConditionManagement) {
+                DietConditionManagementScreen(
+                    onBackClick = { showDietConditionManagement = false },
+                )
+            } else when (selectedTab) {
                 MainTab.Product -> {
                     ProductScreen(
                         selectedTab = selectedTab,
@@ -47,6 +54,17 @@ fun JjikmukAppContent() {
                             chatMessage = ""
                         },
                         onScannerClick = { showScanner = true },
+                    )
+                }
+
+                MainTab.My -> {
+                    MyPageScreen(
+                        selectedTab = selectedTab,
+                        onTabClick = { tab -> selectedTab = tab },
+                        onBackClick = { selectedTab = MainTab.Home },
+                        onFamilyDietSettingClick = {
+                            showDietConditionManagement = true
+                        },
                     )
                 }
 

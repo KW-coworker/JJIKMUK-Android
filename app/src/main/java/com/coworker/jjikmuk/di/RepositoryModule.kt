@@ -2,9 +2,11 @@ package com.coworker.jjikmuk.di
 
 import com.coworker.jjikmuk.data.repository.ChatRepositoryImpl
 import com.coworker.jjikmuk.data.repository.ChatHistoryRepositoryImpl
+import com.coworker.jjikmuk.data.repository.FamilyProfileRepositoryImpl
 import com.coworker.jjikmuk.data.repository.ProductRepositoryImpl
 import com.coworker.jjikmuk.domain.repository.ChatHistoryRepository
 import com.coworker.jjikmuk.domain.repository.ChatRepository
+import com.coworker.jjikmuk.domain.repository.FamilyProfileRepository
 import com.coworker.jjikmuk.domain.repository.ProductRepository
 import dagger.Binds
 import dagger.Module
@@ -33,4 +35,10 @@ abstract class RepositoryModule {
     abstract fun bindProductRepository(
         impl: ProductRepositoryImpl,
     ): ProductRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFamilyProfileRepository(
+        impl: FamilyProfileRepositoryImpl,
+    ): FamilyProfileRepository
 }
