@@ -41,6 +41,7 @@ fun HomeScreen(
     onScannerClick: () -> Unit = {},
     selectedTab: MainTab = MainTab.Home,
     onTabClick: (MainTab) -> Unit = {},
+    onChatHistoryClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var showImageSourceSheet by rememberSaveable { mutableStateOf(false) }
@@ -64,7 +65,7 @@ fun HomeScreen(
         topBar = {
             JjikmukTopAppBar(
                 selectedProfiles = selectedProfiles,
-                onChatHistoryClick = {},
+                onChatHistoryClick = onChatHistoryClick,
                 onScanTargetClick = { showScanTargetPopup = true },
             )
         },

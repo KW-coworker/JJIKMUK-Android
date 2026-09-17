@@ -29,7 +29,7 @@ enum class MainTab(
     Home("Home", R.drawable.ic_home),
     Diet("Diet", R.drawable.ic_diet),
     Product("Product", R.drawable.ic_product),
-    History("History", R.drawable.ic_history),
+    History("Chat", R.drawable.ic_chat_history),
     My("MY", R.drawable.ic_my),
 }
 

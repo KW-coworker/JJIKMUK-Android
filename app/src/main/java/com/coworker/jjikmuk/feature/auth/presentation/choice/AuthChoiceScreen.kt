@@ -3,7 +3,6 @@ package com.coworker.jjikmuk.feature.auth.presentation.choice
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
+import com.coworker.jjikmuk.ui.component.JjikmukAnimatedLogo
 import com.coworker.jjikmuk.ui.component.JjikmukPrimaryButton
 import com.coworker.jjikmuk.ui.component.JjikmukSecondaryButton
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
@@ -69,9 +69,8 @@ fun AuthChoiceScreen(
                 .align(Alignment.TopCenter)
                 .offset(y = 464.dp),
         ) {
-            Image(
-                painter = painterResource(R.drawable.auth_logo),
-                contentDescription = null,
+            JjikmukAnimatedLogo(
+                contentDescription = stringResource(R.string.app_name),
                 modifier = Modifier.size(width = 74.dp, height = 73.dp),
             )
             androidx.compose.material3.Text(
@@ -164,7 +163,7 @@ private fun AuthBannerImage(
     banner: AuthBanner,
     modifier: Modifier = Modifier,
 ) {
-    Image(
+    androidx.compose.foundation.Image(
         painter = painterResource(banner.imageRes),
         contentDescription = null,
         contentScale = banner.contentScale,

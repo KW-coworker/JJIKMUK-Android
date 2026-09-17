@@ -40,6 +40,7 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatRoute(
+    conversationId: String? = null,
     initialMessage: String,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -47,8 +48,11 @@ fun ChatRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(initialMessage) {
-        viewModel.start(initialMessage)
+    LaunchedEffect(conversationId, initialMessage) {
+        viewModel.start(
+            conversationId = conversationId,
+            initialMessage = initialMessage,
+        )
     }
 
     ChatScreen(
@@ -206,17 +210,6 @@ private fun defaultSelectedScanTargetProfiles(): List<ScanTargetProfileUiModel> 
         ),
     )
 }
-
-private fun createChatTitle(message: String): String {
-    val trimmedMessage = message.trim()
-    return if (trimmedMessage.length <= CHAT_TITLE_MAX_LENGTH) {
-        trimmedMessage
-    } else {
-        trimmedMessage.take(CHAT_TITLE_MAX_LENGTH) + ".."
-    }
-}
-
-private const val CHAT_TITLE_MAX_LENGTH = 12
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
