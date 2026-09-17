@@ -1,5 +1,8 @@
 package com.coworker.jjikmuk.feature.auth.navigation
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -17,7 +20,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordRese
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetEmailRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetNewPasswordRoute
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetOtpRoute
-import com.coworker.jjikmuk.feature.auth.presentation.placeholder.AuthPlaceholderScreen
+import com.coworker.jjikmuk.feature.auth.presentation.permission.PermissionApprovalRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpConditionsRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpAllergiesRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpCompleteScreen
@@ -29,6 +32,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpProfileRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpUiState
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpVegetarianRoute
 import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpViewModel
+import com.coworker.jjikmuk.feature.auth.presentation.splash.SplashScreen
 import kotlinx.coroutines.delay
 
 @Composable
@@ -44,17 +48,33 @@ fun AuthNavHost(
         startDestination = AuthRoute.Splash,
         modifier = modifier,
     ) {
-        composable(AuthRoute.Splash) {
+        composable(
+            route = AuthRoute.Splash,
+            exitTransition = {
+                fadeOut(animationSpec = tween(SPLASH_TRANSITION_MILLIS))
+            },
+        ) {
             LaunchedEffect(Unit) {
                 delay(SPLASH_DURATION_MILLIS)
-                navController.navigate(AuthRoute.AuthChoice) {
+                navController.navigate(AuthRoute.PermissionApproval) {
                     popUpTo(AuthRoute.Splash) { inclusive = true }
                 }
             }
-            AuthPlaceholderScreen(
-                title = "스플래시",
-                primaryActions = emptyList(),
-                blockSystemBack = true,
+            SplashScreen()
+        }
+
+        composable(
+            route = AuthRoute.PermissionApproval,
+            enterTransition = {
+                fadeIn(animationSpec = tween(SPLASH_TRANSITION_MILLIS))
+            },
+        ) {
+            PermissionApprovalRoute(
+                onContinue = {
+                    navController.navigate(AuthRoute.AuthChoice) {
+                        popUpTo(AuthRoute.PermissionApproval) { inclusive = true }
+                    }
+                },
             )
         }
 
@@ -275,4 +295,5 @@ private fun navigateToHome(navController: NavHostController) {
     }
 }
 
-private const val SPLASH_DURATION_MILLIS = 1_000L
+private const val SPLASH_DURATION_MILLIS = 1_800L
+private const val SPLASH_TRANSITION_MILLIS = 600

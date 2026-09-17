@@ -2,6 +2,7 @@ package com.coworker.jjikmuk.feature.auth.navigation
 
 internal object AuthRoute {
     const val Splash = "splash"
+    const val PermissionApproval = "permission-approval"
     const val AuthChoice = "auth-choice"
     const val Login = "login"
     const val PasswordResetEmail = "password-reset/email"
