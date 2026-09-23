@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,7 +39,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
-import com.coworker.jjikmuk.ui.component.JjikmukBackButton
+import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
+import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
@@ -50,6 +50,8 @@ fun MyPageScreen(
     onTabClick: (MainTab) -> Unit = {},
     onBackClick: () -> Unit = {},
     onFamilyDietSettingClick: () -> Unit = {},
+    onProfileEditClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -57,6 +59,7 @@ fun MyPageScreen(
         topBar = {
             MyPageTopBar(
                 onBackClick = onBackClick,
+                onSettingsClick = onSettingsClick,
             )
         },
         bottomBar = {
@@ -74,7 +77,9 @@ fun MyPageScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            MyPageProfileSection()
+            MyPageProfileSection(
+                onProfileEditClick = onProfileEditClick,
+            )
             MyPageFamilyShareSection(
                 onSettingClick = onFamilyDietSettingClick,
             )
@@ -94,52 +99,40 @@ fun MyPageScreen(
 @Composable
 private fun MyPageTopBar(
     onBackClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
-        color = JjikmukTheme.colors.surface,
-        shadowElevation = 0.dp,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(62.dp)
-                .border(
-                    width = 1.dp,
-                    color = JjikmukTheme.colors.borderSubtle,
-                ),
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 22.dp),
-            ) {
-                JjikmukBackButton(onClick = onBackClick)
-            }
+    JjikmukTopAppBar(
+        modifier = modifier,
+        leading = JjikmukTopAppBarLeading.Back(onClick = onBackClick),
+        showBottomDivider = true,
+        centerContent = {
             Text(
                 text = "마이 페이지",
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.labelL,
-                modifier = Modifier.align(Alignment.Center),
             )
+        },
+        trailingContent = {
             Icon(
                 painter = painterResource(R.drawable.ic_settings),
                 contentDescription = "설정",
                 tint = Color.Unspecified,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 30.dp)
-                    .size(24.dp),
+                    .size(24.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onSettingsClick,
+                    ),
             )
-        }
-    }
+        },
+    )
 }
 
 @Composable
 private fun MyPageProfileSection(
+    onProfileEditClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -169,7 +162,12 @@ private fun MyPageProfileSection(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 3.dp, bottom = 14.dp)
-                    .size(32.dp),
+                    .size(32.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onProfileEditClick,
+                    ),
                 color = JjikmukTheme.colors.textPrimary,
                 shape = CircleShape,
                 border = androidx.compose.foundation.BorderStroke(

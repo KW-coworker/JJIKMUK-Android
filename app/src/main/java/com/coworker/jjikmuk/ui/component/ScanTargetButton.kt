@@ -58,6 +58,7 @@ fun ScanTargetButton(
                 imageResId = profile.imageResId,
                 emoji = profile.emoji,
                 rightOffset = index * PROFILE_OVERLAP_OFFSET_DP,
+                emojiOffsetX = COVERED_PROFILE_EMOJI_OFFSET_DP,
                 modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
@@ -67,6 +68,7 @@ fun ScanTargetButton(
                 imageResId = profile.imageResId,
                 emoji = profile.emoji,
                 rightOffset = otherProfiles.size * PROFILE_OVERLAP_OFFSET_DP,
+                emojiOffsetX = 0,
                 modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
@@ -78,6 +80,7 @@ private fun ScanTargetProfileImage(
     @DrawableRes imageResId: Int,
     emoji: String?,
     rightOffset: Int,
+    emojiOffsetX: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -92,7 +95,8 @@ private fun ScanTargetProfileImage(
         if (emoji != null) {
             Text(
                 text = emoji,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.offset(x = emojiOffsetX.dp),
             )
         } else {
             Image(
@@ -136,3 +140,4 @@ private fun ScanTargetButtonPreview() {
 private const val ME_PROFILE_ID = "me"
 private const val MAX_VISIBLE_PROFILE_COUNT = 5
 private const val PROFILE_OVERLAP_OFFSET_DP = 12
+private const val COVERED_PROFILE_EMOJI_OFFSET_DP = 8

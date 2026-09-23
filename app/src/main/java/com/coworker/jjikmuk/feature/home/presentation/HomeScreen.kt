@@ -11,14 +11,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.feature.home.presentation.component.HomeEmptyContent
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
@@ -29,7 +29,6 @@ import com.coworker.jjikmuk.ui.component.MainTab
 import com.coworker.jjikmuk.ui.component.ImageSourceBottomSheet
 import com.coworker.jjikmuk.ui.component.ScanTargetMemberUiModel
 import com.coworker.jjikmuk.ui.component.ScanTargetPopup
-import com.coworker.jjikmuk.ui.component.defaultScanTargetMembers
 import com.coworker.jjikmuk.ui.component.rememberJjikmukImageSourceLauncher
 import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
@@ -43,7 +42,9 @@ fun HomeScreen(
     onTabClick: (MainTab) -> Unit = {},
     onChatHistoryClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = hiltViewModel(),
 ) {
+    val scanTargetMembers by viewModel.scanTargetMembers.collectAsStateWithLifecycle()
     var showImageSourceSheet by rememberSaveable { mutableStateOf(false) }
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
     var inputMessage by rememberSaveable { mutableStateOf("") }
@@ -51,11 +52,6 @@ fun HomeScreen(
         onCameraFinished = { showImageSourceSheet = true },
         onGalleryFinished = { showImageSourceSheet = true },
     )
-    val scanTargetMembers = remember {
-        mutableStateListOf<ScanTargetMemberUiModel>().apply {
-            addAll(defaultScanTargetMembers())
-        }
-    }
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
         defaultImageResId = R.drawable.ic_launcher_foreground,
     )
@@ -92,14 +88,7 @@ fun HomeScreen(
             },
             onScannerClick = onScannerClick,
             onScanTargetDismiss = { showScanTargetPopup = false },
-            onScanTargetCheckedChange = { memberId, checked ->
-                val memberIndex = scanTargetMembers.indexOfFirst { member -> member.id == memberId }
-                if (memberIndex >= 0) {
-                    scanTargetMembers[memberIndex] = scanTargetMembers[memberIndex].copy(
-                        isSelected = checked,
-                    )
-                }
-            },
+            onScanTargetCheckedChange = viewModel::updateScanTargetSelection,
         )
     }
 

@@ -11,8 +11,11 @@ import androidx.compose.ui.Modifier
 import com.coworker.jjikmuk.feature.chat.presentation.ChatHistoryScreen
 import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountSecurityScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.DietConditionManagementScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.ProfileEditScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.SettingsScreen
 import com.coworker.jjikmuk.feature.product.presentation.ProductScreen
 import com.coworker.jjikmuk.feature.scanner.navigation.ScannerNavHost
 import com.coworker.jjikmuk.ui.component.MainTab
@@ -24,10 +27,31 @@ fun JjikmukAppContent() {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var showScanner by rememberSaveable { mutableStateOf(false) }
     var showDietConditionManagement by rememberSaveable { mutableStateOf(false) }
+    var showProfileEdit by rememberSaveable { mutableStateOf(false) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showAccountSecurity by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (chatMessage == null) {
-            if (showDietConditionManagement) {
+            if (showAccountSecurity) {
+                AccountSecurityScreen(
+                    onBackClick = { showAccountSecurity = false },
+                )
+            } else if (showSettings) {
+                SettingsScreen(
+                    onBackClick = {
+                        showSettings = false
+                        showAccountSecurity = false
+                    },
+                    onAccountSecurityClick = {
+                        showAccountSecurity = true
+                    },
+                )
+            } else if (showProfileEdit) {
+                ProfileEditScreen(
+                    onBackClick = { showProfileEdit = false },
+                )
+            } else if (showDietConditionManagement) {
                 DietConditionManagementScreen(
                     onBackClick = { showDietConditionManagement = false },
                 )
@@ -64,6 +88,12 @@ fun JjikmukAppContent() {
                         onBackClick = { selectedTab = MainTab.Home },
                         onFamilyDietSettingClick = {
                             showDietConditionManagement = true
+                        },
+                        onProfileEditClick = {
+                            showProfileEdit = true
+                        },
+                        onSettingsClick = {
+                            showSettings = true
                         },
                     )
                 }

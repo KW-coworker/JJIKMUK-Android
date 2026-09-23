@@ -37,6 +37,9 @@ data class ScanTargetMemberUiModel(
     val relation: String,
     val emoji: String? = null,
     val isSelected: Boolean,
+    val vegetarian: String = "",
+    val allergies: Set<String> = emptySet(),
+    val preferences: Set<String> = emptySet(),
 )
 
 @Composable

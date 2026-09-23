@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -49,7 +48,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.domain.model.FamilyProfile
-import com.coworker.jjikmuk.ui.component.JjikmukBackButton
+import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
+import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
@@ -88,7 +88,17 @@ fun DietConditionManagementScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            DietConditionTopBar(onBackClick = onBackClick)
+            JjikmukTopAppBar(
+                leading = JjikmukTopAppBarLeading.Back(onClick = onBackClick),
+                showBottomDivider = true,
+                centerContent = {
+                    Text(
+                        text = "식이 조건 관리",
+                        color = JjikmukTheme.colors.textPrimary,
+                        style = JjikmukTheme.typography.labelL,
+                    )
+                },
+            )
         },
         bottomBar = {
             DietConditionBottomButton(
@@ -194,41 +204,6 @@ fun DietConditionManagementScreen(
                 editingProfile = null
             },
         )
-    }
-}
-
-@Composable
-private fun DietConditionTopBar(
-    onBackClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
-        color = JjikmukTheme.colors.surface,
-        shadowElevation = 0.dp,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(62.dp)
-                .border(1.dp, JjikmukTheme.colors.borderSubtle),
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 22.dp),
-            ) {
-                JjikmukBackButton(onClick = onBackClick)
-            }
-            Text(
-                text = "식이 조건 관리",
-                color = JjikmukTheme.colors.textPrimary,
-                style = JjikmukTheme.typography.labelL,
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
     }
 }
 
