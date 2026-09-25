@@ -69,7 +69,14 @@ fun JjikmukProductCard(
                 modifier = Modifier
                     .width(spec.imageWidth)
                     .height(spec.imageHeight)
-                    .clip(RoundedCornerShape(spec.imageCornerRadius))
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = spec.imageCornerRadius,
+                            topEnd = spec.imageCornerRadius,
+                            bottomEnd = 0.dp,
+                            bottomStart = 0.dp,
+                        ),
+                    )
                     .background(JjikmukTheme.colors.surfaceSecondary),
             ) {
                 Image(

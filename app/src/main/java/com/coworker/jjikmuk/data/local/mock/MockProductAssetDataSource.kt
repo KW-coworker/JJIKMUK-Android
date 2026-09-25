@@ -106,12 +106,24 @@ class MockProductAssetDataSource @Inject constructor(
     }
 
     private fun JsonObject.getDisplayManufacturer(): String {
-        return getString("manufacturer")
-            ?.split("/", ",", "(", "[")
-            ?.firstOrNull()
+        val manufacturer = getString("manufacturer")
             ?.trim()
             ?.takeIf(String::isNotBlank)
-            ?: "브랜드 정보 없음"
+            ?: return UNKNOWN_BRAND_NAME
+
+        return manufacturer
+            .split("/", ",", "[")
+            .firstOrNull()
+            ?.trim()
+            ?.let { value ->
+                if (value.startsWith("(주)") || value.startsWith("㈜")) {
+                    value
+                } else {
+                    value.substringBefore("(").trim()
+                }
+            }
+            ?.takeIf(String::isNotBlank)
+            ?: manufacturer
     }
 
     private fun JsonObject.toAllergyLabels(): List<String> {
@@ -179,5 +191,6 @@ class MockProductAssetDataSource @Inject constructor(
     private companion object {
         const val PRODUCT_DUMP_MOCK = "mock/product/product_dump.mock.json"
         const val MAX_ALLERGY_LABEL_COUNT = 3
+        const val UNKNOWN_BRAND_NAME = "브랜드 정보 없음"
     }
 }

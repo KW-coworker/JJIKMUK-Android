@@ -46,12 +46,7 @@ class ProductRepositoryImpl @Inject constructor(
         return ProductSearchResult(
             barcode = product.barcode,
             productName = productName,
-            brandName = product.manufacturer
-                ?.split("/", ",", "(", "[")
-                ?.firstOrNull()
-                ?.trim()
-                ?.takeIf(String::isNotBlank)
-                ?: "브랜드 정보 없음",
+            brandName = product.manufacturer.toDisplayManufacturer(),
             imageUrl = product.imageUrl,
             allergyLabels = product.allergy.toAllergyLabels(),
         )
@@ -66,12 +61,7 @@ class ProductRepositoryImpl @Inject constructor(
         return ProductDetail(
             barcode = product.barcode.orEmpty(),
             productName = productName,
-            brandName = product.manufacturer
-                ?.split("/", ",", "(", "[")
-                ?.firstOrNull()
-                ?.trim()
-                ?.takeIf(String::isNotBlank)
-                ?: "브랜드 정보 없음",
+            brandName = product.manufacturer.toDisplayManufacturer(),
             imageUrl = product.imageUrl,
             allergyLabels = product.allergy.toAllergyLabels(),
             allergyWarning = product.allergyWarning,
@@ -94,6 +84,27 @@ class ProductRepositoryImpl @Inject constructor(
             analysisMessage = analysis?.message,
             isDangerous = analysis?.isDangerous == true,
         )
+    }
+
+    private fun String?.toDisplayManufacturer(): String {
+        val manufacturer = this
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?: return UNKNOWN_BRAND_NAME
+
+        return manufacturer
+            .split("/", ",", "[")
+            .firstOrNull()
+            ?.trim()
+            ?.let { value ->
+                if (value.startsWith("(주)") || value.startsWith("㈜")) {
+                    value
+                } else {
+                    value.substringBefore("(").trim()
+                }
+            }
+            ?.takeIf(String::isNotBlank)
+            ?: manufacturer
     }
 
     private fun String?.toAllergyLabels(): List<String> {
@@ -135,5 +146,6 @@ class ProductRepositoryImpl @Inject constructor(
 
     private companion object {
         const val MAX_ALLERGY_LABEL_COUNT = 3
+        const val UNKNOWN_BRAND_NAME = "브랜드 정보 없음"
     }
 }

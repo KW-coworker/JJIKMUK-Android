@@ -60,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -759,6 +760,8 @@ private fun ProductDetailImageBanner(
     product: ProductDetail,
     modifier: Modifier = Modifier,
 ) {
+    val imageUrls = listOfNotNull(product.imageUrl?.takeIf(String::isNotBlank))
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -771,7 +774,7 @@ private fun ProductDetailImageBanner(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (product.imageUrl.isNullOrBlank()) {
+        if (imageUrls.isEmpty()) {
             Box(
                 modifier = Modifier
                     .width(164.dp)
@@ -788,7 +791,7 @@ private fun ProductDetailImageBanner(
             }
         } else {
             AsyncImage(
-                model = product.imageUrl,
+                model = imageUrls.first(),
                 contentDescription = product.productName,
                 modifier = Modifier
                     .width(164.dp)
@@ -798,10 +801,9 @@ private fun ProductDetailImageBanner(
             )
         }
 
-        Text(
-            text = "● ○ ○",
-            color = JjikmukTheme.colors.textPrimary,
-            style = JjikmukTheme.typography.caption.asEnglish(),
+        ProductDetailImageDots(
+            imageCount = imageUrls.size,
+            currentIndex = 0,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 18.dp),
@@ -819,6 +821,37 @@ private fun ProductDetailImageBanner(
 }
 
 @Composable
+private fun ProductDetailImageDots(
+    imageCount: Int,
+    currentIndex: Int,
+    modifier: Modifier = Modifier,
+) {
+    val dotCount = imageCount.coerceAtLeast(1)
+    val hasRealImage = imageCount > 0
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(dotCount) { index ->
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            !hasRealImage -> JjikmukTheme.colors.border
+                            index == currentIndex -> JjikmukTheme.colors.textPrimary
+                            else -> JjikmukTheme.colors.border
+                        },
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
 private fun ProductDetailInfoSection(
     product: ProductDetail,
     modifier: Modifier = Modifier,
@@ -827,7 +860,7 @@ private fun ProductDetailInfoSection(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = 28.dp, top = 29.dp, end = 28.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(30.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -835,7 +868,9 @@ private fun ProductDetailInfoSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 4.dp),
             ) {
                 Text(
                     text = product.brandName,
@@ -869,6 +904,10 @@ private fun ProductDetailInfoSection(
             }
         }
 
+        ProductDetailRiskWarningCard(product = product)
+
+        ProductDetailAllergySection(product = product)
+
         ProductDetailNutritionCard(product = product)
 
         ProductNutritionRows(product = product)
@@ -882,6 +921,150 @@ private fun ProductDetailInfoSection(
         ProductRawMaterialsBox(product = product)
     }
 }
+
+@Composable
+private fun ProductDetailRiskWarningCard(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    val message = product.analysisMessage?.takeIf(String::isNotBlank)
+    if (!product.isDangerous && message == null) return
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(84.dp),
+        color = JjikmukTheme.colors.warning,
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(5.dp)
+                    .height(84.dp)
+                    .background(JjikmukTheme.colors.error),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "!",
+                    color = JjikmukTheme.colors.error,
+                    style = JjikmukTheme.typography.h2.asEnglish(),
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = "주의가 필요한 성분이 있어요",
+                        color = JjikmukTheme.colors.textPrimary,
+                        style = JjikmukTheme.typography.titleL,
+                    )
+                    Text(
+                        text = message ?: "선택한 프로필의 식이 조건과 맞지 않을 수 있어요.",
+                        color = JjikmukTheme.colors.textSecondary,
+                        style = JjikmukTheme.typography.bodyS,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProductDetailAllergySection(
+    product: ProductDetail,
+    modifier: Modifier = Modifier,
+) {
+    if (product.allergyLabels.isEmpty()) return
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Text(
+            text = "주의 성분",
+            color = JjikmukTheme.colors.textPrimary,
+            style = JjikmukTheme.typography.titleL,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            product.allergyLabels.forEach { label ->
+                ProductDetailAllergyChip(label = label)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductDetailAllergyChip(
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.height(39.dp),
+        color = JjikmukTheme.colors.surface,
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = JjikmukTheme.colors.borderSubtle,
+        ),
+        shadowElevation = 2.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 15.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label.toAllergyEmoji(),
+                fontSize = 18.sp,
+                lineHeight = 18.sp,
+            )
+            Text(
+                text = label,
+                color = JjikmukTheme.colors.textPrimary,
+                style = JjikmukTheme.typography.labelM,
+            )
+        }
+    }
+}
+
+private fun String.toAllergyEmoji(): String =
+    when (this) {
+        "우유" -> "🥛"
+        "땅콩" -> "🥜"
+        "새우" -> "🦐"
+        "밀" -> "🌾"
+        "대두" -> "🫘"
+        "계란" -> "🥚"
+        "소고기" -> "🥩"
+        "닭고기" -> "🍗"
+        "돼지고기" -> "🥓"
+        "토마토" -> "🍅"
+        "오징어" -> "🦑"
+        "조개류" -> "🦪"
+        "게" -> "🦀"
+        "참깨" -> "⚪"
+        "아몬드", "호두" -> "🌰"
+        "복숭아" -> "🍑"
+        "고등어" -> "🐟"
+        else -> "·"
+    }
 
 @Composable
 private fun ProductDetailNutritionCard(
