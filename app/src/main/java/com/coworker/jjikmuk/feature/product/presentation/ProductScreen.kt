@@ -460,6 +460,7 @@ private fun ProductSearchInputField(
         placeholder = "어떤 안심 상품을 찾으시나요?",
         onClearClick = onClearClick,
         onSearchClick = onSearchClick,
+        autoFocus = true,
         modifier = modifier,
     )
 }

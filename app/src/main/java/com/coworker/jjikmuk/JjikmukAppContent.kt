@@ -7,7 +7,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import android.widget.Toast
 import com.coworker.jjikmuk.feature.chat.presentation.ChatHistoryScreen
 import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
@@ -22,6 +24,7 @@ import com.coworker.jjikmuk.ui.component.MainTab
 
 @Composable
 fun JjikmukAppContent() {
+    val context = LocalContext.current
     var chatMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var chatConversationId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
@@ -30,6 +33,15 @@ fun JjikmukAppContent() {
     var showProfileEdit by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showAccountSecurity by rememberSaveable { mutableStateOf(false) }
+
+    fun handleMainTabClick(tab: MainTab) {
+        if (tab == MainTab.Diet) {
+            Toast.makeText(context, "추후 구현 예정입니다", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        selectedTab = tab
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (chatMessage == null) {
@@ -59,7 +71,7 @@ fun JjikmukAppContent() {
                 MainTab.Product -> {
                     ProductScreen(
                         selectedTab = selectedTab,
-                        onTabClick = { tab -> selectedTab = tab },
+                        onTabClick = ::handleMainTabClick,
                         onScannerClick = { showScanner = true },
                     )
                 }
@@ -67,7 +79,7 @@ fun JjikmukAppContent() {
                 MainTab.History -> {
                     ChatHistoryScreen(
                         selectedTab = selectedTab,
-                        onTabClick = { tab -> selectedTab = tab },
+                        onTabClick = ::handleMainTabClick,
                         onBackClick = { selectedTab = MainTab.Home },
                         onChatClick = { history ->
                             chatConversationId = history.id
@@ -84,7 +96,7 @@ fun JjikmukAppContent() {
                 MainTab.My -> {
                     MyPageScreen(
                         selectedTab = selectedTab,
-                        onTabClick = { tab -> selectedTab = tab },
+                        onTabClick = ::handleMainTabClick,
                         onBackClick = { selectedTab = MainTab.Home },
                         onFamilyDietSettingClick = {
                             showDietConditionManagement = true
@@ -101,7 +113,7 @@ fun JjikmukAppContent() {
                 else -> {
                     HomeScreen(
                         selectedTab = selectedTab,
-                        onTabClick = { tab -> selectedTab = tab },
+                        onTabClick = ::handleMainTabClick,
                         onChatHistoryClick = { selectedTab = MainTab.History },
                         onSendMessage = { message ->
                             chatConversationId = null

@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.data.repository
 
+import com.coworker.jjikmuk.data.local.mock.MockProductAssetDataSource
 import com.coworker.jjikmuk.data.remote.api.ProductApi
 import com.coworker.jjikmuk.data.remote.dto.ProductDetailDataDto
 import com.coworker.jjikmuk.data.remote.dto.ProductSearchItemDto
@@ -12,6 +13,7 @@ import javax.inject.Inject
 
 class ProductRepositoryImpl @Inject constructor(
     private val productApi: ProductApi,
+    private val mockProductAssetDataSource: MockProductAssetDataSource,
 ) : ProductRepository {
 
     override suspend fun searchProducts(keyword: String): Result<List<ProductSearchResult>> =
@@ -21,6 +23,9 @@ class ProductRepositoryImpl @Inject constructor(
                 .orEmpty()
                 .mapNotNull { item -> item.toDomain() }
                 .sortedBySimilarity(keyword)
+        }.recoverCatching { throwable ->
+            mockProductAssetDataSource.searchProducts(keyword)
+                ?: throw throwable
         }
 
     override suspend fun getProductDetail(barcode: String): Result<ProductDetail> =
@@ -29,6 +34,9 @@ class ProductRepositoryImpl @Inject constructor(
                 ?: error("상품 상세 정보를 찾을 수 없어요.")
 
             detailData.toDomain()
+        }.recoverCatching { throwable ->
+            mockProductAssetDataSource.getProductDetail(barcode)
+                ?: throw throwable
         }
 
     private fun ProductSearchItemDto.toDomain(): ProductSearchResult? {
