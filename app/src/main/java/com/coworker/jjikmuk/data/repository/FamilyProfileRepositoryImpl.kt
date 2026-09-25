@@ -55,7 +55,7 @@ class FamilyProfileRepositoryImpl @Inject constructor(
                     relation = "기타",
                     isMe = false,
                     vegetarian = "해당 없음",
-                    allergies = "토마토|밀가루",
+                    allergies = "토마토|밀",
                     preferences = "저염",
                     createdAt = now + 2,
                     updatedAt = now + 2,

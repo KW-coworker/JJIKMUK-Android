@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -50,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.domain.model.FamilyProfile
 import com.coworker.jjikmuk.ui.component.JjikmukBackButton
+import com.coworker.jjikmuk.ui.catalog.FoodAllergy
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
@@ -64,6 +66,9 @@ fun DietConditionManagementScreen(
     var editedVegetarian by rememberSaveable { mutableStateOf("") }
     var editedAllergies by remember { mutableStateOf(emptySet<String>()) }
     var editedPreferences by remember { mutableStateOf(emptySet<String>()) }
+    val allergyOptions = FoodAllergy.entries.map { allergy ->
+        stringResource(allergy.labelRes)
+    }
     val selectedMember = profiles.firstOrNull { profile -> profile.id == selectedMemberId }
         ?: profiles.firstOrNull()
     val hasDietConditionChanges = selectedMember != null &&
@@ -908,30 +913,6 @@ private val vegetarianOptions = listOf(
     VegetarianOptionUiModel("락토오보", "유제품/계란 허용", "🧀"),
     VegetarianOptionUiModel("페스코", "해산물 허용", "🐟"),
     VegetarianOptionUiModel("폴로", "닭고기 허용", "🍗"),
-)
-
-private val allergyOptions = listOf(
-    "복숭아",
-    "땅콩",
-    "소고기",
-    "새우",
-    "게",
-    "오징어",
-    "고등어",
-    "조개류",
-    "굴",
-    "홍합",
-    "전복",
-    "토마토",
-    "호두",
-    "메밀",
-    "잣",
-    "아황산류",
-    "참깨",
-    "아몬드",
-    "머스타드",
-    "셀러리",
-    "밀가루",
 )
 
 private val preferenceOptions = listOf(
