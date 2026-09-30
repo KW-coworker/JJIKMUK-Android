@@ -4,6 +4,7 @@ import android.content.Context
 import com.coworker.jjikmuk.domain.model.ProductDetail
 import com.coworker.jjikmuk.domain.model.ProductMacroPercents
 import com.coworker.jjikmuk.domain.model.ProductNutrition
+import com.coworker.jjikmuk.domain.model.ProductSafetyStatus
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -100,6 +101,8 @@ class MockProductAssetDataSource @Inject constructor(
                 protein = nutrition?.getDouble("proteinPercent"),
                 fat = nutrition?.getDouble("fatPercent"),
             ),
+            safetyStatus = ProductSafetyStatus.Unknown,
+            dangerousIngredients = emptyList(),
             analysisMessage = null,
             isDangerous = false,
         )

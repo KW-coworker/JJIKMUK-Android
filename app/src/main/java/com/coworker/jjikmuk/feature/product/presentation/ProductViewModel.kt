@@ -3,20 +3,48 @@ package com.coworker.jjikmuk.feature.product.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coworker.jjikmuk.data.local.preference.RecentSearchKeywordStore
+import com.coworker.jjikmuk.domain.model.FamilyProfile
+import com.coworker.jjikmuk.domain.repository.FamilyProfileRepository
 import com.coworker.jjikmuk.domain.repository.ProductRepository
+import com.coworker.jjikmuk.ui.component.ScanTargetMemberUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class ProductViewModel @Inject constructor(
     private val productRepository: ProductRepository,
+    private val familyProfileRepository: FamilyProfileRepository,
     private val recentSearchKeywordStore: RecentSearchKeywordStore,
 ) : ViewModel() {
+
+    private val selectedProfileIds = MutableStateFlow<Set<String>?>(null)
+
+    val scanTargetMembers: StateFlow<List<ScanTargetMemberUiModel>> =
+        familyProfileRepository.observeProfiles()
+            .combine(selectedProfileIds) { profiles, selectedIds ->
+                val nextSelectedIds = selectedIds.syncWithProfiles(profiles)
+                if (nextSelectedIds != selectedIds) {
+                    selectedProfileIds.value = nextSelectedIds
+                }
+                profiles.map { profile ->
+                    profile.toScanTargetMemberUiModel(
+                        isSelected = profile.id in nextSelectedIds,
+                    )
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
 
     private val _searchUiState = MutableStateFlow(ProductSearchUiState())
     val searchUiState: StateFlow<ProductSearchUiState> = _searchUiState.asStateFlow()
@@ -28,6 +56,10 @@ class ProductViewModel @Inject constructor(
     val recentSearchKeywords: StateFlow<List<String>> = _recentSearchKeywords.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            familyProfileRepository.ensureDefaultProfiles()
+        }
+
         viewModelScope.launch {
             recentSearchKeywordStore.keywords.collect { keywords ->
                 _recentSearchKeywords.value = keywords
@@ -82,7 +114,10 @@ class ProductViewModel @Inject constructor(
                 )
             }
 
-            productRepository.searchProducts(trimmedKeyword)
+            productRepository.searchProducts(
+                keyword = trimmedKeyword,
+                allergies = selectedAllergies(),
+            )
                 .onSuccess { products ->
                     _searchUiState.update { state ->
                         state.copy(
@@ -127,7 +162,10 @@ class ProductViewModel @Inject constructor(
                 )
             }
 
-            productRepository.getProductDetail(productBarcode)
+            productRepository.getProductDetail(
+                barcode = productBarcode,
+                allergies = selectedAllergies(),
+            )
                 .onSuccess { product ->
                     _detailUiState.update {
                         ProductDetailUiState(
@@ -147,6 +185,49 @@ class ProductViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    fun updateScanTargetSelection(
+        memberId: String,
+        checked: Boolean,
+    ) {
+        selectedProfileIds.update { current ->
+            val currentSelectedIds = current.orEmpty()
+            if (checked) currentSelectedIds + memberId else currentSelectedIds - memberId
+        }
+    }
+
+    private fun selectedAllergies(): List<String> {
+        return scanTargetMembers.value
+            .filter { member -> member.isSelected }
+            .flatMap { member -> member.allergies }
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .distinct()
+    }
+
+    private fun Set<String>?.syncWithProfiles(
+        profiles: List<FamilyProfile>,
+    ): Set<String> {
+        val profileIds = profiles.map { profile -> profile.id }.toSet()
+        if (this == null) return profileIds
+
+        return intersect(profileIds)
+    }
+
+    private fun FamilyProfile.toScanTargetMemberUiModel(
+        isSelected: Boolean,
+    ): ScanTargetMemberUiModel {
+        return ScanTargetMemberUiModel(
+            id = id,
+            name = name,
+            relation = if (isMe) "나" else relation,
+            emoji = emoji,
+            isSelected = isSelected,
+            vegetarian = vegetarian,
+            allergies = allergies,
+            preferences = preferences,
+        )
     }
 
     private companion object {

@@ -7,6 +7,7 @@ import com.coworker.jjikmuk.data.remote.dto.ProductSearchItemDto
 import com.coworker.jjikmuk.domain.model.ProductDetail
 import com.coworker.jjikmuk.domain.model.ProductMacroPercents
 import com.coworker.jjikmuk.domain.model.ProductNutrition
+import com.coworker.jjikmuk.domain.model.ProductSafetyStatus
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.coworker.jjikmuk.domain.repository.ProductRepository
 import javax.inject.Inject
@@ -16,9 +17,15 @@ class ProductRepositoryImpl @Inject constructor(
     private val mockProductAssetDataSource: MockProductAssetDataSource,
 ) : ProductRepository {
 
-    override suspend fun searchProducts(keyword: String): Result<List<ProductSearchResult>> =
+    override suspend fun searchProducts(
+        keyword: String,
+        allergies: List<String>,
+    ): Result<List<ProductSearchResult>> =
         runCatching {
-            productApi.searchProducts(keyword = keyword)
+            productApi.searchProducts(
+                keyword = keyword,
+                allergies = allergies,
+            )
                 .data
                 .orEmpty()
                 .mapNotNull { item -> item.toDomain() }
@@ -28,9 +35,15 @@ class ProductRepositoryImpl @Inject constructor(
                 ?: throw throwable
         }
 
-    override suspend fun getProductDetail(barcode: String): Result<ProductDetail> =
+    override suspend fun getProductDetail(
+        barcode: String,
+        allergies: List<String>,
+    ): Result<ProductDetail> =
         runCatching {
-            val detailData = productApi.getProductDetail(barcode = barcode).data
+            val detailData = productApi.getProductDetail(
+                barcode = barcode,
+                allergies = allergies,
+            ).data
                 ?: error("상품 상세 정보를 찾을 수 없어요.")
 
             detailData.toDomain()
@@ -81,9 +94,20 @@ class ProductRepositoryImpl @Inject constructor(
                 protein = nutrientPercents?.proteinMacroPercent ?: product.proteinPercent,
                 fat = nutrientPercents?.fatMacroPercent ?: product.fatPercent,
             ),
+            safetyStatus = analysis.toSafetyStatus(),
+            dangerousIngredients = analysis?.dangerousIngredients.orEmpty(),
             analysisMessage = analysis?.message,
             isDangerous = analysis?.isDangerous == true,
         )
+    }
+
+    private fun com.coworker.jjikmuk.data.remote.dto.ProductAnalysisDto?.toSafetyStatus(): ProductSafetyStatus {
+        return when (this?.status?.uppercase()) {
+            "PASS" -> ProductSafetyStatus.Pass
+            "DANGER" -> ProductSafetyStatus.Danger
+            "UNKNOWN" -> ProductSafetyStatus.Unknown
+            else -> if (this?.isDangerous == true) ProductSafetyStatus.Danger else ProductSafetyStatus.Unknown
+        }
     }
 
     private fun String?.toDisplayManufacturer(): String {

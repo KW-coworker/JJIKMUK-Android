@@ -63,9 +63,7 @@ class HomeViewModel @Inject constructor(
         val profileIds = profiles.map { profile -> profile.id }.toSet()
         if (this == null) return profileIds
 
-        val existingSelectedIds = this.intersect(profileIds)
-        val newProfileIds = profileIds - this
-        return existingSelectedIds + newProfileIds
+        return intersect(profileIds)
     }
 
     private fun FamilyProfile.toScanTargetMemberUiModel(

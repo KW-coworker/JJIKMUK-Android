@@ -1,6 +1,7 @@
 package com.coworker.jjikmuk.feature.product.presentation
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
@@ -11,9 +12,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,8 +41,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.domain.model.ProductDetail
+import com.coworker.jjikmuk.domain.model.ProductSafetyStatus
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.coworker.jjikmuk.feature.product.presentation.component.JjikmukProductCard
 import com.coworker.jjikmuk.feature.product.presentation.component.JjikmukProductCardSize
@@ -81,7 +83,6 @@ import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
 import com.coworker.jjikmuk.ui.component.ScanTargetMemberUiModel
 import com.coworker.jjikmuk.ui.component.ScanTargetPopup
-import com.coworker.jjikmuk.ui.component.defaultScanTargetMembers
 import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import com.coworker.jjikmuk.ui.theme.asEnglish
@@ -97,11 +98,13 @@ fun ProductScreen(
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
     val detailUiState by productViewModel.detailUiState.collectAsStateWithLifecycle()
     val recentSearchKeywords by productViewModel.recentSearchKeywords.collectAsStateWithLifecycle()
+    val scanTargetMembers by productViewModel.scanTargetMembers.collectAsStateWithLifecycle()
 
     ProductScreenContent(
         selectedTab = selectedTab,
         onTabClick = onTabClick,
         onScannerClick = onScannerClick,
+        scanTargetMembers = scanTargetMembers,
         searchUiState = searchUiState,
         recentSearchKeywords = recentSearchKeywords,
         onSearchQueryChange = productViewModel::onSearchQueryChange,
@@ -112,6 +115,7 @@ fun ProductScreen(
         onClearRecentKeywords = productViewModel::clearRecentSearchKeywords,
         detailUiState = detailUiState,
         onLoadProductDetail = productViewModel::loadProductDetail,
+        onScanTargetCheckedChange = productViewModel::updateScanTargetSelection,
         modifier = modifier,
     )
 }
@@ -121,6 +125,7 @@ private fun ProductScreenContent(
     selectedTab: MainTab,
     onTabClick: (MainTab) -> Unit,
     onScannerClick: () -> Unit,
+    scanTargetMembers: List<ScanTargetMemberUiModel>,
     searchUiState: ProductSearchUiState,
     recentSearchKeywords: List<String>,
     onSearchQueryChange: (String) -> Unit,
@@ -131,13 +136,9 @@ private fun ProductScreenContent(
     onClearRecentKeywords: () -> Unit,
     detailUiState: ProductDetailUiState,
     onLoadProductDetail: (String?) -> Unit,
+    onScanTargetCheckedChange: (memberId: String, checked: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scanTargetMembers = remember {
-        mutableStateListOf<ScanTargetMemberUiModel>().apply {
-            addAll(defaultScanTargetMembers())
-        }
-    }
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
         defaultImageResId = R.drawable.ic_launcher_foreground,
     )
@@ -288,14 +289,7 @@ private fun ProductScreenContent(
             if (showScanTargetPopup) {
                 ScanTargetPopup(
                     members = scanTargetMembers,
-                    onMemberCheckedChange = { memberId, checked ->
-                        val memberIndex = scanTargetMembers.indexOfFirst { member -> member.id == memberId }
-                        if (memberIndex >= 0) {
-                            scanTargetMembers[memberIndex] = scanTargetMembers[memberIndex].copy(
-                                isSelected = checked,
-                            )
-                        }
-                    },
+                    onMemberCheckedChange = onScanTargetCheckedChange,
                     onDismissRequest = { showScanTargetPopup = false },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -889,18 +883,15 @@ private fun ProductDetailInfoSection(
                 )
             }
 
-            Surface(
+            Box(
                 modifier = Modifier.size(81.dp),
-                color = JjikmukTheme.colors.brandSubtle,
-                shape = CircleShape,
+                contentAlignment = Alignment.Center,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = if (product.isDangerous) "!" else "☺",
-                        color = JjikmukTheme.colors.brandPressed,
-                        style = JjikmukTheme.typography.h1.asEnglish(),
-                    )
-                }
+                Image(
+                    painter = painterResource(product.safetyStatus.faceIconResId()),
+                    contentDescription = product.safetyStatus.faceContentDescription(),
+                    modifier = Modifier.size(81.dp),
+                )
             }
         }
 
@@ -927,58 +918,121 @@ private fun ProductDetailRiskWarningCard(
     product: ProductDetail,
     modifier: Modifier = Modifier,
 ) {
-    val message = product.analysisMessage?.takeIf(String::isNotBlank)
-    if (!product.isDangerous && message == null) return
+    if (product.safetyStatus == ProductSafetyStatus.Pass) return
+    val title = when (product.safetyStatus) {
+        ProductSafetyStatus.Danger -> "사용자 맞춤 위험 성분 감지"
+        ProductSafetyStatus.Unknown -> "사용자 적합성 확인 불가"
+        ProductSafetyStatus.Pass -> "등록 알레르기 충돌 없음"
+    }
+    val message = when (product.safetyStatus) {
+        ProductSafetyStatus.Danger -> product.dangerWarningMessage()
+        ProductSafetyStatus.Unknown -> "현재 정보만으로는 사용자님께 적합한지 판단할 수 없습니다. 섭취 전 원재료와 영양정보를 확인해 주세요!"
+        ProductSafetyStatus.Pass -> null
+    }
+    val accentColor = when (product.safetyStatus) {
+        ProductSafetyStatus.Danger -> JjikmukTheme.colors.error
+        ProductSafetyStatus.Unknown -> Color(0xFFFFD66D)
+        ProductSafetyStatus.Pass -> JjikmukTheme.colors.brand
+    }
+    val backgroundColor = when (product.safetyStatus) {
+        ProductSafetyStatus.Danger -> JjikmukTheme.colors.warning
+        ProductSafetyStatus.Unknown -> Color(0xFFFFF9EA)
+        ProductSafetyStatus.Pass -> JjikmukTheme.colors.brandSubtlest
+    }
 
     Surface(
         modifier = modifier
-            .fillMaxWidth()
-            .height(84.dp),
-        color = JjikmukTheme.colors.warning,
-        shape = RoundedCornerShape(14.dp),
+            .fillMaxWidth(),
+        color = backgroundColor,
+        shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
         ) {
             Box(
                 modifier = Modifier
-                    .width(5.dp)
-                    .height(84.dp)
-                    .background(JjikmukTheme.colors.error),
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(accentColor),
             )
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, top = 16.dp, end = 52.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    text = "!",
-                    color = JjikmukTheme.colors.error,
-                    style = JjikmukTheme.typography.h2.asEnglish(),
-                )
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    ProductDetailRiskWarningIcon(status = product.safetyStatus)
                     Text(
-                        text = "주의가 필요한 성분이 있어요",
+                        text = title,
                         color = JjikmukTheme.colors.textPrimary,
-                        style = JjikmukTheme.typography.titleL,
-                    )
-                    Text(
-                        text = message ?: "선택한 프로필의 식이 조건과 맞지 않을 수 있어요.",
-                        color = JjikmukTheme.colors.textSecondary,
-                        style = JjikmukTheme.typography.bodyS,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                        style = JjikmukTheme.typography.titleL.copy(
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                        ),
                     )
                 }
+                Text(
+                    text = message.orEmpty(),
+                    color = JjikmukTheme.colors.textPrimary,
+                    style = JjikmukTheme.typography.bodyS,
+                )
             }
         }
     }
 }
+
+@Composable
+private fun ProductDetailRiskWarningIcon(
+    status: ProductSafetyStatus,
+    modifier: Modifier = Modifier,
+) {
+    when (status) {
+        ProductSafetyStatus.Danger -> Image(
+            painter = painterResource(R.drawable.ic_scanner_result_warning),
+            contentDescription = null,
+            modifier = modifier.size(24.dp),
+        )
+
+        ProductSafetyStatus.Unknown -> Image(
+            painter = painterResource(R.drawable.ic_warning_triangle_yellow),
+            contentDescription = null,
+            modifier = modifier.size(24.dp),
+        )
+
+        ProductSafetyStatus.Pass -> Unit
+    }
+}
+
+private fun ProductDetail.dangerWarningMessage(): String {
+    val ingredients = dangerousIngredients
+        .filter(String::isNotBlank)
+        .distinct()
+        .joinToString(", ")
+        .ifBlank { "충돌 성분" }
+
+    return "이 제품은 사용자님에게 치명적일 수 있는 성분($ingredients)을 포함하고 있습니다. 섭취에 각별히 주의하세요!"
+}
+
+@DrawableRes
+private fun ProductSafetyStatus.faceIconResId(): Int =
+    when (this) {
+        ProductSafetyStatus.Pass -> R.drawable.ic_face_pass
+        ProductSafetyStatus.Unknown -> R.drawable.ic_face_unknown
+        ProductSafetyStatus.Danger -> R.drawable.ic_face_danger
+    }
+
+private fun ProductSafetyStatus.faceContentDescription(): String =
+    when (this) {
+        ProductSafetyStatus.Pass -> "등록 알레르기 충돌 없음"
+        ProductSafetyStatus.Unknown -> "사용자 적합성 확인 불가"
+        ProductSafetyStatus.Danger -> "사용자 맞춤 위험 성분 감지"
+    }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -2182,6 +2236,7 @@ private fun ProductScreenPreview() {
             selectedTab = MainTab.Product,
             onTabClick = {},
             onScannerClick = {},
+            scanTargetMembers = emptyList(),
             searchUiState = ProductSearchUiState(),
             recentSearchKeywords = emptyList(),
             onSearchQueryChange = {},
@@ -2192,6 +2247,7 @@ private fun ProductScreenPreview() {
             onClearRecentKeywords = {},
             detailUiState = ProductDetailUiState(),
             onLoadProductDetail = {},
+            onScanTargetCheckedChange = { _, _ -> },
         )
     }
 }

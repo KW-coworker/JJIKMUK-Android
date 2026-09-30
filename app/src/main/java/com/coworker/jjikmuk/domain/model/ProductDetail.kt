@@ -11,9 +11,17 @@ data class ProductDetail(
     val totalWeight: String?,
     val nutrition: ProductNutrition,
     val macroPercents: ProductMacroPercents,
+    val safetyStatus: ProductSafetyStatus,
+    val dangerousIngredients: List<String>,
     val analysisMessage: String?,
     val isDangerous: Boolean,
 )
+
+enum class ProductSafetyStatus {
+    Pass,
+    Unknown,
+    Danger,
+}
 
 data class ProductNutrition(
     val energyKcal: Double?,

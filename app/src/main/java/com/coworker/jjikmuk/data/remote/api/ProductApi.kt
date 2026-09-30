@@ -12,11 +12,13 @@ interface ProductApi {
     suspend fun searchProducts(
         @Query("keyword") keyword: String,
         @Query("userId") userId: Long? = null,
+        @Query("allergies") allergies: List<String> = emptyList(),
     ): ProductSearchApiResponse
 
     @GET("api/products/{barcode}")
     suspend fun getProductDetail(
         @Path("barcode") barcode: String,
         @Query("userId") userId: Long? = null,
+        @Query("allergies") allergies: List<String> = emptyList(),
     ): ProductDetailApiResponse
 }
