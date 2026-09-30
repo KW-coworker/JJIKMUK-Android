@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,6 +79,7 @@ import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
 import com.coworker.jjikmuk.ui.component.JjikmukProductListCard
 import com.coworker.jjikmuk.ui.component.JjikmukProductListCardUiModel
 import com.coworker.jjikmuk.ui.component.JjikmukSearchField
+import com.coworker.jjikmuk.ui.catalog.FoodAllergy
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
@@ -1085,7 +1087,7 @@ private fun ProductDetailAllergyChip(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = label.toAllergyEmoji(),
+                text = allergyIcon(label),
                 fontSize = 18.sp,
                 lineHeight = 18.sp,
             )
@@ -1098,27 +1100,11 @@ private fun ProductDetailAllergyChip(
     }
 }
 
-private fun String.toAllergyEmoji(): String =
-    when (this) {
-        "우유" -> "🥛"
-        "땅콩" -> "🥜"
-        "새우" -> "🦐"
-        "밀" -> "🌾"
-        "대두" -> "🫘"
-        "계란" -> "🥚"
-        "소고기" -> "🥩"
-        "닭고기" -> "🍗"
-        "돼지고기" -> "🥓"
-        "토마토" -> "🍅"
-        "오징어" -> "🦑"
-        "조개류" -> "🦪"
-        "게" -> "🦀"
-        "참깨" -> "⚪"
-        "아몬드", "호두" -> "🌰"
-        "복숭아" -> "🍑"
-        "고등어" -> "🐟"
-        else -> "·"
-    }
+@Composable
+private fun allergyIcon(label: String): String =
+    FoodAllergy.entries.firstOrNull { allergy ->
+        stringResource(allergy.labelRes) == label
+    }?.icon ?: "·"
 
 @Composable
 private fun ProductDetailNutritionCard(
