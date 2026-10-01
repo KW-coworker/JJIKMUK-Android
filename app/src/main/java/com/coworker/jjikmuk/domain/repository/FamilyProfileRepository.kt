@@ -6,6 +6,11 @@ import kotlinx.coroutines.flow.Flow
 interface FamilyProfileRepository {
     fun observeProfiles(): Flow<List<FamilyProfile>>
     suspend fun ensureDefaultProfiles()
+    suspend fun addProfile(
+        name: String,
+        emoji: String,
+        relation: String,
+    )
     suspend fun updateProfile(
         profileId: String,
         name: String,

@@ -6,6 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.coworker.jjikmuk.data.local.dao.ChatHistoryDao
 import com.coworker.jjikmuk.data.local.dao.FamilyProfileDao
+import com.coworker.jjikmuk.data.local.dao.LikedProductDao
 import com.coworker.jjikmuk.data.local.database.JjikmukDatabase
 import dagger.Module
 import dagger.Provides
@@ -28,7 +29,7 @@ object DatabaseModule {
             JjikmukDatabase::class.java,
             DATABASE_NAME,
         )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
     }
 
@@ -48,6 +49,14 @@ object DatabaseModule {
         return database.familyProfileDao()
     }
 
+    @Provides
+    @Singleton
+    fun provideLikedProductDao(
+        database: JjikmukDatabase,
+    ): LikedProductDao {
+        return database.likedProductDao()
+    }
+
     private const val DATABASE_NAME = "jjikmuk.db"
 
     private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -65,6 +74,22 @@ object DatabaseModule {
                     preferences TEXT NOT NULL,
                     createdAt INTEGER NOT NULL,
                     updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+    }
+
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS liked_products (
+                    barcode TEXT NOT NULL PRIMARY KEY,
+                    productName TEXT NOT NULL,
+                    brandName TEXT NOT NULL,
+                    imageUrl TEXT,
+                    createdAt INTEGER NOT NULL
                 )
                 """.trimIndent(),
             )

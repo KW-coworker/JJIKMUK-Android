@@ -4,6 +4,7 @@ import com.coworker.jjikmuk.data.local.dao.FamilyProfileDao
 import com.coworker.jjikmuk.data.local.entity.FamilyProfileEntity
 import com.coworker.jjikmuk.domain.model.FamilyProfile
 import com.coworker.jjikmuk.domain.repository.FamilyProfileRepository
+import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -64,6 +65,30 @@ class FamilyProfileRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun addProfile(
+        name: String,
+        emoji: String,
+        relation: String,
+    ) {
+        val now = System.currentTimeMillis()
+        familyProfileDao.upsertProfiles(
+            listOf(
+                FamilyProfileEntity(
+                    id = UUID.randomUUID().toString(),
+                    name = name,
+                    emoji = emoji,
+                    relation = relation,
+                    isMe = false,
+                    vegetarian = "해당 없음",
+                    allergies = "",
+                    preferences = "",
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            ),
+        )
+    }
+
     override suspend fun updateProfile(
         profileId: String,
         name: String,
@@ -114,6 +139,7 @@ class FamilyProfileRepositoryImpl @Inject constructor(
     private fun String.toSetValues(): Set<String> {
         return split("|")
             .map { value -> value.trim() }
+            .map { value -> if (value == "밀가루") "밀" else value }
             .filter { value -> value.isNotEmpty() }
             .toSet()
     }

@@ -1,34 +1,71 @@
 package com.coworker.jjikmuk.data.repository
 
+import com.coworker.jjikmuk.data.local.mock.MockProductAssetDataSource
 import com.coworker.jjikmuk.data.remote.api.ProductApi
 import com.coworker.jjikmuk.data.remote.dto.ProductDetailDataDto
 import com.coworker.jjikmuk.data.remote.dto.ProductSearchItemDto
 import com.coworker.jjikmuk.domain.model.ProductDetail
 import com.coworker.jjikmuk.domain.model.ProductMacroPercents
 import com.coworker.jjikmuk.domain.model.ProductNutrition
+import com.coworker.jjikmuk.domain.model.ProductSafetyStatus
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.coworker.jjikmuk.domain.repository.ProductRepository
 import javax.inject.Inject
 
 class ProductRepositoryImpl @Inject constructor(
     private val productApi: ProductApi,
+    private val mockProductAssetDataSource: MockProductAssetDataSource,
 ) : ProductRepository {
 
-    override suspend fun searchProducts(keyword: String): Result<List<ProductSearchResult>> =
+    override suspend fun searchProducts(
+        keyword: String,
+        allergies: List<String>,
+    ): Result<List<ProductSearchResult>> =
         runCatching {
-            productApi.searchProducts(keyword = keyword)
+            productApi.searchProducts(
+                keyword = keyword,
+                allergies = allergies,
+            )
                 .data
                 .orEmpty()
                 .mapNotNull { item -> item.toDomain() }
                 .sortedBySimilarity(keyword)
+        }.recoverCatching { throwable ->
+            mockProductAssetDataSource.searchProducts(keyword)
+                ?: throw throwable
         }
 
-    override suspend fun getProductDetail(barcode: String): Result<ProductDetail> =
+    override suspend fun getSafeRecommendations(
+        filters: List<String>,
+        allergies: List<String>,
+        limit: Int,
+    ): Result<List<ProductSearchResult>> =
         runCatching {
-            val detailData = productApi.getProductDetail(barcode = barcode).data
+            productApi.getSafeRecommendations(
+                filters = filters,
+                allergies = allergies,
+                limit = limit,
+            )
+                .data
+                .orEmpty()
+                .mapNotNull { item -> item.toDomain() }
+        }
+
+    override suspend fun getProductDetail(
+        barcode: String,
+        allergies: List<String>,
+    ): Result<ProductDetail> =
+        runCatching {
+            val detailData = productApi.getProductDetail(
+                barcode = barcode,
+                allergies = allergies,
+            ).data
                 ?: error("상품 상세 정보를 찾을 수 없어요.")
 
             detailData.toDomain()
+        }.recoverCatching { throwable ->
+            mockProductAssetDataSource.getProductDetail(barcode)
+                ?: throw throwable
         }
 
     private fun ProductSearchItemDto.toDomain(): ProductSearchResult? {
@@ -38,12 +75,7 @@ class ProductRepositoryImpl @Inject constructor(
         return ProductSearchResult(
             barcode = product.barcode,
             productName = productName,
-            brandName = product.manufacturer
-                ?.split("/", ",", "(", "[")
-                ?.firstOrNull()
-                ?.trim()
-                ?.takeIf(String::isNotBlank)
-                ?: "브랜드 정보 없음",
+            brandName = product.manufacturer.toDisplayManufacturer(),
             imageUrl = product.imageUrl,
             allergyLabels = product.allergy.toAllergyLabels(),
         )
@@ -58,12 +90,7 @@ class ProductRepositoryImpl @Inject constructor(
         return ProductDetail(
             barcode = product.barcode.orEmpty(),
             productName = productName,
-            brandName = product.manufacturer
-                ?.split("/", ",", "(", "[")
-                ?.firstOrNull()
-                ?.trim()
-                ?.takeIf(String::isNotBlank)
-                ?: "브랜드 정보 없음",
+            brandName = product.manufacturer.toDisplayManufacturer(),
             imageUrl = product.imageUrl,
             allergyLabels = product.allergy.toAllergyLabels(),
             allergyWarning = product.allergyWarning,
@@ -83,9 +110,41 @@ class ProductRepositoryImpl @Inject constructor(
                 protein = nutrientPercents?.proteinMacroPercent ?: product.proteinPercent,
                 fat = nutrientPercents?.fatMacroPercent ?: product.fatPercent,
             ),
+            safetyStatus = analysis.toSafetyStatus(),
+            dangerousIngredients = analysis?.dangerousIngredients.orEmpty(),
             analysisMessage = analysis?.message,
             isDangerous = analysis?.isDangerous == true,
         )
+    }
+
+    private fun com.coworker.jjikmuk.data.remote.dto.ProductAnalysisDto?.toSafetyStatus(): ProductSafetyStatus {
+        return when (this?.status?.uppercase()) {
+            "PASS" -> ProductSafetyStatus.Pass
+            "DANGER" -> ProductSafetyStatus.Danger
+            "UNKNOWN" -> ProductSafetyStatus.Unknown
+            else -> if (this?.isDangerous == true) ProductSafetyStatus.Danger else ProductSafetyStatus.Unknown
+        }
+    }
+
+    private fun String?.toDisplayManufacturer(): String {
+        val manufacturer = this
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?: return UNKNOWN_BRAND_NAME
+
+        return manufacturer
+            .split("/", ",", "[")
+            .firstOrNull()
+            ?.trim()
+            ?.let { value ->
+                if (value.startsWith("(주)") || value.startsWith("㈜")) {
+                    value
+                } else {
+                    value.substringBefore("(").trim()
+                }
+            }
+            ?.takeIf(String::isNotBlank)
+            ?: manufacturer
     }
 
     private fun String?.toAllergyLabels(): List<String> {
@@ -127,5 +186,6 @@ class ProductRepositoryImpl @Inject constructor(
 
     private companion object {
         const val MAX_ALLERGY_LABEL_COUNT = 3
+        const val UNKNOWN_BRAND_NAME = "브랜드 정보 없음"
     }
 }

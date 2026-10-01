@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -14,9 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.coworker.jjikmuk.R
@@ -27,36 +30,44 @@ fun JjikmukProfileImagePicker(
     imageModel: Any?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    containerSize: Dp = 100.dp,
+    imageSize: Dp = 100.dp,
+    imageBackgroundColor: Color = JjikmukTheme.colors.info,
+    imageBorderWidth: Dp = 4.dp,
+    actionIconResId: Int = R.drawable.ic_profile_camera,
+    actionIconEndPadding: Dp = 0.dp,
+    actionIconBottomPadding: Dp = 0.dp,
+    showDefaultImage: Boolean = true,
 ) {
     val colors = JjikmukTheme.colors
     val interactionSource = remember { MutableInteractionSource() }
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.size(100.dp),
+        modifier = modifier.size(containerSize),
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .size(100.dp)
+                .size(imageSize)
                 .shadow(4.dp, CircleShape)
                 .clip(CircleShape)
-                .background(colors.info)
-                .border(4.dp, colors.surface, CircleShape)
+                .background(imageBackgroundColor)
+                .border(imageBorderWidth, colors.surface, CircleShape)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick,
                 ),
         ) {
-            if (imageModel == null) {
+            if (imageModel == null && showDefaultImage) {
                 Image(
                     painter = painterResource(R.drawable.ic_profile_default),
                     contentDescription = null,
                     modifier = Modifier.size(40.dp),
                 )
-            } else {
+            } else if (imageModel != null) {
                 AsyncImage(
                     model = imageModel,
                     contentDescription = null,
@@ -70,6 +81,7 @@ fun JjikmukProfileImagePicker(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
+                .padding(end = actionIconEndPadding, bottom = actionIconBottomPadding)
                 .size(32.dp)
                 .shadow(4.dp, CircleShape)
                 .clip(CircleShape)
@@ -82,7 +94,7 @@ fun JjikmukProfileImagePicker(
                 ),
         ) {
             Image(
-                painter = painterResource(R.drawable.ic_profile_camera),
+                painter = painterResource(actionIconResId),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
             )

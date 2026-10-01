@@ -12,6 +12,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -25,6 +26,9 @@ object NetworkModule {
         }
 
         return OkHttpClient.Builder()
+            .connectTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .addInterceptor(loggingInterceptor)
             .build()
     }
@@ -74,7 +78,9 @@ object NetworkModule {
     }
 
     private const val AI_SERVER_BASE_URL = "http://10.0.2.2:8000/"
+    private const val BACKEND_REMOTE_SERVER_BASE_URL = "https://jjikmuk-backend-dev.tail198441.ts.net/"
     private const val BACKEND_SERVER_BASE_URL = "http://10.0.2.2:8080/"
+    private const val NETWORK_TIMEOUT_SECONDS = 30L
 }
 
 @Qualifier

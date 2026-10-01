@@ -62,7 +62,9 @@ data class ProductNutrientPercentsDto(
 )
 
 data class ProductAnalysisDto(
+    val status: String? = null,
     val isDangerous: Boolean? = null,
     val dangerousIngredients: List<String>? = emptyList(),
+    val verificationRequired: Boolean? = null,
     val message: String? = null,
 )

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,9 +38,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.coworker.jjikmuk.R
+import com.coworker.jjikmuk.domain.model.LikedProduct
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
-import com.coworker.jjikmuk.ui.component.JjikmukBackButton
+import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
+import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
@@ -50,13 +55,20 @@ fun MyPageScreen(
     onTabClick: (MainTab) -> Unit = {},
     onBackClick: () -> Unit = {},
     onFamilyDietSettingClick: () -> Unit = {},
+    onProfileEditClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    onLikedProductClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
+    myPageViewModel: MyPageViewModel = hiltViewModel(),
 ) {
+    val likedProducts by myPageViewModel.likedProducts.collectAsStateWithLifecycle()
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             MyPageTopBar(
                 onBackClick = onBackClick,
+                onSettingsClick = onSettingsClick,
             )
         },
         bottomBar = {
@@ -74,13 +86,19 @@ fun MyPageScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            MyPageProfileSection()
+            MyPageProfileSection(
+                onProfileEditClick = onProfileEditClick,
+            )
             MyPageFamilyShareSection(
                 onSettingClick = onFamilyDietSettingClick,
             )
             MyPageProductSection(
                 title = "찜한 상품",
-                products = likedProducts,
+                products = likedProducts.map { product -> product.toMyPageProductUiModel() },
+                showMoreButton = likedProducts.size >= 3,
+                onProductClick = { product ->
+                    product.barcode?.let(onLikedProductClick)
+                },
             )
             MyPageProductSection(
                 title = "최근 본 상품",
@@ -94,52 +112,40 @@ fun MyPageScreen(
 @Composable
 private fun MyPageTopBar(
     onBackClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
-        color = JjikmukTheme.colors.surface,
-        shadowElevation = 0.dp,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(62.dp)
-                .border(
-                    width = 1.dp,
-                    color = JjikmukTheme.colors.borderSubtle,
-                ),
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 22.dp),
-            ) {
-                JjikmukBackButton(onClick = onBackClick)
-            }
+    JjikmukTopAppBar(
+        modifier = modifier,
+        leading = JjikmukTopAppBarLeading.Back(onClick = onBackClick),
+        showBottomDivider = true,
+        centerContent = {
             Text(
                 text = "마이 페이지",
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.labelL,
-                modifier = Modifier.align(Alignment.Center),
             )
+        },
+        trailingContent = {
             Icon(
                 painter = painterResource(R.drawable.ic_settings),
                 contentDescription = "설정",
                 tint = Color.Unspecified,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 30.dp)
-                    .size(24.dp),
+                    .size(24.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onSettingsClick,
+                    ),
             )
-        }
-    }
+        },
+    )
 }
 
 @Composable
 private fun MyPageProfileSection(
+    onProfileEditClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -169,7 +175,12 @@ private fun MyPageProfileSection(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 3.dp, bottom = 14.dp)
-                    .size(32.dp),
+                    .size(32.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onProfileEditClick,
+                    ),
                 color = JjikmukTheme.colors.textPrimary,
                 shape = CircleShape,
                 border = androidx.compose.foundation.BorderStroke(
@@ -346,6 +357,8 @@ private fun FamilyAvatar(
 private fun MyPageProductSection(
     title: String,
     products: List<MyPageProductUiModel>,
+    showMoreButton: Boolean = true,
+    onProductClick: ((MyPageProductUiModel) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -367,11 +380,13 @@ private fun MyPageProductSection(
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.titleL,
             )
-            Text(
-                text = "전체보기 ›",
-                color = JjikmukTheme.colors.textSecondary,
-                style = JjikmukTheme.typography.labelS,
-            )
+            if (showMoreButton) {
+                Text(
+                    text = "전체보기 ›",
+                    color = JjikmukTheme.colors.textSecondary,
+                    style = JjikmukTheme.typography.labelS,
+                )
+            }
         }
         Row(
             modifier = Modifier
@@ -380,7 +395,10 @@ private fun MyPageProductSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             products.forEach { product ->
-                MyPageProductCard(product = product)
+                MyPageProductCard(
+                    product = product,
+                    onClick = onProductClick?.let { click -> { click(product) } },
+                )
             }
         }
     }
@@ -389,20 +407,19 @@ private fun MyPageProductSection(
 @Composable
 private fun MyPageProductCard(
     product: MyPageProductUiModel,
+    onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val cardModifier = if (onClick != null) {
+        modifier.clickable(onClick = onClick)
+    } else {
+        modifier
+    }
+
     Column(
-        modifier = modifier.width(112.dp),
+        modifier = cardModifier.width(112.dp),
     ) {
-        Image(
-            painter = painterResource(product.imageResId),
-            contentDescription = product.name,
-            modifier = Modifier
-                .size(112.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color(0xFFF1F2F4)),
-            contentScale = ContentScale.Crop,
-        )
+        ProductThumbnail(product = product)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = product.brand,
@@ -421,29 +438,60 @@ private fun MyPageProductCard(
     }
 }
 
+@Composable
+private fun ProductThumbnail(
+    product: MyPageProductUiModel,
+    modifier: Modifier = Modifier,
+) {
+    val thumbnailModifier = modifier
+        .size(112.dp)
+        .clip(RoundedCornerShape(14.dp))
+        .background(Color(0xFFF1F2F4))
+
+    if (!product.imageUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = product.imageUrl,
+            contentDescription = product.name,
+            modifier = thumbnailModifier,
+            contentScale = ContentScale.Crop,
+        )
+    } else if (product.imageResId != null) {
+        Image(
+            painter = painterResource(product.imageResId),
+            contentDescription = product.name,
+            modifier = thumbnailModifier,
+            contentScale = ContentScale.Crop,
+        )
+    } else {
+        Box(
+            modifier = thumbnailModifier,
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "상품\n이미지",
+                color = JjikmukTheme.colors.textSecondary,
+                style = JjikmukTheme.typography.caption,
+            )
+        }
+    }
+}
+
 private data class MyPageProductUiModel(
+    val barcode: String? = null,
     val brand: String,
     val name: String,
-    @DrawableRes val imageResId: Int,
+    @DrawableRes val imageResId: Int? = null,
+    val imageUrl: String? = null,
 )
 
-private val likedProducts = listOf(
-    MyPageProductUiModel(
-        brand = "아이얌",
-        name = "글루텐프리 쌀과자",
-        imageResId = R.drawable.img_gluten_free_rice_cookie,
-    ),
-    MyPageProductUiModel(
-        brand = "널담",
-        name = "비건 초코 쿠키",
-        imageResId = R.drawable.img_vegan_choco_cookie,
-    ),
-    MyPageProductUiModel(
-        brand = "매일유업",
-        name = "무첨가 두유 99.9",
-        imageResId = R.drawable.img_soy_milk,
-    ),
-)
+private fun LikedProduct.toMyPageProductUiModel(): MyPageProductUiModel {
+    return MyPageProductUiModel(
+        barcode = barcode,
+        brand = brandName.ifBlank { "알수없음" },
+        name = productName,
+        imageUrl = imageUrl,
+    )
+}
 
 private val recentProducts = listOf(
     MyPageProductUiModel(
