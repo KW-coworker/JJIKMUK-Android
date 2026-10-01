@@ -145,11 +145,18 @@ private fun SummaryCard(label: String, count: String, @DrawableRes icon: Int, ic
 @Composable
 private fun ReportProductCard(product: ReportProduct, onProductClick: () -> Unit, modifier: Modifier) {
     val safe = product.status == ReportStatus.Safe
+    val cardShape = RoundedCornerShape(32.dp)
+    val cardBorderColor = if (safe) Color(0x3316A635) else Color(0x33FB2C36)
     Box(
-        modifier.width(280.dp).height(324.dp).border(
-            2.dp, if (safe) Color(0x3316A635) else Color(0x33FB2C36), RoundedCornerShape(32.dp)
-        )
+        modifier.width(280.dp).height(324.dp),
     ) {
+        // 카드 테두리를 별도 하단 레이어에 그려, 상단 상품 이미지 위로 올라오지 않게 합니다.
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(Color.White, cardShape)
+                .border(2.dp, cardBorderColor, cardShape),
+        )
         Column(
             Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 64.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -166,17 +173,6 @@ private fun ReportProductCard(product: ReportProduct, onProductClick: () -> Unit
             Spacer(Modifier.height(24.dp))
             DetailPanel(product)
         }
-        // 배지와 그림자 영역 뒤에서는 카드 상단선 자체가 이어지지 않도록
-        // 이미지보다 넓은 불투명 영역으로 상단 테두리를 끊습니다.
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-5).dp)
-                .zIndex(1f)
-                .width(128.dp)
-                .height(12.dp)
-                .background(Color.White),
-        )
         ProductBadge(
             product,
             Modifier
@@ -190,7 +186,8 @@ private fun ReportProductCard(product: ReportProduct, onProductClick: () -> Unit
 @Composable
 private fun ProductBadge(product: ReportProduct, modifier: Modifier) {
     val safe = product.status == ReportStatus.Safe
-    Box(modifier.width(112.dp).height(106.dp)) {
+    val statusColor = if (safe) Color(0x8016A635) else Color(0x80FB2C36)
+    Box(modifier.width(96.dp).height(104.25.dp)) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -198,22 +195,25 @@ private fun ProductBadge(product: ReportProduct, modifier: Modifier) {
                 .size(96.dp)
                 .clip(CircleShape)
                 .background(Color.White)
-                .border(
-                    4.dp,
-                    if (safe) Color(0x8016A635) else Color(0x80FB2C36),
-                    CircleShape,
-                )
-                .padding(8.dp),
-            contentAlignment = Alignment.Center,
+                .padding(4.dp),
         ) {
-            Image(
-                painter = painterResource(product.image),
-                contentDescription = product.name,
-                contentScale = ContentScale.Crop,
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape),
-            )
+            ) {
+                Image(
+                    painter = painterResource(product.image),
+                    contentDescription = product.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .border(4.dp, statusColor, CircleShape),
+                )
+            }
         }
         Row(
             Modifier.align(Alignment.BottomCenter).height(25.dp).clip(CircleShape)

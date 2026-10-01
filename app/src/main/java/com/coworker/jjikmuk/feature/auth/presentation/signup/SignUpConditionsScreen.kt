@@ -28,6 +28,7 @@ import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.component.JjikmukAuthTopBar
 import com.coworker.jjikmuk.ui.component.JjikmukConditionCard
 import com.coworker.jjikmuk.ui.component.JjikmukPrimaryButton
+import com.coworker.jjikmuk.ui.catalog.DietaryCondition
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
@@ -70,32 +71,32 @@ fun SignUpConditionsScreen(
         ),
         ConditionItem(
             type = SignUpCondition.LowSugar,
-            title = stringResource(R.string.sign_up_condition_low_sugar),
+            title = stringResource(DietaryCondition.LOW_SUGAR.labelRes),
             description = stringResource(R.string.sign_up_condition_low_sugar_description),
         ),
         ConditionItem(
             type = SignUpCondition.LowSodium,
-            title = stringResource(R.string.sign_up_condition_low_sodium),
+            title = stringResource(DietaryCondition.LOW_SODIUM.labelRes),
             description = stringResource(R.string.sign_up_condition_low_sodium_description),
         ),
         ConditionItem(
             type = SignUpCondition.GlutenFree,
-            title = stringResource(R.string.sign_up_condition_gluten_free),
+            title = stringResource(DietaryCondition.GLUTEN_FREE.labelRes),
             description = stringResource(R.string.sign_up_condition_gluten_free_description),
         ),
         ConditionItem(
             type = SignUpCondition.LowCalorie,
-            title = stringResource(R.string.sign_up_condition_low_calorie),
+            title = stringResource(DietaryCondition.LOW_CALORIE.labelRes),
             description = stringResource(R.string.sign_up_condition_low_calorie_description),
         ),
         ConditionItem(
             type = SignUpCondition.LowFat,
-            title = stringResource(R.string.sign_up_condition_low_fat),
+            title = stringResource(DietaryCondition.LOW_FAT.labelRes),
             description = stringResource(R.string.sign_up_condition_low_fat_description),
         ),
         ConditionItem(
             type = SignUpCondition.HighProtein,
-            title = stringResource(R.string.sign_up_condition_high_protein),
+            title = stringResource(DietaryCondition.HIGH_PROTEIN.labelRes),
             description = stringResource(R.string.sign_up_condition_high_protein_description),
         ),
     )

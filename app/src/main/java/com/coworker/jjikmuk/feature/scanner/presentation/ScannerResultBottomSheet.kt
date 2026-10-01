@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -135,7 +137,7 @@ private fun ScannerResultContent(
 
 @Composable
 private fun WarningNotice() {
-    Row(
+    Box(
         modifier = Modifier
             .width(321.dp)
             .height(86.dp)
@@ -145,21 +147,34 @@ private fun WarningNotice() {
         Box(
             modifier = Modifier
                 .width(5.dp)
-                .height(86.dp)
+                .fillMaxHeight()
                 .background(JjikmukTheme.colors.error),
         )
-        Image(
-            painter = painterResource(R.drawable.ic_scanner_result_warning),
-            contentDescription = null,
-            modifier = Modifier.padding(start = 20.dp, top = 19.dp).size(24.dp),
-        )
-        Column(modifier = Modifier.padding(start = 10.dp, top = 16.dp, end = 12.dp)) {
-            Text(
-                text = "섭취 주의",
-                color = JjikmukTheme.colors.textPrimary,
-                style = JjikmukTheme.typography.titleM,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 23.dp, top = 17.dp, end = 53.dp, bottom = 17.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_scanner_result_warning),
+                    contentDescription = null,
+                    modifier = Modifier.size(width = 22.419.dp, height = 22.dp),
+                )
+                Text(
+                    text = "섭취 주의",
+                    color = JjikmukTheme.colors.textPrimary,
+                    style = JjikmukTheme.typography.titleM.copy(
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                )
+            }
             Text(
                 text = "사용자님에게 위험한 성분이 포함되어 있습니다.",
                 color = JjikmukTheme.colors.textPrimary,
@@ -175,10 +190,10 @@ private fun NutrientPanel(nutrients: List<NutrientUiModel>) {
         modifier = Modifier
             .width(321.dp)
             .height(104.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(JjikmukTheme.colors.info)
-            .padding(horizontal = 10.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+            .padding(start = 4.dp, top = 16.dp, end = 5.dp, bottom = 17.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         nutrients.take(4).forEach { NutrientItem(it) }
     }
@@ -187,12 +202,13 @@ private fun NutrientPanel(nutrients: List<NutrientUiModel>) {
 @Composable
 private fun NutrientItem(nutrient: NutrientUiModel) {
     Column(
-        modifier = Modifier.width(68.dp),
+        modifier = Modifier.width(73.5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Box(
             modifier = Modifier
-                .shadow(3.dp, RoundedCornerShape(12.dp))
+                .shadow(1.5.dp, RoundedCornerShape(12.dp))
                 .size(36.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(nutrient.type.iconBackground),
@@ -204,7 +220,6 @@ private fun NutrientItem(nutrient: NutrientUiModel) {
                 modifier = Modifier.size(24.dp),
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = nutrient.type.label,
             color = JjikmukTheme.colors.textPrimary,
@@ -222,7 +237,10 @@ private fun NutrientItem(nutrient: NutrientUiModel) {
                 }
             },
             color = nutrient.type.valueColor,
-            style = JjikmukTheme.typography.caption.asEnglish(),
+            style = JjikmukTheme.typography.caption.asEnglish().copy(
+                fontSize = 11.sp,
+                lineHeight = 11.sp,
+            ),
             maxLines = 1,
         )
     }

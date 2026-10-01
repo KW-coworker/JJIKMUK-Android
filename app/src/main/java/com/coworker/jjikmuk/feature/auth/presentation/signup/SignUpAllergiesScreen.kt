@@ -118,12 +118,12 @@ fun SignUpAllergiesScreen(
                         .verticalScroll(scrollState)
                         .padding(start = 22.dp, end = 22.dp, bottom = 16.dp),
                 ) {
-                    FoodAllergy.selectionEntries.forEach { allergy ->
+                    FoodAllergy.entries.forEach { item ->
                         JjikmukAllergyChip(
-                            emoji = allergy.icon,
-                            label = stringResource(allergy.labelRes),
-                            selected = allergy.id in uiState.allergies,
-                            onSelectedChange = { onAllergyClick(allergy.id) },
+                            emoji = item.icon,
+                            label = stringResource(item.labelRes),
+                            selected = item.id in uiState.allergies,
+                            onSelectedChange = { onAllergyClick(item.id) },
                         )
                     }
                 }
