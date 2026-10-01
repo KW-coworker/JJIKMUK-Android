@@ -19,7 +19,7 @@ class PasswordResetViewModelTest {
         viewModel.updateEmail("coworker@kw.ac.kr")
 
         assertTrue(viewModel.sendResetCode())
-        assertEquals(180, viewModel.uiState.value.remainingOtpSeconds)
+        assertEquals(300, viewModel.uiState.value.remainingOtpSeconds)
         assertNull(viewModel.uiState.value.emailError)
     }
 

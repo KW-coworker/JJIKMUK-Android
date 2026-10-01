@@ -195,7 +195,7 @@ private fun AuthOtpEmptyPreview() {
         AuthOtpScreen(
             otp = "",
             otpError = null,
-            remainingOtpSeconds = 180,
+            remainingOtpSeconds = 300,
             isOtpComplete = false,
             onOtpChange = {},
             onBackClick = {},
@@ -212,7 +212,7 @@ private fun AuthOtpCompletePreview() {
         AuthOtpScreen(
             otp = "1133",
             otpError = null,
-            remainingOtpSeconds = 152,
+            remainingOtpSeconds = 272,
             isOtpComplete = true,
             onOtpChange = {},
             onBackClick = {},
@@ -229,7 +229,7 @@ private fun AuthOtpErrorPreview() {
         AuthOtpScreen(
             otp = "0000",
             otpError = "인증번호를 다시 확인해 주세요",
-            remainingOtpSeconds = 180,
+            remainingOtpSeconds = 300,
             isOtpComplete = true,
             onOtpChange = {},
             onBackClick = {},
