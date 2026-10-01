@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.feature.product.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -100,6 +101,8 @@ fun ProductScreen(
     onTabClick: (MainTab) -> Unit,
     onScannerClick: () -> Unit,
     modifier: Modifier = Modifier,
+    productBarcodeToOpen: String? = null,
+    onProductBarcodeOpenHandled: () -> Unit = {},
     productViewModel: ProductViewModel = hiltViewModel(),
 ) {
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
@@ -129,6 +132,8 @@ fun ProductScreen(
         onToggleLikedProduct = productViewModel::toggleLikedProduct,
         onLoadMoreRecommendations = productViewModel::loadMoreSafeRecommendations,
         onScanTargetCheckedChange = productViewModel::updateScanTargetSelection,
+        productBarcodeToOpen = productBarcodeToOpen,
+        onProductBarcodeOpenHandled = onProductBarcodeOpenHandled,
         modifier = modifier,
     )
 }
@@ -154,6 +159,8 @@ private fun ProductScreenContent(
     onToggleLikedProduct: (ProductDetail) -> Unit,
     onLoadMoreRecommendations: () -> Unit,
     onScanTargetCheckedChange: (memberId: String, checked: Boolean) -> Unit,
+    productBarcodeToOpen: String?,
+    onProductBarcodeOpenHandled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
@@ -169,6 +176,29 @@ private fun ProductScreenContent(
     var selectedSort by rememberSaveable { mutableStateOf(ProductSortOption.Recommend) }
     var selectedCategory by rememberSaveable { mutableStateOf("전체") }
     var selectedProfileFilter by rememberSaveable { mutableStateOf("비건 인증") }
+    var shouldReturnToMyOnDetailBack by rememberSaveable { mutableStateOf(false) }
+
+    fun navigateBackFromDetail() {
+        if (shouldReturnToMyOnDetailBack) {
+            shouldReturnToMyOnDetailBack = false
+            currentDestination = ProductDestination.Overview
+            onTabClick(MainTab.My)
+        } else {
+            currentDestination = ProductDestination.Search
+        }
+    }
+
+    LaunchedEffect(productBarcodeToOpen) {
+        val barcode = productBarcodeToOpen ?: return@LaunchedEffect
+        onLoadProductDetail(barcode)
+        shouldReturnToMyOnDetailBack = true
+        currentDestination = ProductDestination.Detail
+        onProductBarcodeOpenHandled()
+    }
+
+    BackHandler(enabled = currentDestination == ProductDestination.Detail) {
+        navigateBackFromDetail()
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -214,7 +244,7 @@ private fun ProductScreenContent(
                         selectedProfiles = selectedProfiles,
                         onScanTargetClick = { showScanTargetPopup = true },
                         leading = JjikmukTopAppBarLeading.Back(
-                            onClick = { currentDestination = ProductDestination.Search },
+                            onClick = ::navigateBackFromDetail,
                         ),
                         showBottomDivider = true,
                     )
@@ -290,6 +320,7 @@ private fun ProductScreenContent(
                         onFilterClick = { showProductFilterSheet = true },
                         onProductClick = { product ->
                             onLoadProductDetail(product.barcode)
+                            shouldReturnToMyOnDetailBack = false
                             currentDestination = ProductDestination.Detail
                         },
                     )
@@ -2371,6 +2402,8 @@ private fun ProductScreenPreview() {
             onToggleLikedProduct = {},
             onLoadMoreRecommendations = {},
             onScanTargetCheckedChange = { _, _ -> },
+            productBarcodeToOpen = null,
+            onProductBarcodeOpenHandled = {},
         )
     }
 }

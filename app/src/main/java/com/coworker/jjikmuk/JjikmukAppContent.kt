@@ -33,6 +33,7 @@ fun JjikmukAppContent() {
     var showProfileEdit by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showAccountSecurity by rememberSaveable { mutableStateOf(false) }
+    var productBarcodeToOpen by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun handleMainTabClick(tab: MainTab) {
         if (tab == MainTab.Diet) {
@@ -73,6 +74,8 @@ fun JjikmukAppContent() {
                         selectedTab = selectedTab,
                         onTabClick = ::handleMainTabClick,
                         onScannerClick = { showScanner = true },
+                        productBarcodeToOpen = productBarcodeToOpen,
+                        onProductBarcodeOpenHandled = { productBarcodeToOpen = null },
                     )
                 }
 
@@ -106,6 +109,10 @@ fun JjikmukAppContent() {
                         },
                         onSettingsClick = {
                             showSettings = true
+                        },
+                        onLikedProductClick = { barcode ->
+                            productBarcodeToOpen = barcode
+                            selectedTab = MainTab.Product
                         },
                     )
                 }

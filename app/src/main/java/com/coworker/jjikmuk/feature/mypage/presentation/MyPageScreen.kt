@@ -57,6 +57,7 @@ fun MyPageScreen(
     onFamilyDietSettingClick: () -> Unit = {},
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onLikedProductClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     myPageViewModel: MyPageViewModel = hiltViewModel(),
 ) {
@@ -94,6 +95,10 @@ fun MyPageScreen(
             MyPageProductSection(
                 title = "찜한 상품",
                 products = likedProducts.map { product -> product.toMyPageProductUiModel() },
+                showMoreButton = likedProducts.size >= 3,
+                onProductClick = { product ->
+                    product.barcode?.let(onLikedProductClick)
+                },
             )
             MyPageProductSection(
                 title = "최근 본 상품",
@@ -352,6 +357,8 @@ private fun FamilyAvatar(
 private fun MyPageProductSection(
     title: String,
     products: List<MyPageProductUiModel>,
+    showMoreButton: Boolean = true,
+    onProductClick: ((MyPageProductUiModel) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -373,11 +380,13 @@ private fun MyPageProductSection(
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.titleL,
             )
-            Text(
-                text = "전체보기 ›",
-                color = JjikmukTheme.colors.textSecondary,
-                style = JjikmukTheme.typography.labelS,
-            )
+            if (showMoreButton) {
+                Text(
+                    text = "전체보기 ›",
+                    color = JjikmukTheme.colors.textSecondary,
+                    style = JjikmukTheme.typography.labelS,
+                )
+            }
         }
         Row(
             modifier = Modifier
@@ -386,7 +395,10 @@ private fun MyPageProductSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             products.forEach { product ->
-                MyPageProductCard(product = product)
+                MyPageProductCard(
+                    product = product,
+                    onClick = onProductClick?.let { click -> { click(product) } },
+                )
             }
         }
     }
@@ -395,10 +407,17 @@ private fun MyPageProductSection(
 @Composable
 private fun MyPageProductCard(
     product: MyPageProductUiModel,
+    onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val cardModifier = if (onClick != null) {
+        modifier.clickable(onClick = onClick)
+    } else {
+        modifier
+    }
+
     Column(
-        modifier = modifier.width(112.dp),
+        modifier = cardModifier.width(112.dp),
     ) {
         ProductThumbnail(product = product)
         Spacer(modifier = Modifier.height(8.dp))
@@ -458,6 +477,7 @@ private fun ProductThumbnail(
 }
 
 private data class MyPageProductUiModel(
+    val barcode: String? = null,
     val brand: String,
     val name: String,
     @DrawableRes val imageResId: Int? = null,
@@ -466,6 +486,7 @@ private data class MyPageProductUiModel(
 
 private fun LikedProduct.toMyPageProductUiModel(): MyPageProductUiModel {
     return MyPageProductUiModel(
+        barcode = barcode,
         brand = brandName.ifBlank { "알수없음" },
         name = productName,
         imageUrl = imageUrl,
