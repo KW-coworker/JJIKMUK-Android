@@ -220,5 +220,5 @@ private const val INITIAL_MOCK_OTP = "1133"
 private const val RESENT_MOCK_OTP = "2468"
 private const val OTP_MISMATCH_MESSAGE = "인증번호를 다시 확인해 주세요"
 private const val OTP_LENGTH = 4
-private const val OTP_DURATION_SECONDS = 180
+private const val OTP_DURATION_SECONDS = 300
 private const val DUPLICATE_NICKNAME_MESSAGE = "이미 사용중인 닉네임입니다"
