@@ -15,6 +15,14 @@ interface ProductApi {
         @Query("allergies") allergies: List<String> = emptyList(),
     ): ProductSearchApiResponse
 
+    @GET("api/products/safe-recommendations")
+    suspend fun getSafeRecommendations(
+        @Query("filters") filters: List<String> = emptyList(),
+        @Query("allergies") allergies: List<String> = emptyList(),
+        @Query("limit") limit: Int = 6,
+        @Query("userId") userId: Long? = null,
+    ): ProductSearchApiResponse
+
     @GET("api/products/{barcode}")
     suspend fun getProductDetail(
         @Path("barcode") barcode: String,

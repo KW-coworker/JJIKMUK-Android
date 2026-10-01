@@ -99,7 +99,8 @@ ID와 아이콘은 이 문서의 공통 카탈로그를 사용한다.
 ## 사용 기준
 
 - 화면에서 알레르기 전체 목록이 필요하면 `FoodAllergy.entries`를 사용한다.
-- 알레르기 선택지를 화면별 목록으로 다시 만들지 않는다.
+- 사용자 선택 UI에서 같은 노출 순서가 필요하면 `FoodAllergy.selectionEntries`를 사용한다.
+- 알레르기 선택지를 화면별 문자열 목록으로 다시 만들지 않는다.
 - 저장된 알레르기 ID를 복원할 때는 `FoodAllergy.fromId(id)`를 사용한다.
 - 식이조건 ID를 복원할 때는 `DietaryCondition.fromId(id)`를 사용한다.
 - 이름은 직접 하드코딩하지 않고 각 항목의 `labelRes`를 사용한다.

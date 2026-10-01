@@ -27,8 +27,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,9 +40,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -99,6 +104,8 @@ fun ProductScreen(
 ) {
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
     val detailUiState by productViewModel.detailUiState.collectAsStateWithLifecycle()
+    val recommendationUiState by productViewModel.recommendationUiState.collectAsStateWithLifecycle()
+    val likedProductBarcodes by productViewModel.likedProductBarcodes.collectAsStateWithLifecycle()
     val recentSearchKeywords by productViewModel.recentSearchKeywords.collectAsStateWithLifecycle()
     val scanTargetMembers by productViewModel.scanTargetMembers.collectAsStateWithLifecycle()
 
@@ -108,6 +115,7 @@ fun ProductScreen(
         onScannerClick = onScannerClick,
         scanTargetMembers = scanTargetMembers,
         searchUiState = searchUiState,
+        recommendationUiState = recommendationUiState,
         recentSearchKeywords = recentSearchKeywords,
         onSearchQueryChange = productViewModel::onSearchQueryChange,
         onClearSearchQuery = productViewModel::clearSearchQuery,
@@ -117,6 +125,9 @@ fun ProductScreen(
         onClearRecentKeywords = productViewModel::clearRecentSearchKeywords,
         detailUiState = detailUiState,
         onLoadProductDetail = productViewModel::loadProductDetail,
+        likedProductBarcodes = likedProductBarcodes,
+        onToggleLikedProduct = productViewModel::toggleLikedProduct,
+        onLoadMoreRecommendations = productViewModel::loadMoreSafeRecommendations,
         onScanTargetCheckedChange = productViewModel::updateScanTargetSelection,
         modifier = modifier,
     )
@@ -129,6 +140,7 @@ private fun ProductScreenContent(
     onScannerClick: () -> Unit,
     scanTargetMembers: List<ScanTargetMemberUiModel>,
     searchUiState: ProductSearchUiState,
+    recommendationUiState: ProductRecommendationUiState,
     recentSearchKeywords: List<String>,
     onSearchQueryChange: (String) -> Unit,
     onClearSearchQuery: () -> Unit,
@@ -138,6 +150,9 @@ private fun ProductScreenContent(
     onClearRecentKeywords: () -> Unit,
     detailUiState: ProductDetailUiState,
     onLoadProductDetail: (String?) -> Unit,
+    likedProductBarcodes: Set<String>,
+    onToggleLikedProduct: (ProductDetail) -> Unit,
+    onLoadMoreRecommendations: () -> Unit,
     onScanTargetCheckedChange: (memberId: String, checked: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -224,6 +239,7 @@ private fun ProductScreenContent(
             when (currentDestination) {
                 ProductDestination.Overview -> {
                     ProductContent(
+                        recommendationUiState = recommendationUiState,
                         onSearchClick = {
                             onResetSearchState()
                             currentDestination = ProductDestination.Search
@@ -243,9 +259,14 @@ private fun ProductScreenContent(
 
                 ProductDestination.RecommendationList -> {
                     ProductRecommendationListContent(
-                        products = recommendedProductListSamples.sortedBy(selectedSort),
-                        productCount = 8,
+                        products = recommendationUiState.products
+                            .map(ProductSearchResult::toRecommendationCardUiModel)
+                            .sortedBy(selectedSort),
+                        productCount = recommendationUiState.products.size,
                         onFilterClick = { showProductFilterSheet = true },
+                        isLoadingMore = recommendationUiState.isLoadingMore,
+                        canLoadMore = recommendationUiState.canLoadMore,
+                        onLoadMore = onLoadMoreRecommendations,
                     )
 
                     JjikmukDraggableScannerFab(
@@ -277,6 +298,8 @@ private fun ProductScreenContent(
                 ProductDestination.Detail -> {
                     ProductDetailContent(
                         detailUiState = detailUiState,
+                        likedProductBarcodes = likedProductBarcodes,
+                        onToggleLikedProduct = onToggleLikedProduct,
                     )
 
                     JjikmukDraggableScannerFab(
@@ -330,6 +353,7 @@ private fun ProductScreenContent(
 
 @Composable
 private fun ProductContent(
+    recommendationUiState: ProductRecommendationUiState,
     onSearchClick: () -> Unit,
     onRecommendationMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -348,6 +372,7 @@ private fun ProductContent(
                 .background(JjikmukTheme.colors.surfaceSecondary),
         )
         RecommendedProductSection(
+            recommendationUiState = recommendationUiState,
             onMoreClick = onRecommendationMoreClick,
         )
     }
@@ -699,6 +724,8 @@ private fun ProductSearchResultHeader(
 @Composable
 private fun ProductDetailContent(
     detailUiState: ProductDetailUiState,
+    likedProductBarcodes: Set<String>,
+    onToggleLikedProduct: (ProductDetail) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -729,6 +756,8 @@ private fun ProductDetailContent(
         detailUiState.product != null -> {
             ProductDetailLoadedContent(
                 product = detailUiState.product,
+                isLiked = detailUiState.product.barcode in likedProductBarcodes,
+                onFavoriteClick = { onToggleLikedProduct(detailUiState.product) },
                 modifier = modifier,
             )
         }
@@ -738,6 +767,8 @@ private fun ProductDetailContent(
 @Composable
 private fun ProductDetailLoadedContent(
     product: ProductDetail,
+    isLiked: Boolean,
+    onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -746,7 +777,11 @@ private fun ProductDetailLoadedContent(
             .verticalScroll(rememberScrollState())
             .background(JjikmukTheme.colors.surface),
     ) {
-        ProductDetailImageBanner(product = product)
+        ProductDetailImageBanner(
+            product = product,
+            isLiked = isLiked,
+            onFavoriteClick = onFavoriteClick,
+        )
         ProductDetailInfoSection(product = product)
     }
 }
@@ -754,6 +789,8 @@ private fun ProductDetailLoadedContent(
 @Composable
 private fun ProductDetailImageBanner(
     product: ProductDetail,
+    isLiked: Boolean,
+    onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageUrls = listOfNotNull(product.imageUrl?.takeIf(String::isNotBlank))
@@ -806,12 +843,13 @@ private fun ProductDetailImageBanner(
         )
 
         Text(
-            text = "♥",
-            color = JjikmukTheme.colors.error,
+            text = if (isLiked) "♥" else "♡",
+            color = if (isLiked) JjikmukTheme.colors.error else JjikmukTheme.colors.textSecondary,
             style = JjikmukTheme.typography.h1,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 28.dp, bottom = 21.dp),
+                .padding(end = 28.dp, bottom = 21.dp)
+                .clickable(onClick = onFavoriteClick),
         )
     }
 }
@@ -1577,9 +1615,12 @@ private fun ProductCategoryButton(
 
 @Composable
 private fun RecommendedProductSection(
+    recommendationUiState: ProductRecommendationUiState,
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val products = recommendationUiState.products.map(ProductSearchResult::toRecommendationCardUiModel)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -1626,17 +1667,67 @@ private fun RecommendedProductSection(
         LazyRow(
             modifier = Modifier
                 .padding(top = 16.dp)
-                .height(262.dp),
+                .height(246.dp),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(recommendedProductSamples) { product ->
-                JjikmukProductCard(
-                    product = product,
-                    size = JjikmukProductCardSize.Grid,
-                )
+            when {
+                recommendationUiState.isLoading -> {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .width(335.dp)
+                                .height(220.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(color = JjikmukTheme.colors.brand)
+                        }
+                    }
+                }
+
+                recommendationUiState.errorMessage != null -> {
+                    item {
+                        RecommendationMessageCard(message = recommendationUiState.errorMessage)
+                    }
+                }
+
+                products.isEmpty() -> {
+                    item {
+                        RecommendationMessageCard(message = "조건에 맞는 안심 상품을 찾지 못했어요.")
+                    }
+                }
+
+                else -> {
+                    items(products) { product ->
+                        JjikmukProductCard(
+                            product = product,
+                            size = JjikmukProductCardSize.Carousel,
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun RecommendationMessageCard(
+    message: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .width(335.dp)
+            .height(220.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(JjikmukTheme.colors.surface),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = message,
+            color = JjikmukTheme.colors.textSecondary,
+            style = JjikmukTheme.typography.bodyM,
+        )
     }
 }
 
@@ -1645,8 +1736,25 @@ private fun ProductRecommendationListContent(
     products: List<JjikmukProductCardUiModel>,
     productCount: Int,
     onFilterClick: () -> Unit,
+    isLoadingMore: Boolean,
+    canLoadMore: Boolean,
+    onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val gridState = rememberLazyGridState()
+    val shouldLoadMore by remember(products.size, canLoadMore, isLoadingMore) {
+        derivedStateOf {
+            val lastVisibleItemIndex = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            canLoadMore && !isLoadingMore && products.isNotEmpty() && lastVisibleItemIndex >= products.lastIndex - 2
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore, products.size) {
+        if (shouldLoadMore) {
+            onLoadMore()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -1664,6 +1772,7 @@ private fun ProductRecommendationListContent(
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
+            state = gridState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 20.dp),
@@ -1674,8 +1783,24 @@ private fun ProductRecommendationListContent(
             items(products) { product ->
                 JjikmukProductCard(
                     product = product,
-                    size = JjikmukProductCardSize.Grid,
+                    size = JjikmukProductCardSize.FlexibleGrid,
                 )
+            }
+
+            if (isLoadingMore) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            color = JjikmukTheme.colors.brand,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
             }
         }
     }
@@ -2175,6 +2300,14 @@ private fun List<JjikmukProductCardUiModel>.sortedBy(
         ProductSortOption.HighPrice -> sortedByDescending { product -> product.name }
     }
 
+private fun ProductSearchResult.toRecommendationCardUiModel(): JjikmukProductCardUiModel =
+    JjikmukProductCardUiModel(
+        brand = brandName,
+        name = productName,
+        badge = "맞춤 안심",
+        imageUrl = imageUrl,
+    )
+
 private fun ProductSearchResult.toProductListCardUiModel(): JjikmukProductListCardUiModel =
     JjikmukProductListCardUiModel(
         brandName = brandName,
@@ -2224,6 +2357,7 @@ private fun ProductScreenPreview() {
             onScannerClick = {},
             scanTargetMembers = emptyList(),
             searchUiState = ProductSearchUiState(),
+            recommendationUiState = ProductRecommendationUiState(),
             recentSearchKeywords = emptyList(),
             onSearchQueryChange = {},
             onClearSearchQuery = {},
@@ -2233,6 +2367,9 @@ private fun ProductScreenPreview() {
             onClearRecentKeywords = {},
             detailUiState = ProductDetailUiState(),
             onLoadProductDetail = {},
+            likedProductBarcodes = emptySet(),
+            onToggleLikedProduct = {},
+            onLoadMoreRecommendations = {},
             onScanTargetCheckedChange = { _, _ -> },
         )
     }

@@ -35,6 +35,22 @@ class ProductRepositoryImpl @Inject constructor(
                 ?: throw throwable
         }
 
+    override suspend fun getSafeRecommendations(
+        filters: List<String>,
+        allergies: List<String>,
+        limit: Int,
+    ): Result<List<ProductSearchResult>> =
+        runCatching {
+            productApi.getSafeRecommendations(
+                filters = filters,
+                allergies = allergies,
+                limit = limit,
+            )
+                .data
+                .orEmpty()
+                .mapNotNull { item -> item.toDomain() }
+        }
+
     override suspend fun getProductDetail(
         barcode: String,
         allergies: List<String>,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,12 +20,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.SubcomposeAsyncImage
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import com.coworker.jjikmuk.ui.theme.asEnglish
@@ -33,12 +36,15 @@ data class JjikmukProductCardUiModel(
     val brand: String,
     val name: String,
     val badge: String,
-    @DrawableRes val imageResId: Int,
+    @DrawableRes val imageResId: Int? = null,
+    val imageUrl: String? = null,
 )
 
 enum class JjikmukProductCardSize {
     Compact,
     Grid,
+    Carousel,
+    FlexibleGrid,
 }
 
 @Composable
@@ -46,13 +52,20 @@ fun JjikmukProductCard(
     product: JjikmukProductCardUiModel,
     modifier: Modifier = Modifier,
     size: JjikmukProductCardSize = JjikmukProductCardSize.Grid,
-    showFavorite: Boolean = size == JjikmukProductCardSize.Grid,
+    showFavorite: Boolean = size == JjikmukProductCardSize.Grid || size == JjikmukProductCardSize.FlexibleGrid,
 ) {
     val spec = productCardSpec(size)
+    val flexibleWidth = size == JjikmukProductCardSize.FlexibleGrid
 
     Surface(
         modifier = modifier
-            .width(spec.cardWidth)
+            .then(
+                if (flexibleWidth) {
+                    Modifier.fillMaxWidth()
+                } else {
+                    Modifier.width(spec.cardWidth)
+                },
+            )
             .height(spec.cardHeight),
         color = JjikmukTheme.colors.surface,
         shape = RoundedCornerShape(16.dp),
@@ -67,7 +80,13 @@ fun JjikmukProductCard(
         ) {
             Box(
                 modifier = Modifier
-                    .width(spec.imageWidth)
+                    .then(
+                        if (flexibleWidth) {
+                            Modifier.fillMaxWidth()
+                        } else {
+                            Modifier.width(spec.imageWidth)
+                        },
+                    )
                     .height(spec.imageHeight)
                     .clip(
                         RoundedCornerShape(
@@ -79,12 +98,7 @@ fun JjikmukProductCard(
                     )
                     .background(JjikmukTheme.colors.surfaceSecondary),
             ) {
-                Image(
-                    painter = painterResource(product.imageResId),
-                    contentDescription = product.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
+                ProductCardImage(product = product)
 
                 ProductBadge(
                     text = product.badge,
@@ -96,15 +110,21 @@ fun JjikmukProductCard(
                 if (showFavorite) {
                     FavoritePlaceholderButton(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 8.dp, end = 8.dp),
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 8.dp, bottom = 8.dp),
                     )
                 }
             }
 
             Column(
                 modifier = Modifier
-                    .width(spec.textWidth)
+                    .then(
+                        if (flexibleWidth) {
+                            Modifier.fillMaxWidth()
+                        } else {
+                            Modifier.width(spec.textWidth)
+                        },
+                    )
                     .padding(top = spec.textTopPadding)
                     .padding(horizontal = spec.textHorizontalPadding),
             ) {
@@ -120,7 +140,10 @@ fun JjikmukProductCard(
                     color = JjikmukTheme.colors.textPrimary,
                     style = when (size) {
                         JjikmukProductCardSize.Compact -> JjikmukTheme.typography.labelM
-                        JjikmukProductCardSize.Grid -> JjikmukTheme.typography.labelS
+                        JjikmukProductCardSize.Grid,
+                        JjikmukProductCardSize.Carousel,
+                        JjikmukProductCardSize.FlexibleGrid,
+                            -> JjikmukTheme.typography.labelS
                     },
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -128,6 +151,62 @@ fun JjikmukProductCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ProductCardImage(
+    product: JjikmukProductCardUiModel,
+    modifier: Modifier = Modifier,
+) {
+    if (!product.imageUrl.isNullOrBlank()) {
+        SubcomposeAsyncImage(
+            model = product.imageUrl,
+            contentDescription = product.name,
+            modifier = modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = PRODUCT_IMAGE_CROP_ZOOM,
+                    scaleY = PRODUCT_IMAGE_CROP_ZOOM,
+                ),
+            contentScale = ContentScale.Crop,
+            loading = {
+                ProductImagePlaceholder()
+            },
+            error = {
+                ProductImagePlaceholder()
+            },
+        )
+    } else if (product.imageResId != null) {
+        Image(
+            painter = painterResource(product.imageResId),
+            contentDescription = product.name,
+            modifier = modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = PRODUCT_IMAGE_CROP_ZOOM,
+                    scaleY = PRODUCT_IMAGE_CROP_ZOOM,
+                ),
+            contentScale = ContentScale.Crop,
+        )
+    } else {
+        ProductImagePlaceholder(modifier = modifier)
+    }
+}
+
+@Composable
+private fun ProductImagePlaceholder(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(JjikmukTheme.colors.surfaceSecondary),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "이미지 준비중",
+            color = JjikmukTheme.colors.textTertiary,
+            style = JjikmukTheme.typography.caption,
+        )
     }
 }
 
@@ -201,16 +280,44 @@ private fun productCardSpec(size: JjikmukProductCardSize): ProductCardSpec =
         JjikmukProductCardSize.Grid -> ProductCardSpec(
             cardWidth = 162.dp,
             cardHeight = 262.dp,
-            contentPadding = 1.dp,
-            imageWidth = 160.dp,
+            contentPadding = 0.dp,
+            imageWidth = 162.dp,
             imageHeight = 191.dp,
-            imageCornerRadius = 15.dp,
-            textWidth = 160.dp,
+            imageCornerRadius = 16.dp,
+            textWidth = 162.dp,
+            textTopPadding = 12.dp,
+            textHorizontalPadding = 12.dp,
+            shadowElevation = 4.dp,
+        )
+
+        JjikmukProductCardSize.Carousel -> ProductCardSpec(
+            cardWidth = 144.dp,
+            cardHeight = 246.dp,
+            contentPadding = 0.dp,
+            imageWidth = 144.dp,
+            imageHeight = 171.dp,
+            imageCornerRadius = 16.dp,
+            textWidth = 144.dp,
+            textTopPadding = 12.dp,
+            textHorizontalPadding = 12.dp,
+            shadowElevation = 4.dp,
+        )
+
+        JjikmukProductCardSize.FlexibleGrid -> ProductCardSpec(
+            cardWidth = 162.dp,
+            cardHeight = 262.dp,
+            contentPadding = 0.dp,
+            imageWidth = 162.dp,
+            imageHeight = 191.dp,
+            imageCornerRadius = 16.dp,
+            textWidth = 162.dp,
             textTopPadding = 12.dp,
             textHorizontalPadding = 12.dp,
             shadowElevation = 4.dp,
         )
     }
+
+private const val PRODUCT_IMAGE_CROP_ZOOM = 1.18f
 
 @Preview(showBackground = true)
 @Composable

@@ -46,6 +46,35 @@ enum class FoodAllergy(
     companion object {
         private val entriesById = entries.associateBy(FoodAllergy::id)
 
+        val selectionEntries = listOf(
+            SHRIMP,
+            CRAB,
+            SQUID,
+            MACKEREL,
+            SHELLFISH,
+            OYSTER,
+            MUSSEL,
+            ABALONE,
+            PEACH,
+            TOMATO,
+            PEANUT,
+            WALNUT,
+            BUCKWHEAT,
+            PINE_NUT,
+            SULFITES,
+            SESAME,
+            ALMOND,
+            MUSTARD,
+            CELERY,
+            BEEF,
+            EGG,
+            MILK,
+            SOY,
+            WHEAT,
+            PORK,
+            CHICKEN,
+        )
+
         fun fromId(id: String): FoodAllergy? = entriesById[id]
     }
 }

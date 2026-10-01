@@ -30,6 +30,20 @@ class DietConditionManagementViewModel @Inject constructor(
         }
     }
 
+    fun addProfile(
+        name: String,
+        emoji: String,
+        relation: String,
+    ) {
+        viewModelScope.launch {
+            familyProfileRepository.addProfile(
+                name = name,
+                emoji = emoji,
+                relation = relation,
+            )
+        }
+    }
+
     fun updateProfile(
         profileId: String,
         name: String,

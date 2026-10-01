@@ -53,6 +53,7 @@ import com.coworker.jjikmuk.ui.component.JjikmukNicknameTextField
 import com.coworker.jjikmuk.ui.component.JjikmukPrimaryButton
 import com.coworker.jjikmuk.ui.component.JjikmukProfileImagePicker
 import com.coworker.jjikmuk.ui.component.JjikmukSelectedItemChip
+import com.coworker.jjikmuk.ui.catalog.FoodAllergy
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -305,9 +306,9 @@ private data class ProfileSelectedItem(
 
 @Composable
 private fun profileSelectedItems(uiState: SignUpUiState): List<ProfileSelectedItem> = buildList {
-    allergyItems
+    FoodAllergy.selectionEntries
         .filter { it.id in uiState.allergies }
-        .forEach { add(ProfileSelectedItem(it.emoji, stringResource(it.labelRes))) }
+        .forEach { add(ProfileSelectedItem(it.icon, stringResource(it.labelRes))) }
 
     if (uiState.hasVegetarianCondition) {
         val dietLabel = when (uiState.vegetarianDiet) {
@@ -378,7 +379,7 @@ private fun SignUpProfileManyItemsPreview() {
                 nickname = "코워커",
                 selectedConditions = SignUpCondition.entries.toSet(),
                 vegetarianDiet = VegetarianDiet.Vegan,
-                allergies = allergyItems.map { it.id }.toSet(),
+                allergies = FoodAllergy.selectionEntries.map { it.id }.toSet(),
             ),
             onNicknameChange = {},
             onPhotoClick = {},

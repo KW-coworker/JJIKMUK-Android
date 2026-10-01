@@ -9,6 +9,12 @@ interface ProductRepository {
         allergies: List<String> = emptyList(),
     ): Result<List<ProductSearchResult>>
 
+    suspend fun getSafeRecommendations(
+        filters: List<String> = emptyList(),
+        allergies: List<String> = emptyList(),
+        limit: Int = 6,
+    ): Result<List<ProductSearchResult>>
+
     suspend fun getProductDetail(
         barcode: String,
         allergies: List<String> = emptyList(),
