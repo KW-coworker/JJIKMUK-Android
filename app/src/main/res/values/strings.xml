@@ -121,4 +121,19 @@
     <string name="sign_up_complete_title">회원가입 완료</string>
     <string name="sign_up_complete_description">계정을 성공적으로 생성하였습니다</string>
     <string name="auth_confirm">확인</string>
+    <string name="account_withdrawal_title">회원탈퇴</string>
+    <string name="account_withdrawal_heading">정말 탈퇴를 진행할까요?</string>
+    <string name="account_withdrawal_description">탈퇴 시 계정과 모든 데이터가 즉시 삭제되며,</string>
+    <string name="account_withdrawal_warning">한 번 삭제된 정보는 다시 복구할 수 없어요.</string>
+    <string name="account_withdrawal_deleted_information">삭제되는 정보</string>
+    <string name="account_withdrawal_products">찜한 상품 · 최근 본 상품</string>
+    <string name="account_withdrawal_diet">나의 식이 조건 설정</string>
+    <string name="account_withdrawal_family">가족 식이 조건 공유 정보</string>
+    <string name="account_withdrawal_history">스캔 기록 및 활동 내역</string>
+    <string name="account_withdrawal_consent">위 내용을 모두 확인했으며, 이에 동의합니다.</string>
+    <string name="account_withdrawal_action">탈퇴하기</string>
+    <string name="account_withdrawal_cancel">계속 이용하기</string>
+    <string name="account_withdrawal_complete_title">회원탈퇴 완료</string>
+    <string name="account_withdrawal_complete_description">그동안 찍먹을 이용해 주셔서 감사합니다!\n더 좋은 모습으로 다시 만나뵐게요.</string>
+    <string name="account_withdrawal_return_to_start">처음으로</string>
 </resources>

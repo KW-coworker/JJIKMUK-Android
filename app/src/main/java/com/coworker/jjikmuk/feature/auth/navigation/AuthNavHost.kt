@@ -121,7 +121,17 @@ fun AuthNavHost(
         )
 
         composable(AuthRoute.Home) {
-            JjikmukAppContent()
+            JjikmukAppContent(
+                onReturnToAuthChoice = {
+                    loginViewModel.reset()
+                    signUpViewModel.reset()
+                    passwordResetViewModel.reset()
+                    navController.navigate(AuthRoute.AuthChoice) {
+                        popUpTo(navController.graph.id) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+            )
         }
     }
 }

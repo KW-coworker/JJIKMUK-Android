@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
@@ -32,6 +34,7 @@ fun JjikmukAuthCompleteScreen(
     buttonText: String,
     onButtonClick: () -> Unit,
     modifier: Modifier = Modifier,
+    buttonBottomPadding: Dp? = null,
 ) {
     val colors = JjikmukTheme.colors
 
@@ -84,10 +87,18 @@ fun JjikmukAuthCompleteScreen(
             JjikmukPrimaryButton(
                 text = buttonText,
                 onClick = onButtonClick,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(horizontal = 20.dp)
-                    .offset(y = 635.dp),
+                modifier = if (buttonBottomPadding == null) {
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(horizontal = 20.dp)
+                        .offset(y = 635.dp)
+                } else {
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = buttonBottomPadding)
+                },
             )
         }
     }
