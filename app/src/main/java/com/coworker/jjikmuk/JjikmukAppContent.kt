@@ -14,6 +14,7 @@ import com.coworker.jjikmuk.feature.chat.presentation.ChatHistoryScreen
 import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.AccountSecurityScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountWithdrawalRoute
 import com.coworker.jjikmuk.feature.mypage.presentation.DietConditionManagementScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.ProfileEditScreen
@@ -23,7 +24,7 @@ import com.coworker.jjikmuk.feature.scanner.navigation.ScannerNavHost
 import com.coworker.jjikmuk.ui.component.MainTab
 
 @Composable
-fun JjikmukAppContent() {
+fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
     val context = LocalContext.current
     var chatMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var chatConversationId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -33,6 +34,7 @@ fun JjikmukAppContent() {
     var showProfileEdit by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showAccountSecurity by rememberSaveable { mutableStateOf(false) }
+    var showAccountWithdrawal by rememberSaveable { mutableStateOf(false) }
     var productBarcodeToOpen by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun handleMainTabClick(tab: MainTab) {
@@ -46,9 +48,15 @@ fun JjikmukAppContent() {
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (chatMessage == null) {
-            if (showAccountSecurity) {
+            if (showAccountWithdrawal) {
+                AccountWithdrawalRoute(
+                    onBackClick = { showAccountWithdrawal = false },
+                    onReturnToAuthChoice = onReturnToAuthChoice,
+                )
+            } else if (showAccountSecurity) {
                 AccountSecurityScreen(
                     onBackClick = { showAccountSecurity = false },
+                    onWithdrawalClick = { showAccountWithdrawal = true },
                 )
             } else if (showSettings) {
                 SettingsScreen(

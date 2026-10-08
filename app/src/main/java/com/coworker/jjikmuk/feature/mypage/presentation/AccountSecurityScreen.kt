@@ -34,6 +34,7 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 @Composable
 fun AccountSecurityScreen(
     onBackClick: () -> Unit,
+    onWithdrawalClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -84,7 +85,7 @@ fun AccountSecurityScreen(
                     .height(8.dp)
                     .background(JjikmukTheme.colors.surfaceSecondary),
             )
-            AccountWithdrawalRow(onClick = {})
+            AccountWithdrawalRow(onClick = onWithdrawalClick)
         }
     }
 }
@@ -163,6 +164,6 @@ private fun AccountWithdrawalRow(
 @Composable
 private fun AccountSecurityScreenPreview() {
     JjikmukTheme {
-        AccountSecurityScreen(onBackClick = {})
+        AccountSecurityScreen(onBackClick = {}, onWithdrawalClick = {})
     }
 }
