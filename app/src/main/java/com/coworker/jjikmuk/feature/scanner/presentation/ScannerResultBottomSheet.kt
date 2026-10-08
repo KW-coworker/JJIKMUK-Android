@@ -36,6 +36,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coworker.jjikmuk.R
+import com.coworker.jjikmuk.ui.component.ScannerProductImage
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import com.coworker.jjikmuk.ui.theme.asEnglish
 
@@ -89,8 +90,9 @@ private fun ScannerResultContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(modifier = Modifier.height(if (isWarning) 20.dp else 26.dp))
-        Image(
-            painter = painterResource(result.productImageRes),
+        ScannerProductImage(
+            imageUrl = result.productImageUrl,
+            localImageRes = result.productImageRes,
             contentDescription = result.productName,
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(width = 256.dp, height = 234.dp),

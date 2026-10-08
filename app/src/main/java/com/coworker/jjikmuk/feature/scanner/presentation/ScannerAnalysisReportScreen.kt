@@ -30,6 +30,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
+import com.coworker.jjikmuk.ui.component.ScannerProductImage
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 private enum class ReportStatus { Safe, Danger }
@@ -39,6 +40,7 @@ private data class ReportProduct(
     val name: String,
     @DrawableRes val image: Int,
     val details: List<Pair<String, String?>>,
+    val imageUrl: String? = null,
 )
 
 private val reportProducts = listOf(
@@ -202,8 +204,9 @@ private fun ProductBadge(product: ReportProduct, modifier: Modifier) {
                     .fillMaxSize()
                     .clip(CircleShape),
             ) {
-                Image(
-                    painter = painterResource(product.image),
+                ScannerProductImage(
+                    imageUrl = product.imageUrl,
+                    localImageRes = product.image,
                     contentDescription = product.name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
