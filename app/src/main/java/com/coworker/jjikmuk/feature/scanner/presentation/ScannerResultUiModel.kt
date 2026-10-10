@@ -12,8 +12,9 @@ enum class ScannerResultStatus {
 data class ScannerResultUiModel(
     val status: ScannerResultStatus,
     val productName: String,
-    @DrawableRes val productImageRes: Int,
+    @DrawableRes val productImageRes: Int?,
     val nutrients: List<NutrientUiModel>,
+    val productImageUrl: String? = null,
 )
 
 data class NutrientUiModel(

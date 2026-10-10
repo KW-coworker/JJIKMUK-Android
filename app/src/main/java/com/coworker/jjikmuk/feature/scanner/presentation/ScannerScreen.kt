@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,15 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -32,6 +30,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
@@ -44,65 +44,6 @@ enum class ScannerMode {
     Compare,
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ScannerMainRoute(
-    onBackClick: () -> Unit,
-    onCompareListClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var mode by rememberSaveable { mutableStateOf(ScannerMode.Normal) }
-    var normalResult by rememberSaveable { mutableStateOf<ScannerResultStatus?>(null) }
-    var nextNormalResult by rememberSaveable { mutableStateOf(ScannerResultStatus.Safe) }
-    var comparedProductCount by rememberSaveable { mutableStateOf(1) }
-    var showCompareList by rememberSaveable { mutableStateOf(false) }
-
-    ScannerScreen(
-        mode = mode,
-        onModeChange = { mode = it },
-        onBackClick = onBackClick,
-        onFlashClick = {},
-        onGalleryClick = {},
-        onShutterClick = {
-            if (mode == ScannerMode.Normal) {
-                normalResult = nextNormalResult
-                nextNormalResult = if (nextNormalResult == ScannerResultStatus.Safe) {
-                    ScannerResultStatus.Warning
-                } else {
-                    ScannerResultStatus.Safe
-                }
-            } else {
-                comparedProductCount = (comparedProductCount + 1).coerceAtMost(8)
-            }
-        },
-        onCompareListClick = { showCompareList = true },
-        modifier = modifier,
-    )
-
-    normalResult?.let { result ->
-        ScannerResultBottomSheet(
-            result = sampleScannerResult(result),
-            onDismissRequest = { normalResult = null },
-            onProductDetailClick = {},
-            onSecondaryActionClick = {},
-        )
-    }
-
-    if (showCompareList) {
-        ScannerCompareListBottomSheet(
-            productCount = comparedProductCount,
-            onDismissRequest = { showCompareList = false },
-            onRemoveProduct = {
-                comparedProductCount = (comparedProductCount - 1).coerceAtLeast(0)
-            },
-            onCompareClick = {
-                showCompareList = false
-                onCompareListClick()
-            },
-        )
-    }
-}
-
 @Composable
 fun ScannerScreen(
     mode: ScannerMode,
@@ -113,6 +54,18 @@ fun ScannerScreen(
     onShutterClick: () -> Unit,
     onCompareListClick: () -> Unit,
     modifier: Modifier = Modifier,
+    shutterEnabled: Boolean = true,
+    galleryEnabled: Boolean = true,
+    flashEnabled: Boolean = true,
+    flashOn: Boolean = false,
+    cameraContent: @Composable () -> Unit = {
+        Image(
+            painter = painterResource(R.drawable.scanner_camera_preview),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+    },
 ) {
     BackHandler(onBack = onBackClick)
 
@@ -122,16 +75,13 @@ fun ScannerScreen(
             .background(JjikmukTheme.colors.background)
             .systemBarsPadding(),
     ) {
-        Image(
-            painter = painterResource(R.drawable.scanner_camera_preview),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
+        cameraContent()
 
         ScannerTopBar(
             onBackClick = onBackClick,
             onFlashClick = onFlashClick,
+            flashEnabled = flashEnabled,
+            flashOn = flashOn,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 18.dp, start = 22.dp, end = 22.dp),
@@ -155,6 +105,8 @@ fun ScannerScreen(
         ScannerControls(
             onGalleryClick = onGalleryClick,
             onShutterClick = onShutterClick,
+            shutterEnabled = shutterEnabled,
+            galleryEnabled = galleryEnabled,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 65.dp),
@@ -173,6 +125,8 @@ fun ScannerScreen(
 private fun ScannerTopBar(
     onBackClick: () -> Unit,
     onFlashClick: () -> Unit,
+    flashEnabled: Boolean,
+    flashOn: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -189,10 +143,13 @@ private fun ScannerTopBar(
         Spacer(modifier = Modifier.weight(1f))
         Image(
             painter = painterResource(R.drawable.ic_scanner_flash),
-            contentDescription = "플래시",
+            contentDescription = "촬영 플래시",
             modifier = Modifier
                 .size(41.dp)
-                .clickable(role = Role.Button, onClick = onFlashClick),
+                .border(if (flashOn) 2.dp else 0.dp, if (flashOn) Color.Yellow else Color.Transparent, CircleShape)
+                .semantics { stateDescription = if (!flashEnabled) "사용 불가" else if (flashOn) "켜짐" else "꺼짐" }
+                .alpha(if (flashEnabled) 1f else 0.4f)
+                .clickable(enabled = flashEnabled, role = Role.Button, onClick = onFlashClick),
         )
     }
 }
@@ -274,6 +231,8 @@ private fun ScannerModeLabel(
 private fun ScannerControls(
     onGalleryClick: () -> Unit,
     onShutterClick: () -> Unit,
+    shutterEnabled: Boolean,
+    galleryEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -287,10 +246,11 @@ private fun ScannerControls(
             contentDescription = "갤러리에서 선택",
             modifier = Modifier
                 .size(52.dp)
-                .clickable(role = Role.Button, onClick = onGalleryClick),
+                .alpha(if (galleryEnabled) 1f else 0.4f)
+                .clickable(enabled = galleryEnabled, role = Role.Button, onClick = onGalleryClick),
         )
         Spacer(modifier = Modifier.weight(1f))
-        ScannerShutterButton(onClick = onShutterClick)
+        ScannerShutterButton(onClick = onShutterClick, enabled = shutterEnabled)
         Spacer(modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.size(52.dp))
     }
@@ -299,6 +259,7 @@ private fun ScannerControls(
 @Composable
 private fun ScannerShutterButton(
     onClick: () -> Unit,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Image(
@@ -306,7 +267,8 @@ private fun ScannerShutterButton(
         contentDescription = "상품 촬영",
         modifier = modifier
             .size(90.dp)
-            .clickable(role = Role.Button, onClick = onClick),
+            .alpha(if (enabled) 1f else 0.4f)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
     )
 }
 
