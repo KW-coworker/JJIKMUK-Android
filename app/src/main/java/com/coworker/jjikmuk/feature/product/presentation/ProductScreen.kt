@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -77,13 +76,12 @@ import com.coworker.jjikmuk.domain.model.ProductDetail
 import com.coworker.jjikmuk.domain.model.ProductSafetyStatus
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.coworker.jjikmuk.feature.product.presentation.component.JjikmukProductCard
+import com.coworker.jjikmuk.feature.product.presentation.component.ProductSearchTopBar
+import com.coworker.jjikmuk.feature.product.presentation.component.ProductSearchResultContent
 import com.coworker.jjikmuk.feature.product.presentation.component.JjikmukProductCardSize
 import com.coworker.jjikmuk.feature.product.presentation.component.JjikmukProductCardUiModel
-import com.coworker.jjikmuk.ui.component.JjikmukBackButton
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
 import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
-import com.coworker.jjikmuk.ui.component.JjikmukProductListCard
-import com.coworker.jjikmuk.ui.component.JjikmukProductListCardUiModel
 import com.coworker.jjikmuk.ui.component.JjikmukSearchField
 import com.coworker.jjikmuk.ui.catalog.FoodAllergy
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
@@ -459,66 +457,6 @@ private fun ProductSearchBar(
 }
 
 @Composable
-private fun ProductSearchTopBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClearClick: () -> Unit,
-    onSearchClick: () -> Unit,
-    onBackClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
-        color = JjikmukTheme.colors.surface,
-        shadowElevation = 0.dp,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(67.dp)
-                .border(
-                    width = 0.5.dp,
-                    color = JjikmukTheme.colors.borderSubtle,
-                    shape = RoundedCornerShape(0.dp),
-                )
-                .padding(start = 12.dp, end = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            JjikmukBackButton(onClick = onBackClick)
-            ProductSearchInputField(
-                query = query,
-                onQueryChange = onQueryChange,
-                onClearClick = onClearClick,
-                onSearchClick = onSearchClick,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ProductSearchInputField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClearClick: () -> Unit,
-    onSearchClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    JjikmukSearchField(
-        value = query,
-        onValueChange = onQueryChange,
-        placeholder = "어떤 안심 상품을 찾으시나요?",
-        onClearClick = onClearClick,
-        onSearchClick = onSearchClick,
-        autoFocus = true,
-        modifier = modifier,
-    )
-}
-
-@Composable
 private fun ProductSearchContent(
     searchUiState: ProductSearchUiState,
     recentKeywords: List<String>,
@@ -602,151 +540,6 @@ private fun ProductSearchInitialContent(
                         onClick = { onKeywordClick(keyword) },
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProductSearchResultContent(
-    searchUiState: ProductSearchUiState,
-    onFilterClick: () -> Unit,
-    onProductClick: (ProductSearchResult) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(JjikmukTheme.colors.surface),
-    ) {
-        ProductSearchResultHeader(
-            query = searchUiState.submittedQuery,
-            productCount = searchUiState.products.size,
-            onFilterClick = onFilterClick,
-        )
-
-        when {
-            searchUiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = JjikmukTheme.colors.brand)
-                }
-            }
-
-            searchUiState.errorMessage != null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = searchUiState.errorMessage,
-                        color = JjikmukTheme.colors.textSecondary,
-                        style = JjikmukTheme.typography.bodyM,
-                    )
-                }
-            }
-
-            searchUiState.products.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "검색 결과가 없어요.",
-                        color = JjikmukTheme.colors.textSecondary,
-                        style = JjikmukTheme.typography.bodyM,
-                    )
-                }
-            }
-
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(
-                        items = searchUiState.products,
-                        key = { product -> product.barcode ?: product.productName },
-                    ) { product ->
-                        JjikmukProductListCard(
-                            product = product.toProductListCardUiModel(),
-                            onClick = { onProductClick(product) },
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProductSearchResultHeader(
-    query: String,
-    productCount: Int,
-    onFilterClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(53.dp)
-            .background(JjikmukTheme.colors.surface)
-            .border(
-                width = 0.5.dp,
-                color = JjikmukTheme.colors.borderSubtle,
-                shape = RoundedCornerShape(0.dp),
-            )
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(color = JjikmukTheme.colors.textPrimary)) {
-                    append("‘")
-                    append(query)
-                    append("' ")
-                }
-                append("검색 결과 ")
-                withStyle(SpanStyle(color = JjikmukTheme.colors.brand)) {
-                    append(productCount.toString())
-                    append("건")
-                }
-            },
-            color = JjikmukTheme.colors.textSecondary,
-            style = JjikmukTheme.typography.labelM,
-        )
-
-        Surface(
-            modifier = Modifier
-                .height(32.dp)
-                .clickable(onClick = onFilterClick),
-            color = JjikmukTheme.colors.disabled,
-            shape = RoundedCornerShape(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_filter_sliders),
-                    contentDescription = null,
-                    tint = JjikmukTheme.colors.textSecondary,
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    text = "상세필터",
-                    color = JjikmukTheme.colors.textSecondary,
-                    style = JjikmukTheme.typography.labelS,
-                )
             }
         }
     }
@@ -2337,15 +2130,6 @@ private fun ProductSearchResult.toRecommendationCardUiModel(): JjikmukProductCar
         name = productName,
         badge = "맞춤 안심",
         imageUrl = imageUrl,
-    )
-
-private fun ProductSearchResult.toProductListCardUiModel(): JjikmukProductListCardUiModel =
-    JjikmukProductListCardUiModel(
-        brandName = brandName,
-        productName = productName,
-        barcode = barcode,
-        imageUrl = imageUrl,
-        allergyLabels = allergyLabels,
     )
 
 private fun Double?.toPercentText(): String =

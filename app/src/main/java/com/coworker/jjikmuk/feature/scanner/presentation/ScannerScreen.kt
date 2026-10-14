@@ -7,14 +7,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -22,8 +26,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -36,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
+import com.coworker.jjikmuk.ui.theme.asEnglish
 import com.coworker.jjikmuk.ui.theme.Neutral350
 import com.coworker.jjikmuk.ui.theme.Neutral600
 
@@ -69,13 +77,23 @@ fun ScannerScreen(
 ) {
     BackHandler(onBack = onBackClick)
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(JjikmukTheme.colors.background)
-            .systemBarsPadding(),
+            .systemBarsPadding()
+            .clipToBounds(),
     ) {
+        // Figma's 375×812 frame has 38px/20px mock system bars; Android supplies real insets.
+        val guideScaleX = maxWidth / 375.dp
+        val guideScaleY = maxHeight / 754.dp
         cameraContent()
+        ScannerFocusMask(Modifier.fillMaxSize())
+
+        ScannerGuidance(
+            modifier = Modifier.align(Alignment.TopCenter)
+                .padding(top = 65.dp * guideScaleY, start = 16.dp, end = 16.dp),
+        )
 
         ScannerTopBar(
             onBackClick = onBackClick,
@@ -90,8 +108,8 @@ fun ScannerScreen(
         ScannerGuideFrame(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 120.dp)
-                .size(width = 295.dp, height = 353.dp),
+                .padding(top = 120.dp * guideScaleY)
+                .size(width = 295.dp * guideScaleX, height = 353.dp * guideScaleY),
         )
 
         ScannerModeSelector(
@@ -118,6 +136,38 @@ fun ScannerScreen(
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+    }
+}
+
+/** Render the exported Figma mask, leaving the camera inside its cutout untouched. */
+@Composable
+private fun ScannerFocusMask(modifier: Modifier = Modifier) {
+    val mask = painterResource(R.drawable.scanner_focus_mask)
+    Canvas(modifier) {
+        val scaleY = size.height / 754f
+        translate(top = -38f * scaleY) {
+            with(mask) { draw(Size(size.width, 812f * scaleY)) }
+        }
+    }
+}
+
+@Composable
+private fun ScannerGuidance(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .widthIn(min = 270.dp)
+            .background(JjikmukTheme.colors.textPrimary.copy(alpha = 0.6f), CircleShape)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+    ) {
+        Image(painterResource(R.drawable.ic_scanner_guide), null, Modifier.size(14.dp))
+        Text(
+            text = "제품 포장 앞면을 네모칸 안에 맞춰주세요",
+            style = JjikmukTheme.typography.bodyS.asEnglish(),
+            color = Color.White,
+            modifier = Modifier.heightIn(min = 18.dp),
+        )
     }
 }
 
