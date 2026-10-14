@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.annotation.DrawableRes
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import kotlinx.coroutines.delay
@@ -61,6 +62,7 @@ fun JjikmukSearchField(
     onClick: (() -> Unit)? = null,
     onClearClick: (() -> Unit)? = null,
     onSearchClick: (() -> Unit)? = null,
+    @DrawableRes clearIconResId: Int? = null,
 ) {
     val colors = JjikmukTheme.colors
     val focusRequester = remember { FocusRequester() }
@@ -170,6 +172,7 @@ fun JjikmukSearchField(
         } else if (showClearButton) {
             SearchClearButton(
                 onClick = onClearClick ?: { onValueChange("") },
+                iconResId = clearIconResId,
             )
         }
     }
@@ -192,6 +195,7 @@ private fun SearchIcon(
 private fun SearchClearButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    @DrawableRes iconResId: Int? = null,
 ) {
     Surface(
         modifier = modifier
@@ -205,7 +209,10 @@ private fun SearchClearButton(
         shape = androidx.compose.foundation.shape.CircleShape,
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
+            if (iconResId != null) {
+                Icon(painterResource(iconResId), contentDescription = "검색어 지우기",
+                    tint = JjikmukTheme.colors.surface, modifier = Modifier.size(14.dp))
+            } else Text(
                 text = "×",
                 color = JjikmukTheme.colors.surface,
                 style = JjikmukTheme.typography.labelS,

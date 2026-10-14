@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.annotation.DrawableRes
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
@@ -19,6 +21,8 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 fun JjikmukBackButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    @DrawableRes iconResId: Int = R.drawable.ic_arrow_back,
+    iconSize: Dp = 30.dp,
 ) {
     Box(
         modifier = modifier
@@ -31,10 +35,10 @@ fun JjikmukBackButton(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_arrow_back),
+            painter = painterResource(iconResId),
             contentDescription = "뒤로가기",
             tint = JjikmukTheme.colors.textSecondary,
-            modifier = Modifier.size(30.dp),
+            modifier = Modifier.size(iconSize),
         )
     }
 }

@@ -8,7 +8,6 @@ import com.coworker.jjikmuk.feature.scanner.data.PhotoTooLargeException
 import com.coworker.jjikmuk.feature.scanner.data.ScannerPhotoSession
 import com.coworker.jjikmuk.feature.scanner.data.ScannerImagePreparer
 import com.coworker.jjikmuk.feature.scanner.domain.PreparedScannerPhoto
-import com.coworker.jjikmuk.feature.scanner.domain.ScannerOcrService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -31,11 +30,7 @@ data class ScannerCaptureState(
 class ScannerCaptureViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val imagePreparer: ScannerImagePreparer,
-    ocrService: ScannerOcrService,
 ) : ViewModel() {
-    private val analysis = ScannerAnalysisController(viewModelScope, ocrService)
-    val analysisState = analysis.state
-    val canAnalyze get() = analysis.available
     private val session = ScannerPhotoSession(context.cacheDir)
     private val mutableState = MutableStateFlow(ScannerCaptureState())
     val state = mutableState.asStateFlow()
@@ -43,7 +38,7 @@ class ScannerCaptureViewModel @Inject constructor(
     private var closed = false
 
     fun beginCapture(): File? {
-        if (closed || state.value.busy || analysisState.value is ScannerAnalysisState.Running) return null
+        if (closed || state.value.busy) return null
         return try {
             session.createFile().also {
                 pendingCapture = it
@@ -73,7 +68,7 @@ class ScannerCaptureViewModel @Inject constructor(
     }
 
     fun selectGalleryPhoto(uri: Uri) {
-        if (closed || state.value.busy || analysisState.value is ScannerAnalysisState.Running) return
+        if (closed || state.value.busy) return
         mutableState.update { it.copy(busy = true, error = null) }
         loadPhoto {
             val input = context.contentResolver.openInputStream(uri)
@@ -98,7 +93,6 @@ class ScannerCaptureViewModel @Inject constructor(
                 val photo = checkNotNull(prepared)
                 if (!closed && session.select(photo.file)) {
                     accepted = true
-                    analysis.reset()
                     mutableState.value = ScannerCaptureState(photo = photo)
                 }
             } catch (cancelled: CancellationException) {
@@ -115,13 +109,6 @@ class ScannerCaptureViewModel @Inject constructor(
         }
     }
 
-    fun retake() {
-        if (state.value.busy) return
-        analysis.reset()
-        session.clearSelection()
-        mutableState.value = ScannerCaptureState()
-    }
-
     fun showError(message: String) {
         if (!closed) mutableState.update { it.copy(error = message) }
     }
@@ -130,14 +117,15 @@ class ScannerCaptureViewModel @Inject constructor(
         mutableState.update { it.copy(error = null) }
     }
 
-    fun analyze() {
+    /** Loading is shown only after preparation finishes, so no capture job is in flight here. */
+    fun cancelScan() {
         if (closed || state.value.busy) return
-        state.value.photo?.let(analysis::analyze)
+        session.clearSelection()
+        mutableState.value = ScannerCaptureState()
     }
 
     fun finishSession() {
         closed = true
-        analysis.reset()
         session.close()
     }
 

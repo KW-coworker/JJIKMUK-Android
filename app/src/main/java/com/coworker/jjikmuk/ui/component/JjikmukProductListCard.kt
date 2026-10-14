@@ -42,6 +42,7 @@ fun JjikmukProductListCard(
     product: JjikmukProductListCardUiModel,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    decoratedImage: Boolean = true,
 ) {
     Row(
         modifier = modifier
@@ -91,6 +92,7 @@ fun JjikmukProductListCard(
         JjikmukProductCardImage(
             imageUrl = product.imageUrl,
             contentDescription = product.productName,
+            decorated = decoratedImage,
         )
     }
 }
@@ -127,18 +129,19 @@ private fun JjikmukProductCardImage(
     imageUrl: String?,
     contentDescription: String,
     modifier: Modifier = Modifier,
+    decorated: Boolean = true,
 ) {
     Box(
         modifier = modifier
             .width(89.dp)
             .height(120.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(JjikmukTheme.colors.disabled)
-            .border(
+            .background(if (decorated) JjikmukTheme.colors.disabled else JjikmukTheme.colors.surface)
+            .then(if (decorated) Modifier.border(
                 width = 1.dp,
                 color = JjikmukTheme.colors.borderSubtle,
                 shape = RoundedCornerShape(20.dp),
-            ),
+            ) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (imageUrl.isNullOrBlank()) {
