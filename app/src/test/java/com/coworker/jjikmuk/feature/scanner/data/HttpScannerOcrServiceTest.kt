@@ -62,6 +62,16 @@ class HttpScannerOcrServiceTest {
         }
     }
 
+    @Test fun `a second explicit request within three seconds is blocked without uploading`() = runBlocking {
+        server.enqueue(MockResponse.Builder().code(200).body("""{"data":{"status":"NO_TEXT"}}""").build())
+        val service = service()
+        assertTrue(service.recognize(photo) is OcrResult.NoText)
+        val rejected = service.recognize(photo) as OcrResult.Failure
+        assertEquals(OcrFailure.RateLimited, rejected.reason)
+        assertTrue(checkNotNull(rejected.retryAfterSeconds) in 1..3)
+        assertEquals(1, server.requestCount)
+    }
+
     @Test fun `redirect is not followed and token is not forwarded`() = runBlocking {
         server.enqueue(MockResponse.Builder().code(307).addHeader("Location", server.url("/other")).build())
         assertTrue(service().recognize(photo) is OcrResult.Failure)

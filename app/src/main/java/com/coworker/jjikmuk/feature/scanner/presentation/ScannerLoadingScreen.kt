@@ -35,10 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -63,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
-import kotlinx.coroutines.delay
 
 private val LoadingMessages = listOf(
     "제품명을 인식하고 있어요",
@@ -73,10 +69,10 @@ private val LoadingMessages = listOf(
 private val LoadingAccent = Color(0xFF8BE3A2)
 private val CssEaseOut = CubicBezierEasing(0f, 0f, 0.58f, 1f)
 private val CssTransitionEase = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
-private const val StepDurationMillis = 1_200L
+internal enum class ScannerLoadingStage { Recognizing, Searching, Preparing }
 
 /**
- * Loading presentation only. The timer changes copy, never reports OCR/search success.
+ * Loading presentation only. The caller supplies the actual operation stage; no progress timer.
  * The route owns completion/cancellation. [photo] is the captured/imported local file;
  * a drawable resource is also accepted for previews.
  */
@@ -85,17 +81,12 @@ internal fun ScannerLoadingScreen(
     photo: Any,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    stage: ScannerLoadingStage = ScannerLoadingStage.Recognizing,
 ) {
-    var step by rememberSaveable(photo) { mutableIntStateOf(0) }
+    val step = stage.ordinal
     val opacity = remember(photo) { Animatable(0f) }
     LaunchedEffect(photo) {
         opacity.animateTo(1f, tween(300, easing = CssTransitionEase))
-    }
-    LaunchedEffect(photo, step) {
-        if (step < LoadingMessages.lastIndex) {
-            delay(StepDurationMillis)
-            step++
-        }
     }
     BackHandler(onBack = onCancel)
 

@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageCapture
@@ -71,11 +72,12 @@ fun ScannerMainRoute(
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val analysis by viewModel.analysisState.collectAsStateWithLifecycle()
     var flashOn by rememberSaveable { mutableStateOf(false) }
     var hasFlash by remember { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(ScannerMode.Normal) }
-    val loadingPhoto = state.photo.takeIf { mode == ScannerMode.Normal }
-    val controlsEnabled = !state.busy && loadingPhoto == null
+    val loadingPhoto = state.photo.takeIf { analysis.phase == ScannerPhase.Recognizing || analysis.phase == ScannerPhase.Searching }
+    val controlsEnabled = !state.busy && !state.galleryConfirmation && analysis.phase == ScannerPhase.Camera
     var showCompareList by rememberSaveable { mutableStateOf(false) }
     var permissionGranted by remember { mutableStateOf(context.hasCameraPermission()) }
     var permissionRequested by rememberSaveable { mutableStateOf(false) }
@@ -93,7 +95,7 @@ fun ScannerMainRoute(
     ) { granted -> permissionGranted = granted }
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let(viewModel::selectGalleryPhoto) }
+    ) { uri -> uri?.let { viewModel.selectGalleryPhoto(it, normalScan = mode == ScannerMode.Normal) } }
     val openGallery: () -> Unit = {
         if (controlsEnabled) {
             try {
@@ -120,9 +122,22 @@ fun ScannerMainRoute(
         }
     }
 
-    Surface(modifier = modifier.fillMaxSize()) {
+    BackHandler {
+        viewModel.finishSession()
+        onBackClick()
+    }
+    if (analysis.phase == ScannerPhase.Results) {
+        ScannerSearchResultsScreen(
+            searchUiState = analysis.search,
+            onQueryChange = viewModel::editSearchQuery,
+            onSearchSubmit = viewModel::submitSearch,
+            onProductClick = { viewModel.showError("상품 상세 화면은 준비 중이에요.") },
+            onBackClick = viewModel::cancelScan,
+            modifier = modifier,
+        )
+    } else Surface(modifier = modifier.fillMaxSize()) {
         ScannerScreen(
-            modifier = if (loadingPhoto != null) Modifier.clearAndSetSemantics {} else Modifier,
+            modifier = if (!controlsEnabled) Modifier.clearAndSetSemantics {} else Modifier,
             mode = mode,
             onModeChange = {
                 if (controlsEnabled) {
@@ -150,7 +165,7 @@ fun ScannerMainRoute(
                                 ContextCompat.getMainExecutor(context),
                                 object : ImageCapture.OnImageSavedCallback {
                                     override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                                        viewModel.captureSaved(file)
+                                        viewModel.captureSaved(file, normalScan = mode == ScannerMode.Normal)
                                     }
 
                                     override fun onError(exception: ImageCaptureException) {
@@ -213,14 +228,35 @@ fun ScannerMainRoute(
             },
         )
         loadingPhoto?.let { photo ->
-            ScannerLoadingScreen(photo = photo.file, onCancel = viewModel::cancelScan)
+            ScannerLoadingScreen(photo = photo.file, onCancel = viewModel::cancelScan,
+                stage = if (analysis.phase == ScannerPhase.Recognizing) ScannerLoadingStage.Recognizing
+                    else ScannerLoadingStage.Searching)
         }
     }
 
+    if (state.galleryConfirmation) state.photo?.let { photo ->
+        ScannerGalleryConfirmation(photo.file, viewModel::confirmGalleryScan, viewModel::cancelScan)
+    }
+    if (analysis.phase == ScannerPhase.RecognitionFailure) {
+        ScannerRecognitionFailureBottomSheet(
+            onDismissRequest = viewModel::cancelScan,
+            onRetakeClick = viewModel::cancelScan,
+            onManualSearchClick = viewModel::manualSearch,
+        )
+    }
+    if (analysis.phase == ScannerPhase.OcrError) analysis.failure?.let { failure ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelScan,
+            title = { Text("스캔을 완료하지 못했어요") },
+            text = { Text(failure.userMessage()) },
+            confirmButton = { TextButton(onClick = viewModel::manualSearch) { Text("직접 검색") } },
+            dismissButton = { TextButton(onClick = viewModel::cancelScan) { Text("촬영 화면으로") } },
+        )
+    }
     state.error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("사진 처리 오류") },
+            title = { Text("안내") },
             text = { Text(message) },
             confirmButton = { TextButton(onClick = viewModel::dismissError) { Text("확인") } },
         )

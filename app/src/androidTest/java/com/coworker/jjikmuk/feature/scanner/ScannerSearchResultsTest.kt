@@ -21,6 +21,8 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextReplacement
 import androidx.core.view.WindowCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.platform.app.InstrumentationRegistry
 import com.coworker.jjikmuk.R
@@ -86,6 +88,12 @@ class ScannerSearchResultsTest {
         compose.onNode(hasSetTextAction()).assertIsNotFocused()
         compose.onNodeWithText("‘블루베리' 검색 결과 8건").assertIsDisplayed()
         compose.onAllNodesWithText("해태 포키 블루베리")[0].assertIsDisplayed()
+        // Focus clearing is synchronous, but the platform IME hide animation is not.
+        // Wait until Back will reach the screen instead of dismissing the keyboard.
+        compose.waitUntil(5_000) {
+            ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                ?.isVisible(WindowInsetsCompat.Type.ime()) == false
+        }
         compose.onNodeWithContentDescription("뒤로가기").performClick()
         pressBack()
         compose.runOnIdle { assertEquals(2, backs) }
