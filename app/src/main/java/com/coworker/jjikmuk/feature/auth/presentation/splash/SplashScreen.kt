@@ -19,6 +19,8 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 @Composable
 fun SplashScreen(
     modifier: Modifier = Modifier,
+    logoModifier: Modifier = Modifier,
+    titleModifier: Modifier = Modifier,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -29,12 +31,13 @@ fun SplashScreen(
     ) {
         JjikmukAnimatedLogo(
             contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier.size(SPLASH_LOGO_SIZE),
+            modifier = logoModifier.size(SPLASH_LOGO_SIZE),
         )
         Text(
             text = stringResource(R.string.app_name),
             color = JjikmukTheme.colors.brand,
             style = JjikmukTheme.typography.brandLogo,
+            modifier = titleModifier,
         )
     }
 }

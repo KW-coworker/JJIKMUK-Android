@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.feature.mypage.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,8 +30,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +51,7 @@ import coil3.compose.AsyncImage
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.domain.model.LikedProduct
 import com.coworker.jjikmuk.ui.component.JjikmukBottomNavigationBar
+import com.coworker.jjikmuk.ui.component.JjikmukDraggableScannerFab
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.MainTab
@@ -58,10 +66,39 @@ fun MyPageScreen(
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onLikedProductClick: (String) -> Unit = {},
+    productListTypeToOpen: MyPageProductListType? = null,
+    onProductListTypeOpenHandled: () -> Unit = {},
+    onHistoryProductClick: (barcode: String, listType: MyPageProductListType) -> Unit = { _, _ -> },
+    onScannerClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     myPageViewModel: MyPageViewModel = hiltViewModel(),
 ) {
     val likedProducts by myPageViewModel.likedProducts.collectAsStateWithLifecycle()
+    val likedProductUiModels = likedProducts.map { product -> product.toMyPageProductUiModel() }
+    var selectedProductList by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
+
+    LaunchedEffect(productListTypeToOpen) {
+        val listType = productListTypeToOpen ?: return@LaunchedEffect
+        selectedProductList = listType
+        onProductListTypeOpenHandled()
+    }
+
+    val productListType = selectedProductList
+    if (productListType != null) {
+        MyPageProductListScreen(
+            selectedTab = selectedTab,
+            selectedListType = productListType,
+            likedProducts = likedProductUiModels,
+            recentProducts = recentProducts,
+            onListTypeChange = { selectedProductList = it },
+            onBackClick = { selectedProductList = null },
+            onTabClick = onTabClick,
+            onProductClick = { barcode -> onHistoryProductClick(barcode, productListType) },
+            onScannerClick = onScannerClick,
+            modifier = modifier,
+        )
+        return
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -94,15 +131,13 @@ fun MyPageScreen(
             )
             MyPageProductSection(
                 title = "찜한 상품",
-                products = likedProducts.map { product -> product.toMyPageProductUiModel() },
-                showMoreButton = likedProducts.size >= 3,
-                onProductClick = { product ->
-                    product.barcode?.let(onLikedProductClick)
-                },
+                products = likedProductUiModels,
+                onMoreClick = { selectedProductList = MyPageProductListType.Liked },
             )
             MyPageProductSection(
                 title = "최근 본 상품",
                 products = recentProducts,
+                onMoreClick = { selectedProductList = MyPageProductListType.Recent },
             )
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -357,8 +392,8 @@ private fun FamilyAvatar(
 private fun MyPageProductSection(
     title: String,
     products: List<MyPageProductUiModel>,
-    showMoreButton: Boolean = true,
     onProductClick: ((MyPageProductUiModel) -> Unit)? = null,
+    onMoreClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -380,13 +415,16 @@ private fun MyPageProductSection(
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.titleL,
             )
-            if (showMoreButton) {
-                Text(
-                    text = "전체보기 ›",
-                    color = JjikmukTheme.colors.textSecondary,
-                    style = JjikmukTheme.typography.labelS,
-                )
-            }
+            Text(
+                text = "전체보기 ›",
+                color = JjikmukTheme.colors.textSecondary,
+                style = JjikmukTheme.typography.labelS,
+                modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onMoreClick,
+                ),
+            )
         }
         Row(
             modifier = Modifier
@@ -405,6 +443,304 @@ private fun MyPageProductSection(
 }
 
 @Composable
+private fun MyPageProductListScreen(
+    selectedTab: MainTab,
+    selectedListType: MyPageProductListType,
+    likedProducts: List<MyPageProductUiModel>,
+    recentProducts: List<MyPageProductUiModel>,
+    onListTypeChange: (MyPageProductListType) -> Unit,
+    onBackClick: () -> Unit,
+    onTabClick: (MainTab) -> Unit,
+    onProductClick: (String) -> Unit,
+    onScannerClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val products = when (selectedListType) {
+        MyPageProductListType.Liked -> likedProducts
+        MyPageProductListType.Recent -> recentProducts
+    }
+
+    BackHandler(onBack = onBackClick)
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                JjikmukTopAppBar(
+                    leading = JjikmukTopAppBarLeading.Back(onClick = onBackClick),
+                )
+            },
+            bottomBar = {
+                JjikmukBottomNavigationBar(
+                    selectedTab = selectedTab,
+                    onTabClick = onTabClick,
+                )
+            },
+            containerColor = JjikmukTheme.colors.surface,
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(JjikmukTheme.colors.surface),
+            ) {
+                Text(
+                    text = "History",
+                    color = JjikmukTheme.colors.brand,
+                    style = JjikmukTheme.typography.section,
+                    modifier = Modifier.padding(start = 30.dp),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, top = 32.dp, end = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MyPageProductListToggleButton(
+                        text = MyPageProductListType.Liked.title,
+                        icon = "♡",
+                        selectedIcon = "♡",
+                        selected = selectedListType == MyPageProductListType.Liked,
+                        onClick = { onListTypeChange(MyPageProductListType.Liked) },
+                    )
+                    MyPageProductListToggleButton(
+                        text = MyPageProductListType.Recent.title,
+                        icon = "◷",
+                        selectedIcon = "◷",
+                        selected = selectedListType == MyPageProductListType.Recent,
+                        onClick = { onListTypeChange(MyPageProductListType.Recent) },
+                    )
+                }
+
+                if (products.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "${selectedListType.title}이 아직 없어요.",
+                            color = JjikmukTheme.colors.textSecondary,
+                            style = JjikmukTheme.typography.bodyM,
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            start = 20.dp,
+                            top = 27.dp,
+                            end = 20.dp,
+                            bottom = 24.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(products) { product ->
+                            MyPageProductHistoryCard(
+                                product = product,
+                                showFavorite = selectedListType == MyPageProductListType.Liked,
+                                onClick = product.barcode?.let { barcode -> { onProductClick(barcode) } },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        JjikmukDraggableScannerFab(
+            onClick = onScannerClick,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 21.dp, bottom = 107.dp),
+        )
+    }
+}
+
+@Composable
+private fun MyPageProductListToggleButton(
+    text: String,
+    icon: String,
+    selectedIcon: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .height(37.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        color = if (selected) JjikmukTheme.colors.brandSubtlest else JjikmukTheme.colors.surface,
+        shape = RoundedCornerShape(15.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (selected) JjikmukTheme.colors.brandSubtle else JjikmukTheme.colors.border,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 13.dp, end = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (text == MyPageProductListType.Liked.title) 10.dp else 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = text,
+                color = if (selected) JjikmukTheme.colors.brandPressed else JjikmukTheme.colors.textPrimary,
+                style = if (selected) JjikmukTheme.typography.labelS else JjikmukTheme.typography.bodyS,
+            )
+            Text(
+                text = if (selected) selectedIcon else icon,
+                color = if (selected) JjikmukTheme.colors.brandStrong else JjikmukTheme.colors.error,
+                style = JjikmukTheme.typography.titleL,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MyPageProductHistoryCard(
+    product: MyPageProductUiModel,
+    showFavorite: Boolean,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val cardModifier = if (onClick != null) {
+        modifier.clickable(onClick = onClick)
+    } else {
+        modifier
+    }
+
+    Surface(
+        modifier = cardModifier
+            .fillMaxWidth()
+            .height(146.dp),
+        color = JjikmukTheme.colors.surface,
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = JjikmukTheme.colors.border,
+        ),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 12.dp, end = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HistoryProductThumbnail(product = product)
+                Column(
+                    modifier = Modifier.width(150.dp),
+                ) {
+                    Text(
+                        text = product.brand,
+                        color = JjikmukTheme.colors.textSecondary,
+                        style = JjikmukTheme.typography.labelM,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = product.name,
+                        color = JjikmukTheme.colors.textPrimary,
+                        style = JjikmukTheme.typography.titleL,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(modifier = Modifier.height(38.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        MyPageIngredientChip(text = "🥛 우유")
+                        MyPageIngredientChip(text = "🥜 땅콩")
+                    }
+                }
+            }
+
+            if (showFavorite) {
+                Text(
+                    text = "♥",
+                    color = Color(0xFFF01717),
+                    style = JjikmukTheme.typography.h1,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 12.dp, end = 17.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryProductThumbnail(
+    product: MyPageProductUiModel,
+    modifier: Modifier = Modifier,
+) {
+    val thumbnailModifier = modifier
+        .size(width = 90.dp, height = 120.dp)
+        .clip(RoundedCornerShape(20.dp))
+        .background(Color(0xFFF1F2F4))
+
+    if (!product.imageUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = product.imageUrl,
+            contentDescription = product.name,
+            modifier = thumbnailModifier,
+            contentScale = ContentScale.Crop,
+        )
+    } else if (product.imageResId != null) {
+        Image(
+            painter = painterResource(product.imageResId),
+            contentDescription = product.name,
+            modifier = thumbnailModifier,
+            contentScale = ContentScale.Crop,
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(width = 90.dp, height = 120.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFFF1F2F4)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "이미지\n준비중",
+                color = JjikmukTheme.colors.textTertiary,
+                style = JjikmukTheme.typography.caption,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MyPageIngredientChip(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.height(28.dp),
+        color = Color(0xFFFEF2F2),
+        shape = RoundedCornerShape(6.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = Color(0x80FFE2E2),
+        ),
+    ) {
+        Text(
+            text = text,
+            color = JjikmukTheme.colors.error,
+            style = JjikmukTheme.typography.labelS,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+        )
+    }
+}
+
+@Composable
 private fun MyPageProductCard(
     product: MyPageProductUiModel,
     onClick: (() -> Unit)?,
@@ -419,7 +755,10 @@ private fun MyPageProductCard(
     Column(
         modifier = cardModifier.width(112.dp),
     ) {
-        ProductThumbnail(product = product)
+        ProductThumbnail(
+            product = product,
+            modifier = Modifier.size(112.dp),
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = product.brand,
@@ -444,7 +783,6 @@ private fun ProductThumbnail(
     modifier: Modifier = Modifier,
 ) {
     val thumbnailModifier = modifier
-        .size(112.dp)
         .clip(RoundedCornerShape(14.dp))
         .background(Color(0xFFF1F2F4))
 
@@ -483,6 +821,13 @@ private data class MyPageProductUiModel(
     @DrawableRes val imageResId: Int? = null,
     val imageUrl: String? = null,
 )
+
+enum class MyPageProductListType(
+    val title: String,
+) {
+    Liked("찜한 상품"),
+    Recent("최근 본 상품"),
+}
 
 private fun LikedProduct.toMyPageProductUiModel(): MyPageProductUiModel {
     return MyPageProductUiModel(
