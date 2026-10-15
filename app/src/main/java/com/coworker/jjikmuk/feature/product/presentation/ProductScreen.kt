@@ -103,6 +103,7 @@ fun ProductScreen(
     modifier: Modifier = Modifier,
     productBarcodeToOpen: String? = null,
     onProductBarcodeOpenHandled: () -> Unit = {},
+    onReturnToMyFromDetail: () -> Unit = {},
     productViewModel: ProductViewModel = hiltViewModel(),
 ) {
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
@@ -134,6 +135,7 @@ fun ProductScreen(
         onScanTargetCheckedChange = productViewModel::updateScanTargetSelection,
         productBarcodeToOpen = productBarcodeToOpen,
         onProductBarcodeOpenHandled = onProductBarcodeOpenHandled,
+        onReturnToMyFromDetail = onReturnToMyFromDetail,
         modifier = modifier,
     )
 }
@@ -161,6 +163,7 @@ private fun ProductScreenContent(
     onScanTargetCheckedChange: (memberId: String, checked: Boolean) -> Unit,
     productBarcodeToOpen: String?,
     onProductBarcodeOpenHandled: () -> Unit,
+    onReturnToMyFromDetail: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
@@ -182,7 +185,7 @@ private fun ProductScreenContent(
         if (shouldReturnToMyOnDetailBack) {
             shouldReturnToMyOnDetailBack = false
             currentDestination = ProductDestination.Overview
-            onTabClick(MainTab.My)
+            onReturnToMyFromDetail()
         } else {
             currentDestination = ProductDestination.Search
         }
@@ -2404,6 +2407,7 @@ private fun ProductScreenPreview() {
             onScanTargetCheckedChange = { _, _ -> },
             productBarcodeToOpen = null,
             onProductBarcodeOpenHandled = {},
+            onReturnToMyFromDetail = {},
         )
     }
 }

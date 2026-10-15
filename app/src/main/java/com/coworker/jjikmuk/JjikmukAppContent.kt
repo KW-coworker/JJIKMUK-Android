@@ -15,6 +15,7 @@ import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.AccountSecurityScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.DietConditionManagementScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.MyPageProductListType
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.ProfileEditScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.SettingsScreen
@@ -34,6 +35,8 @@ fun JjikmukAppContent() {
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showAccountSecurity by rememberSaveable { mutableStateOf(false) }
     var productBarcodeToOpen by rememberSaveable { mutableStateOf<String?>(null) }
+    var productDetailReturnListType by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
+    var myProductListTypeToOpen by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
 
     fun handleMainTabClick(tab: MainTab) {
         if (tab == MainTab.Diet) {
@@ -76,6 +79,11 @@ fun JjikmukAppContent() {
                         onScannerClick = { showScanner = true },
                         productBarcodeToOpen = productBarcodeToOpen,
                         onProductBarcodeOpenHandled = { productBarcodeToOpen = null },
+                        onReturnToMyFromDetail = {
+                            selectedTab = MainTab.My
+                            myProductListTypeToOpen = productDetailReturnListType
+                            productDetailReturnListType = null
+                        },
                     )
                 }
 
@@ -112,8 +120,17 @@ fun JjikmukAppContent() {
                         },
                         onLikedProductClick = { barcode ->
                             productBarcodeToOpen = barcode
+                            productDetailReturnListType = null
                             selectedTab = MainTab.Product
                         },
+                        productListTypeToOpen = myProductListTypeToOpen,
+                        onProductListTypeOpenHandled = { myProductListTypeToOpen = null },
+                        onHistoryProductClick = { barcode, listType ->
+                            productBarcodeToOpen = barcode
+                            productDetailReturnListType = listType
+                            selectedTab = MainTab.Product
+                        },
+                        onScannerClick = { showScanner = true },
                     )
                 }
 
