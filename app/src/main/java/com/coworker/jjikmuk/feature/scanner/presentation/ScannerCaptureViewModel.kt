@@ -8,6 +8,8 @@ import com.coworker.jjikmuk.feature.scanner.data.PhotoTooLargeException
 import com.coworker.jjikmuk.feature.scanner.data.ScannerPhotoSession
 import com.coworker.jjikmuk.feature.scanner.data.ScannerImagePreparer
 import com.coworker.jjikmuk.feature.scanner.domain.PreparedScannerPhoto
+import com.coworker.jjikmuk.feature.scanner.domain.ScannerOcrService
+import com.coworker.jjikmuk.domain.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -24,13 +26,21 @@ data class ScannerCaptureState(
     val photo: PreparedScannerPhoto? = null,
     val busy: Boolean = false,
     val error: String? = null,
+    val galleryConfirmation: Boolean = false,
 )
 
 @HiltViewModel
 class ScannerCaptureViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val imagePreparer: ScannerImagePreparer,
+    ocrService: ScannerOcrService,
+    productRepository: ProductRepository,
 ) : ViewModel() {
+    private val analysis = ScannerAnalysisController(viewModelScope, ocrService) { keyword ->
+        // Identify a product first. Personalized judgement/detail is a separate, pending contract.
+        productRepository.searchProducts(keyword)
+    }
+    internal val analysisState = analysis.state
     private val session = ScannerPhotoSession(context.cacheDir)
     private val mutableState = MutableStateFlow(ScannerCaptureState())
     val state = mutableState.asStateFlow()
@@ -38,7 +48,8 @@ class ScannerCaptureViewModel @Inject constructor(
     private var closed = false
 
     fun beginCapture(): File? {
-        if (closed || state.value.busy) return null
+        if (closed || state.value.busy || state.value.galleryConfirmation ||
+            analysisState.value.phase != ScannerPhase.Camera) return null
         return try {
             session.createFile().also {
                 pendingCapture = it
@@ -50,13 +61,13 @@ class ScannerCaptureViewModel @Inject constructor(
         }
     }
 
-    fun captureSaved(file: File) {
+    fun captureSaved(file: File, normalScan: Boolean = true) {
         if (closed || pendingCapture != file) {
             session.discard(file)
             return
         }
         pendingCapture = null
-        loadPhoto { file }
+        loadPhoto(normalScan = normalScan, fromGallery = false) { file }
     }
 
     fun captureFailed(file: File) {
@@ -67,17 +78,18 @@ class ScannerCaptureViewModel @Inject constructor(
         }
     }
 
-    fun selectGalleryPhoto(uri: Uri) {
-        if (closed || state.value.busy) return
+    fun selectGalleryPhoto(uri: Uri, normalScan: Boolean = true) {
+        if (closed || state.value.busy || state.value.galleryConfirmation ||
+            analysisState.value.phase != ScannerPhase.Camera) return
         mutableState.update { it.copy(busy = true, error = null) }
-        loadPhoto {
+        loadPhoto(normalScan = normalScan, fromGallery = true) {
             val input = context.contentResolver.openInputStream(uri)
                 ?: error("Image stream unavailable")
             input.use(session::copyFrom)
         }
     }
 
-    private fun loadPhoto(create: () -> File) {
+    private fun loadPhoto(normalScan: Boolean, fromGallery: Boolean, create: () -> File) {
         viewModelScope.launch {
             var source: File? = null
             var output: File? = null
@@ -93,7 +105,9 @@ class ScannerCaptureViewModel @Inject constructor(
                 val photo = checkNotNull(prepared)
                 if (!closed && session.select(photo.file)) {
                     accepted = true
-                    mutableState.value = ScannerCaptureState(photo = photo)
+                    mutableState.value = ScannerCaptureState(photo = photo,
+                        galleryConfirmation = normalScan && fromGallery)
+                    if (normalScan && !fromGallery) analysis.analyze(photo)
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -117,15 +131,31 @@ class ScannerCaptureViewModel @Inject constructor(
         mutableState.update { it.copy(error = null) }
     }
 
-    /** Loading is shown only after preparation finishes, so no capture job is in flight here. */
+    fun confirmGalleryScan() {
+        if (closed || !state.value.galleryConfirmation) return
+        val photo = state.value.photo ?: return
+        mutableState.update { it.copy(galleryConfirmation = false) }
+        analysis.analyze(photo)
+    }
+
+    internal fun editSearchQuery(query: String) = analysis.editQuery(query)
+    internal fun submitSearch(query: String) = analysis.submitSearch(query)
+
+    fun manualSearch() {
+        cancelScan()
+        if (!closed) analysis.manualSearch()
+    }
+
     fun cancelScan() {
         if (closed || state.value.busy) return
+        analysis.reset()
         session.clearSelection()
         mutableState.value = ScannerCaptureState()
     }
 
     fun finishSession() {
         closed = true
+        analysis.reset()
         session.close()
     }
 

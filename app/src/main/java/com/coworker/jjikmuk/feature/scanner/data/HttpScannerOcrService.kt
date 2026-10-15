@@ -29,13 +29,14 @@ internal interface ScannerOcrApi {
     suspend fun recognize(@Header("X-OCR-Test-Token") token: String, @Body image: MultipartBody): Response<ResponseBody>
 }
 
-/** Not bound in production DI yet. No token constant, logging, automatic retries or user JWT. */
+/** Debug team endpoint only. No token constant, logging, automatic retries or user JWT. */
 class HttpScannerOcrService internal constructor(
     private val api: ScannerOcrApi,
     private val tokenProvider: () -> String?,
 ) : ScannerOcrService {
     override val available = true
     private val inFlight = AtomicBoolean(false)
+    private var lastRequestNanos: Long? = null
 
     override suspend fun recognize(photo: PreparedScannerPhoto): OcrResult {
         if (!inFlight.compareAndSet(false, true)) return OcrResult.Failure(OcrFailure.Busy)
@@ -60,6 +61,11 @@ class HttpScannerOcrService internal constructor(
                 if (body.contentLength() > PreparedScannerPhoto.MAX_BYTES + 64 * 1024) {
                     return@withContext OcrResult.Failure(OcrFailure.InvalidImage)
                 }
+                val now = System.nanoTime()
+                val remaining = lastRequestNanos?.let { MIN_REQUEST_INTERVAL_NANOS - (now - it) } ?: 0L
+                if (remaining > 0) return@withContext OcrResult.Failure(
+                    OcrFailure.RateLimited, retryAfterSeconds = ((remaining + 999_999_999L) / 1_000_000_000L).toInt())
+                lastRequestNanos = now
                 val response = api.recognize(token, body)
                 val responseBody = response.body() ?: response.errorBody()
                 // Bound malformed proxy/server responses rather than reading unlimited data.
@@ -87,6 +93,7 @@ class HttpScannerOcrService internal constructor(
 
     companion object {
         private const val MAX_RESPONSE_BYTES = 1024L * 1024
+        private const val MIN_REQUEST_INTERVAL_NANOS = 3_000_000_000L
 
         fun client(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
