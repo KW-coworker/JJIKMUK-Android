@@ -79,7 +79,7 @@ object NetworkModule {
 
     private const val AI_SERVER_BASE_URL = "http://10.0.2.2:8000/"
     private const val BACKEND_REMOTE_SERVER_BASE_URL = "https://jjikmuk-backend-dev.tail198441.ts.net/"
-    private const val BACKEND_SERVER_BASE_URL = "http://10.0.2.2:8080/"
+    private const val BACKEND_SERVER_BASE_URL = BACKEND_REMOTE_SERVER_BASE_URL
     private const val NETWORK_TIMEOUT_SECONDS = 30L
 }
 
