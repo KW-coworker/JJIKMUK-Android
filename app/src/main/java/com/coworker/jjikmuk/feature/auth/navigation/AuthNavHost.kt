@@ -1,6 +1,9 @@
 package com.coworker.jjikmuk.feature.auth.navigation
 
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -36,6 +39,7 @@ import com.coworker.jjikmuk.feature.auth.presentation.splash.SplashScreen
 import kotlinx.coroutines.delay
 
 @Composable
+@OptIn(ExperimentalSharedTransitionApi::class)
 fun AuthNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
@@ -43,6 +47,7 @@ fun AuthNavHost(
     passwordResetViewModel: PasswordResetViewModel = viewModel(),
     signUpViewModel: SignUpViewModel = viewModel(),
 ) {
+    SharedTransitionLayout {
     NavHost(
         navController = navController,
         startDestination = AuthRoute.Splash,
@@ -60,16 +65,27 @@ fun AuthNavHost(
                     popUpTo(AuthRoute.Splash) { inclusive = true }
                 }
             }
-            SplashScreen()
+            SplashScreen(
+                logoModifier = Modifier.sharedElement(
+                    rememberSharedContentState("launch-logo"),
+                    animatedVisibilityScope = this,
+                    boundsTransform = { _, _ -> tween(SPLASH_TRANSITION_MILLIS, easing = LaunchEasing) },
+                ),
+            )
         }
 
         composable(
             route = AuthRoute.PermissionApproval,
             enterTransition = {
-                fadeIn(animationSpec = tween(SPLASH_TRANSITION_MILLIS))
+                fadeIn(animationSpec = tween(420, delayMillis = 180))
             },
         ) {
             PermissionApprovalRoute(
+                logoModifier = Modifier.sharedElement(
+                    rememberSharedContentState("launch-logo"),
+                    animatedVisibilityScope = this,
+                    boundsTransform = { _, _ -> tween(SPLASH_TRANSITION_MILLIS, easing = LaunchEasing) },
+                ),
                 onContinue = {
                     navController.navigate(AuthRoute.AuthChoice) {
                         popUpTo(AuthRoute.PermissionApproval) { inclusive = true }
@@ -123,6 +139,7 @@ fun AuthNavHost(
         composable(AuthRoute.Home) {
             JjikmukAppContent()
         }
+    }
     }
 }
 
@@ -296,4 +313,5 @@ private fun navigateToHome(navController: NavHostController) {
 }
 
 private const val SPLASH_DURATION_MILLIS = 1_800L
-private const val SPLASH_TRANSITION_MILLIS = 600
+private const val SPLASH_TRANSITION_MILLIS = 780
+private val LaunchEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)

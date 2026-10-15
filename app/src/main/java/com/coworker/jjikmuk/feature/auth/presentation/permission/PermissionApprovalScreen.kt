@@ -24,11 +24,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +45,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
 import com.coworker.jjikmuk.R
@@ -53,6 +60,8 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 fun PermissionApprovalRoute(
     onContinue: () -> Unit,
     modifier: Modifier = Modifier,
+    logoModifier: Modifier = Modifier,
+    titleModifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -75,18 +84,46 @@ fun PermissionApprovalRoute(
         },
         onLaterClick = onContinue,
         modifier = modifier,
+        logoModifier = logoModifier,
+        titleModifier = titleModifier,
     )
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun PermissionApprovalScreen(
     onAllowClick: (PermissionSelection) -> Unit,
     onLaterClick: () -> Unit,
     modifier: Modifier = Modifier,
+    logoModifier: Modifier = Modifier,
+    titleModifier: Modifier = Modifier,
 ) {
     var cameraSelected by remember { mutableStateOf(true) }
     var photoSelected by remember { mutableStateOf(false) }
     var notificationSelected by remember { mutableStateOf(false) }
+    var showPermissionReminder by rememberSaveable { mutableStateOf(false) }
+
+    if (showPermissionReminder) {
+        ModalBottomSheet(
+            onDismissRequest = { showPermissionReminder = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            containerColor = JjikmukTheme.colors.surface,
+            scrimColor = Color.Black.copy(alpha = 0.25f),
+            dragHandle = null,
+        ) {
+            PermissionReminderContent(
+                onAllowClick = {
+                    showPermissionReminder = false
+                    onAllowClick(PermissionSelection(camera = true, photo = true, notification = true))
+                },
+                onLaterClick = {
+                    showPermissionReminder = false
+                    onLaterClick()
+                },
+            )
+        }
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -100,10 +137,10 @@ fun PermissionApprovalScreen(
         Spacer(modifier = Modifier.height(53.dp))
         JjikmukAnimatedLogo(
             contentDescription = "JJIKMUK",
-            modifier = Modifier.size(89.dp),
+            modifier = logoModifier.size(73.dp),
         )
         Spacer(modifier = Modifier.height(31.dp))
-        PermissionHeading()
+        PermissionHeading(modifier = titleModifier)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "더 정확한 성분 분석을 위해\n아래 권한을 허용해 주세요",
@@ -158,13 +195,108 @@ fun PermissionApprovalScreen(
             style = JjikmukTheme.typography.titleM,
             modifier = Modifier
                 .padding(top = 17.dp, bottom = 27.dp)
+                .clickable { showPermissionReminder = true },
+        )
+    }
+}
+
+@Composable
+private fun PermissionReminderContent(
+    onAllowClick: () -> Unit,
+    onLaterClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+    ) {
+        Spacer(Modifier.height(12.dp))
+        Box(Modifier.size(width = 36.dp, height = 4.dp)
+            .clip(RoundedCornerShape(4.dp)).background(Color(0xFFBDBDBD)))
+        Spacer(Modifier.height(48.dp))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(56.dp).background(Color(0xFFFFF4E5), CircleShape),
+        ) {
+            Icon(
+                painterResource(R.drawable.ic_warning_triangle_yellow),
+                contentDescription = null,
+                tint = Color(0xFFFF8A00),
+                modifier = Modifier.size(28.dp),
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "권한이 없으면\n서비스 이용이 어려워요",
+            style = JjikmukTheme.typography.h3,
+            color = JjikmukTheme.colors.textPrimary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "권한을 허용하지 않으면 아래 기능을 사용할 수 없어요",
+            style = JjikmukTheme.typography.bodyS,
+            color = JjikmukTheme.colors.textSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Spacer(Modifier.height(36.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .background(Color(0xFFF9FAFB), RoundedCornerShape(18.dp))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            PermissionUnavailableRow(R.drawable.ic_permission_camera, "스캐너 촬영으로 성분 분석")
+            PermissionUnavailableRow(R.drawable.ic_permission_photo, "갤러리 사진으로 성분 확인")
+            PermissionUnavailableRow(R.drawable.ic_permission_bell, "맞춤 안심 상품·이벤트 알림")
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "나중에 마이페이지 › 설정 › 앱 설정에서 다시 허용할 수 있어요",
+            style = JjikmukTheme.typography.caption,
+            color = Color(0xFFBDBDBD),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Spacer(Modifier.height(28.dp))
+        JjikmukPrimaryButton(
+            text = "권한 허용하기",
+            onClick = onAllowClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "그래도 나중에 할게요",
+            style = JjikmukTheme.typography.titleM,
+            color = JjikmukTheme.colors.textSecondary,
+            modifier = Modifier.padding(top = 16.dp, bottom = 28.dp)
                 .clickable(onClick = onLaterClick),
         )
     }
 }
 
 @Composable
-private fun PermissionHeading() {
+private fun PermissionUnavailableRow(iconRes: Int, text: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier.size(32.dp).background(Color.White, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(iconRes), null,
+                tint = JjikmukTheme.colors.textTertiary, modifier = Modifier.size(20.dp))
+        }
+        Text(text, modifier = Modifier.weight(1f),
+            style = JjikmukTheme.typography.bodyM, color = JjikmukTheme.colors.textSecondary)
+        Text("×", color = JjikmukTheme.colors.error, fontSize = 20.sp)
+    }
+}
+
+@Composable
+private fun PermissionHeading(modifier: Modifier = Modifier) {
     Text(
         text = buildAnnotatedString {
             withStyle(SpanStyle(color = JjikmukTheme.colors.brand)) {
@@ -174,6 +306,7 @@ private fun PermissionHeading() {
         },
         color = JjikmukTheme.colors.textPrimary,
         style = JjikmukTheme.typography.h1,
+        modifier = modifier,
     )
 }
 
