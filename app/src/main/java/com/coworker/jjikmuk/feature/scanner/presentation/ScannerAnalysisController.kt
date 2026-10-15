@@ -101,7 +101,7 @@ internal class ScannerAnalysisController(
         } catch (error: Exception) {
             Result.failure(error)
         }
-        // The shared repository currently wraps cancellation in Result; do not publish it.
+        // Guard even dependencies that return after the caller has been cancelled.
         kotlin.coroutines.coroutineContext.ensureActive()
         if (request != generation) return
         mutableState.update { it.copy(phase = ScannerPhase.Results, search = it.search.copy(

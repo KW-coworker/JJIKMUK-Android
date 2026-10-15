@@ -1,6 +1,5 @@
 package com.coworker.jjikmuk.data.repository
 
-import com.coworker.jjikmuk.data.local.mock.MockProductAssetDataSource
 import com.coworker.jjikmuk.data.remote.api.ProductApi
 import com.coworker.jjikmuk.data.remote.dto.ProductDetailDataDto
 import com.coworker.jjikmuk.data.remote.dto.ProductSearchItemDto
@@ -11,17 +10,17 @@ import com.coworker.jjikmuk.domain.model.ProductSafetyStatus
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.coworker.jjikmuk.domain.repository.ProductRepository
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 class ProductRepositoryImpl @Inject constructor(
     private val productApi: ProductApi,
-    private val mockProductAssetDataSource: MockProductAssetDataSource,
 ) : ProductRepository {
 
     override suspend fun searchProducts(
         keyword: String,
         allergies: List<String>,
     ): Result<List<ProductSearchResult>> =
-        runCatching {
+        requestResult {
             productApi.searchProducts(
                 keyword = keyword,
                 allergies = allergies,
@@ -30,9 +29,6 @@ class ProductRepositoryImpl @Inject constructor(
                 .orEmpty()
                 .mapNotNull { item -> item.toDomain() }
                 .sortedBySimilarity(keyword)
-        }.recoverCatching { throwable ->
-            mockProductAssetDataSource.searchProducts(keyword)
-                ?: throw throwable
         }
 
     override suspend fun getSafeRecommendations(
@@ -40,7 +36,7 @@ class ProductRepositoryImpl @Inject constructor(
         allergies: List<String>,
         limit: Int,
     ): Result<List<ProductSearchResult>> =
-        runCatching {
+        requestResult {
             productApi.getSafeRecommendations(
                 filters = filters,
                 allergies = allergies,
@@ -55,7 +51,7 @@ class ProductRepositoryImpl @Inject constructor(
         barcode: String,
         allergies: List<String>,
     ): Result<ProductDetail> =
-        runCatching {
+        requestResult {
             val detailData = productApi.getProductDetail(
                 barcode = barcode,
                 allergies = allergies,
@@ -63,10 +59,16 @@ class ProductRepositoryImpl @Inject constructor(
                 ?: error("상품 상세 정보를 찾을 수 없어요.")
 
             detailData.toDomain()
-        }.recoverCatching { throwable ->
-            mockProductAssetDataSource.getProductDetail(barcode)
-                ?: throw throwable
         }
+
+    /** API failures stay failures; cancelling the caller must cancel the request, too. */
+    private suspend fun <T> requestResult(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        Result.failure(error)
+    }
 
     private fun ProductSearchItemDto.toDomain(): ProductSearchResult? {
         val product = product ?: return null

@@ -13,3 +13,6 @@
 # Android Studio personal files
 .idea/studiobot.xml
 .idea/vcs.xml
+
+# Local development fixtures; never package or commit
+/.local-dev/
