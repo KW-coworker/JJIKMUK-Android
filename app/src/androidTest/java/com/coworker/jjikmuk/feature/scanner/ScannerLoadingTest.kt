@@ -119,7 +119,6 @@ class ScannerLoadingTest {
 
     private val emptyRepository = object : ProductRepository {
         override suspend fun searchProducts(keyword: String, allergies: List<String>) = Result.success(emptyList<ProductSearchResult>())
-        override suspend fun getSafeRecommendations(filters: List<String>, allergies: List<String>, limit: Int) = Result.success(emptyList<ProductSearchResult>())
         override suspend fun getProductDetail(barcode: String, allergies: List<String>): Result<ProductDetail> = Result.failure(IllegalStateException("Not part of this test"))
     }
 

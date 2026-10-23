@@ -31,22 +31,6 @@ class ProductRepositoryImpl @Inject constructor(
                 .sortedBySimilarity(keyword)
         }
 
-    override suspend fun getSafeRecommendations(
-        filters: List<String>,
-        allergies: List<String>,
-        limit: Int,
-    ): Result<List<ProductSearchResult>> =
-        requestResult {
-            productApi.getSafeRecommendations(
-                filters = filters,
-                allergies = allergies,
-                limit = limit,
-            )
-                .data
-                .orEmpty()
-                .mapNotNull { item -> item.toDomain() }
-        }
-
     override suspend fun getProductDetail(
         barcode: String,
         allergies: List<String>,
@@ -82,6 +66,8 @@ class ProductRepositoryImpl @Inject constructor(
             allergyLabels = product.allergy.toAllergyLabels(),
         )
     }
+
+    internal fun mapDetail(data: ProductDetailDataDto): ProductDetail = data.toDomain()
 
     private fun ProductDetailDataDto.toDomain(): ProductDetail {
         val product = product ?: error("상품 상세 정보를 찾을 수 없어요.")
