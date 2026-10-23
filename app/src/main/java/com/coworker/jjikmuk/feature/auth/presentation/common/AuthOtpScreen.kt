@@ -46,6 +46,8 @@ fun AuthOtpScreen(
     onResendClick: () -> Unit,
     onConfirmClick: () -> Unit,
     modifier: Modifier = Modifier,
+    resendEnabled: Boolean = true,
+    resendSeconds: Int = 0,
 ) {
     val colors = JjikmukTheme.colors
     BackHandler(onBack = onBackClick)
@@ -133,12 +135,14 @@ fun AuthOtpScreen(
                         style = JjikmukTheme.typography.bodyM,
                     )
                     Text(
-                        text = stringResource(R.string.password_reset_otp_resend),
+                        text = if (resendSeconds > 0) stringResource(R.string.auth_otp_resend_wait, resendSeconds)
+                            else stringResource(R.string.password_reset_otp_resend),
                         color = colors.textPrimary,
                         style = JjikmukTheme.typography.labelL.copy(
                             textDecoration = TextDecoration.Underline,
                         ),
                         modifier = Modifier.clickable(
+                            enabled = resendEnabled,
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = onResendClick,

@@ -9,7 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -43,9 +46,9 @@ import kotlinx.coroutines.delay
 fun AuthNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    loginViewModel: LoginViewModel = viewModel(),
-    passwordResetViewModel: PasswordResetViewModel = viewModel(),
-    signUpViewModel: SignUpViewModel = viewModel(),
+    loginViewModel: LoginViewModel = hiltViewModel(),
+    passwordResetViewModel: PasswordResetViewModel = hiltViewModel(),
+    signUpViewModel: SignUpViewModel = hiltViewModel(),
 ) {
     SharedTransitionLayout {
     NavHost(
@@ -120,10 +123,7 @@ fun AuthNavHost(
                     signUpViewModel.reset()
                     navController.navigate(AuthRoute.SignUpEmail)
                 },
-                onGoogleLoginClick = {
-                    loginViewModel.reset()
-                    navigateToHome(navController)
-                },
+                onGoogleLoginClick = loginViewModel::googleUnavailable,
             )
         }
 
@@ -137,17 +137,21 @@ fun AuthNavHost(
         )
 
         composable(AuthRoute.Home) {
-            JjikmukAppContent(
-                onReturnToAuthChoice = {
-                    loginViewModel.reset()
+            val session by loginViewModel.sessionState.collectAsStateWithLifecycle()
+            if (!session.canEnterHome) {
+                LaunchedEffect(session.generation) {
                     signUpViewModel.reset()
                     passwordResetViewModel.reset()
                     navController.navigate(AuthRoute.AuthChoice) {
                         popUpTo(navController.graph.id) { inclusive = false }
                         launchSingleTop = true
                     }
-                },
-            )
+                }
+            } else {
+                key(session.generation) {
+                    JjikmukAppContent(onReturnToAuthChoice = loginViewModel::logout)
+                }
+            }
         }
     }
     }
@@ -287,11 +291,6 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
             viewModel = viewModel,
             onEditConditionsClick = { navController.navigate(AuthRoute.SignUpConditions) },
             onBackClick = navController::popBackStack,
-            onNextClick = {
-                navController.navigate(AuthRoute.SignUpComplete) {
-                    popUpTo(AuthRoute.SignUpEmail) { inclusive = true }
-                }
-            },
         )
     }
     composable(AuthRoute.SignUpComplete) {

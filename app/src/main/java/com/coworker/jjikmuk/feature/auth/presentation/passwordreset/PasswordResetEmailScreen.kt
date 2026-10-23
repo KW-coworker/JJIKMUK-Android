@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.Text
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,13 +38,14 @@ fun PasswordResetEmailRoute(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     PasswordResetEmailScreen(
         uiState = uiState,
         onEmailChange = viewModel::updateEmail,
         onBackClick = onBackClick,
         onSendCodeClick = {
-            if (viewModel.sendResetCode()) onCodeSent()
+            scope.launch { if (viewModel.sendResetCode()) onCodeSent() }
         },
         modifier = modifier,
     )
@@ -110,7 +113,7 @@ fun PasswordResetEmailScreen(
                     isError = uiState.emailError != null,
                     onImeAction = {
                         focusManager.clearFocus()
-                        if (uiState.isEmailNotEmpty) onSendCodeClick()
+                        if (uiState.isEmailNotEmpty && !uiState.isAuthRequestInFlight) onSendCodeClick()
                     },
                 )
                 if (uiState.emailError != null) {
@@ -128,7 +131,7 @@ fun PasswordResetEmailScreen(
                     focusManager.clearFocus()
                     onSendCodeClick()
                 },
-                enabled = uiState.isEmailNotEmpty,
+                enabled = uiState.isEmailNotEmpty && !uiState.isAuthRequestInFlight && uiState.resendSeconds == 0,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(horizontal = 20.dp)

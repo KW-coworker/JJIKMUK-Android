@@ -70,6 +70,7 @@ fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
                     onAccountSecurityClick = {
                         showAccountSecurity = true
                     },
+                    onLogoutClick = onReturnToAuthChoice,
                 )
             } else if (showProfileEdit) {
                 ProfileEditScreen(

@@ -5,12 +5,16 @@ import com.coworker.jjikmuk.feature.auth.presentation.common.authPasswordValidat
 import com.coworker.jjikmuk.feature.auth.presentation.common.isAuthPasswordValid
 
 data class PasswordResetUiState(
+    val isAuthRequestInFlight: Boolean = false,
+    val resendSeconds: Int = 0,
     val email: String = "",
     val emailError: String? = null,
     val otp: String = "",
     val otpError: String? = null,
     val isOtpVerified: Boolean = false,
     val remainingOtpSeconds: Int = 0,
+    val submitError: String? = null,
+    val isSubmitting: Boolean = false,
     val newPassword: String = "",
     val newPasswordConfirm: String = "",
 ) {

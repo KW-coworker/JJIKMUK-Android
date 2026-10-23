@@ -6,6 +6,8 @@ import com.coworker.jjikmuk.feature.auth.presentation.common.authPasswordValidat
 import com.coworker.jjikmuk.feature.auth.presentation.common.isAuthPasswordValid
 
 data class SignUpUiState(
+    val isAuthRequestInFlight: Boolean = false,
+    val resendSeconds: Int = 0,
     val email: String = "",
     val emailError: String? = null,
     val otp: String = "",
@@ -14,6 +16,8 @@ data class SignUpUiState(
     val remainingOtpSeconds: Int = 0,
     val password: String = "",
     val passwordConfirm: String = "",
+    val nicknameAvailable: Boolean = false,
+    val isNicknameChecking: Boolean = false,
     val nickname: String = "",
     val nicknameError: String? = null,
     val selectedConditions: Set<SignUpCondition> = emptySet(),

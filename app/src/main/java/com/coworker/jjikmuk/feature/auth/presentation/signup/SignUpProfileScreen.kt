@@ -63,9 +63,9 @@ fun SignUpProfileRoute(
     viewModel: SignUpViewModel,
     onBackClick: () -> Unit,
     onEditConditionsClick: () -> Unit,
-    onNextClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showPhotoOptions by remember { mutableStateOf(false) }
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -85,7 +85,12 @@ fun SignUpProfileRoute(
         onPhotoClick = { showPhotoOptions = true },
         onEditConditionsClick = onEditConditionsClick,
         onBackClick = onBackClick,
-        onNextClick = onNextClick,
+        // Final registration waits for server condition IDs and the profile-photo contract.
+        // Never navigate to success without POST /signup succeeding.
+        onNextClick = {
+            android.widget.Toast.makeText(context,
+                context.getString(R.string.auth_signup_unavailable), android.widget.Toast.LENGTH_SHORT).show()
+        },
         modifier = modifier,
     )
 

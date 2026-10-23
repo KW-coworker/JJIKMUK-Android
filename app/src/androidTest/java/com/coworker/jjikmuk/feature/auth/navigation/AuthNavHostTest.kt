@@ -6,6 +6,13 @@ import androidx.navigation.testing.TestNavHostController
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
+import com.coworker.jjikmuk.feature.auth.session.*
+import com.coworker.jjikmuk.feature.auth.domain.AuthLogin
+import kotlinx.coroutines.runBlocking
+import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
+import com.coworker.jjikmuk.feature.auth.data.HttpAuthRepository
+import com.coworker.jjikmuk.feature.auth.presentation.signup.SignUpViewModel
+import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,6 +26,14 @@ class AuthNavHostTest {
     @get:Rule
     val composeRule = createComposeRule()
 
+    private val sessions = AuthSessionManager(object : SessionStore {
+        override suspend fun read(): SessionCredentials? = null
+        override suspend fun write(credentials: SessionCredentials) = Unit
+        override suspend fun clear() = Unit
+    })
+    private val login = LoginViewModel(HttpAuthRepository.unconfigured(), sessions)
+    private val signup = SignUpViewModel(HttpAuthRepository.unconfigured())
+    private val passwordReset = PasswordResetViewModel(HttpAuthRepository.unconfigured(), sessions)
     private lateinit var navController: TestNavHostController
 
     @Before
@@ -28,11 +43,14 @@ class AuthNavHostTest {
         }
         composeRule.setContent {
             JjikmukTheme {
-                AuthNavHost(navController = navController)
+                AuthNavHost(navController = navController, signUpViewModel = signup, passwordResetViewModel = passwordReset, loginViewModel = login)
             }
         }
-        composeRule.waitUntil(timeoutMillis = 3_000) {
-            navController.currentDestination?.route == AuthRoute.AuthChoice
+        // These tests isolate auth navigation from permission onboarding.
+        composeRule.runOnUiThread {
+            navController.navigate(AuthRoute.AuthChoice) {
+                popUpTo(AuthRoute.Splash) { inclusive = true }
+            }
         }
     }
 
@@ -77,6 +95,10 @@ class AuthNavHostTest {
 
     @Test
     fun loginSuccessRemovesAuthenticationStack() {
+        runBlocking {
+            sessions.acceptLogin(sessions.beginLogin(),
+                AuthLogin("test-only", 1, "test@example.com", "unused", 3600, true), System.currentTimeMillis())
+        }
         composeRule.runOnUiThread {
             navController.navigate(AuthRoute.Login)
             navController.navigate(AuthRoute.Home) {
@@ -87,4 +109,12 @@ class AuthNavHostTest {
             assertFalse(navController.popBackStack())
         }
     }
+    @Test
+    fun directHomeNavigationWithoutSessionReturnsToAuth() {
+        composeRule.runOnUiThread { navController.navigate(AuthRoute.Home) }
+        composeRule.waitUntil(timeoutMillis = 3_000) {
+            navController.currentDestination?.route == AuthRoute.AuthChoice
+        }
+    }
+
 }

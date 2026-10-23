@@ -1,5 +1,7 @@
 package com.coworker.jjikmuk.feature.auth.presentation.passwordreset
 
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -16,6 +18,7 @@ fun PasswordResetNewPasswordRoute(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     AuthPasswordCreationScreen(
         title = stringResource(R.string.password_reset_new_password_title),
@@ -25,14 +28,15 @@ fun PasswordResetNewPasswordRoute(
         password = uiState.newPassword,
         passwordConfirm = uiState.newPasswordConfirm,
         validationError = uiState.newPasswordError,
-        isPasswordValid = uiState.isNewPasswordValid,
+        isPasswordValid = uiState.isNewPasswordValid && !uiState.isSubmitting,
+        submissionError = uiState.submitError,
         passwordTooShortMessage = stringResource(R.string.password_reset_password_too_short),
         passwordMismatchMessage = stringResource(R.string.password_reset_password_mismatch),
         confirmButtonText = stringResource(R.string.auth_confirm),
         onPasswordChange = viewModel::updateNewPassword,
         onPasswordConfirmChange = viewModel::updateNewPasswordConfirm,
         onBackClick = onBackClick,
-        onConfirmClick = onPasswordChanged,
+        onConfirmClick = { scope.launch { if (viewModel.submitPassword()) onPasswordChanged() } },
         modifier = modifier,
     )
 }

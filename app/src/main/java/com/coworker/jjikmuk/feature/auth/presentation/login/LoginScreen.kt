@@ -1,6 +1,5 @@
 package com.coworker.jjikmuk.feature.auth.presentation.login
 
-import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,16 +20,14 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -61,33 +58,14 @@ fun LoginRoute(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val isDebuggable = remember(context) {
-        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-    }
-    var developerLoginClickCount by rememberSaveable { mutableStateOf(0) }
+    val scope = rememberCoroutineScope()
 
     LoginScreen(
         uiState = uiState,
-        onEmailChange = { email ->
-            developerLoginClickCount = 0
-            viewModel.updateEmail(email)
-        },
-        onPasswordChange = { password ->
-            developerLoginClickCount = 0
-            viewModel.updatePassword(password)
-        },
-        onBackClick = onBackClick,
-        onLoginClick = {
-            developerLoginClickCount += 1
-            val isDeveloperLogin = isDebuggable &&
-                developerLoginClickCount >= DEVELOPER_LOGIN_CLICK_THRESHOLD
-
-            if (viewModel.login() || isDeveloperLogin) {
-                developerLoginClickCount = 0
-                onLoginSuccess()
-            }
-        },
+        onEmailChange = viewModel::updateEmail,
+        onPasswordChange = viewModel::updatePassword,
+        onBackClick = { viewModel.reset(); onBackClick() },
+        onLoginClick = { scope.launch { if (viewModel.login()) onLoginSuccess() } },
         onForgotPasswordClick = onForgotPasswordClick,
         onSignUpClick = onSignUpClick,
         onGoogleLoginClick = onGoogleLoginClick,
@@ -173,8 +151,7 @@ fun LoginScreen(
                             text = uiState.loginError,
                             color = colors.error,
                             style = JjikmukTheme.typography.bodyM,
-                            maxLines = 1,
-                            modifier = Modifier.align(Alignment.CenterStart),
+                            modifier = Modifier.align(Alignment.TopStart).padding(top = 30.dp),
                         )
                     }
                     Text(
@@ -189,6 +166,7 @@ fun LoginScreen(
 
                 JjikmukPrimaryButton(
                     text = stringResource(R.string.auth_login),
+                    enabled = !uiState.isLoading && uiState.email.isNotBlank() && uiState.password.isNotEmpty(),
                     onClick = {
                         focusManager.clearFocus()
                         onLoginClick()
@@ -288,7 +266,6 @@ private fun Modifier.authLink(onClick: () -> Unit): Modifier = clickable(
 )
 
 private val AUTH_STATUS_BAR_COLOR = androidx.compose.ui.graphics.Color(0xFFFCFCFF)
-private const val DEVELOPER_LOGIN_CLICK_THRESHOLD = 3
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
