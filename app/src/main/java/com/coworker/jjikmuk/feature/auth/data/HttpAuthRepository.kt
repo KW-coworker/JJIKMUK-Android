@@ -67,6 +67,12 @@ class HttpAuthRepository private constructor(
         LogoutReceipt(userId, serverTokenRevoked = true)
     }
 
+    override suspend fun me(accessToken: String) = request(200,
+        { it.me("Bearer $accessToken") }) { AuthResponseMapper.profile(requireNotNull(it.data)) }
+
+    override suspend fun patchProfile(accessToken: String, patch: ProfilePatch) = request(200,
+        { it.patchProfile("Bearer $accessToken", patch) }) { AuthResponseMapper.profile(requireNotNull(it.data)) }
+
     private suspend fun <T, R> request(status: Int, call: suspend (AuthApi) -> Response<T>,
         decode: (T) -> R): AuthResult<R> {
         val configuredApi = api ?: return AuthResult.Failure(AuthFailure(AuthFailureKind.NotConfigured))

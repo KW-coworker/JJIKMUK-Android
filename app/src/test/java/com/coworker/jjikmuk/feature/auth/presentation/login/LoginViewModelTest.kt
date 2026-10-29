@@ -47,8 +47,8 @@ class LoginViewModelTest {
     @Test fun `profile incomplete and Google placeholder cannot enter Home`() = runTest {
         result = AuthResult.Success(AuthLogin("token", 1, "user@example.com", "unused", 3600, false))
         val vm = model()
-        assertFalse(vm.login()); assertFalse(sessions.state.value.canEnterHome)
-        assertNotNull(vm.uiState.value.loginError)
+        assertTrue(vm.login()); assertFalse(sessions.state.value.canEnterHome)
+        assertNull(vm.uiState.value.loginError)
         vm.googleUnavailable(); assertFalse(sessions.state.value.canEnterHome)
         sessions.clear()
     }

@@ -3,7 +3,7 @@ package com.coworker.jjikmuk.feature.auth.data
 import com.coworker.jjikmuk.feature.auth.domain.*
 import com.google.gson.JsonObject
 
-/** Shared decoding for the next Google/refresh/profile adapters; it performs no requests or storage. */
+/** Shared decoding for Google/refresh/profile adapters; it performs no requests or storage. */
 internal object AuthResponseMapper {
     fun login(body: LoginResponse, requireRefresh: Boolean = false): AuthLogin {
         require(body.code == null && body.loginGranted != false)

@@ -19,13 +19,15 @@ import com.coworker.jjikmuk.feature.mypage.presentation.DietConditionManagementS
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageProductListType
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.ProfileEditScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.ProfileEditRoute
+import com.coworker.jjikmuk.feature.auth.domain.AuthProfile
 import com.coworker.jjikmuk.feature.mypage.presentation.SettingsScreen
 import com.coworker.jjikmuk.feature.product.presentation.ProductScreen
 import com.coworker.jjikmuk.feature.scanner.navigation.ScannerNavHost
 import com.coworker.jjikmuk.ui.component.MainTab
 
 @Composable
-fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
+fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit, profile: AuthProfile? = null) {
     val context = LocalContext.current
     var chatMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var chatConversationId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -73,9 +75,8 @@ fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
                     onLogoutClick = onReturnToAuthChoice,
                 )
             } else if (showProfileEdit) {
-                ProfileEditScreen(
-                    onBackClick = { showProfileEdit = false },
-                )
+                if (profile != null) ProfileEditRoute(onBackClick = { showProfileEdit = false })
+                else ProfileEditScreen(onBackClick = { showProfileEdit = false })
             } else if (showDietConditionManagement) {
                 DietConditionManagementScreen(
                     onBackClick = { showDietConditionManagement = false },
@@ -115,6 +116,8 @@ fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
 
                 MainTab.My -> {
                     MyPageScreen(
+                        nickname = profile?.nickname.orEmpty(),
+                        email = profile?.email.orEmpty(),
                         selectedTab = selectedTab,
                         onTabClick = ::handleMainTabClick,
                         onBackClick = { selectedTab = MainTab.Home },

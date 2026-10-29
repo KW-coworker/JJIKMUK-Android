@@ -27,5 +27,9 @@ open class TestAuthRepository : AuthRepository {
         resets++
         return resetResult
     }
+    override suspend fun me(accessToken: String): AuthResult<AuthProfile> =
+        AuthResult.Failure(AuthFailure(AuthFailureKind.NotConfigured))
+    override suspend fun patchProfile(accessToken: String, patch: ProfilePatch): AuthResult<AuthProfile> =
+        AuthResult.Failure(AuthFailure(AuthFailureKind.NotConfigured))
     override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> = error("Not used by this test")
 }

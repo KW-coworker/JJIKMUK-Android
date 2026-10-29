@@ -59,6 +59,8 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
 fun MyPageScreen(
+    nickname: String = "",
+    email: String = "",
     selectedTab: MainTab = MainTab.My,
     onTabClick: (MainTab) -> Unit = {},
     onBackClick: () -> Unit = {},
@@ -124,6 +126,8 @@ fun MyPageScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             MyPageProfileSection(
+                nickname = nickname,
+                email = email,
                 onProfileEditClick = onProfileEditClick,
             )
             MyPageFamilyShareSection(
@@ -180,6 +184,8 @@ private fun MyPageTopBar(
 
 @Composable
 private fun MyPageProfileSection(
+    nickname: String,
+    email: String,
     onProfileEditClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -236,12 +242,12 @@ private fun MyPageProfileSection(
         }
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "코워커",
+            text = nickname,
             color = JjikmukTheme.colors.textPrimary,
             style = JjikmukTheme.typography.h1,
         )
         Text(
-            text = "coworker@example.com",
+            text = email,
             color = JjikmukTheme.colors.textTertiary,
             style = JjikmukTheme.typography.bodyL,
         )

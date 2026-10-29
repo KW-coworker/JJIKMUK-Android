@@ -7,7 +7,10 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import com.coworker.jjikmuk.feature.auth.session.*
-import com.coworker.jjikmuk.feature.auth.domain.AuthLogin
+import com.coworker.jjikmuk.feature.auth.domain.*
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.performClick
 import kotlinx.coroutines.runBlocking
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.data.HttpAuthRepository
@@ -31,7 +34,11 @@ class AuthNavHostTest {
         override suspend fun write(credentials: SessionCredentials) = Unit
         override suspend fun clear() = Unit
     })
-    private val login = LoginViewModel(HttpAuthRepository.unconfigured(), sessions)
+    private var meResult: AuthResult<AuthProfile> = AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+    private val repository = object : AuthRepository by HttpAuthRepository.unconfigured() {
+        override suspend fun me(accessToken: String): AuthResult<AuthProfile> = meResult
+    }
+    private val login = LoginViewModel(repository, sessions)
     private val signup = SignUpViewModel(HttpAuthRepository.unconfigured())
     private val passwordReset = PasswordResetViewModel(HttpAuthRepository.unconfigured(), sessions)
     private lateinit var navController: TestNavHostController
@@ -94,21 +101,54 @@ class AuthNavHostTest {
     }
 
     @Test
-    fun loginSuccessRemovesAuthenticationStack() {
-        runBlocking {
-            sessions.acceptLogin(sessions.beginLogin(),
-                AuthLogin("test-only", 1, "test@example.com", "unused", 3600, true), System.currentTimeMillis())
-        }
+    fun unverifiedLoginShowsRetryAndPreservesSession() {
         composeRule.runOnUiThread {
-            navController.navigate(AuthRoute.Login)
-            navController.navigate(AuthRoute.Home) {
+            runBlocking {
+                sessions.acceptLogin(sessions.beginLogin(),
+                    AuthLogin("test-only", 1, "test@example.com", "unused", 3600, true), System.currentTimeMillis())
+            }
+            navController.navigate(AuthRoute.Home)
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            navController.currentDestination?.route == AuthRoute.SessionEntry &&
+                login.entryState.value is com.coworker.jjikmuk.feature.auth.presentation.login.SessionEntryState.Retry
+        }
+        composeRule.onNodeWithText("다시 확인").assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertTrue(sessions.state.value.credentials != null) }
+        composeRule.onNodeWithText("로그아웃").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { navController.currentDestination?.route == AuthRoute.AuthChoice }
+        composeRule.runOnUiThread { assertFalse(navController.popBackStack()) }
+    }
+
+    @Test
+    fun incompleteProfileHasSeparateGateAndCannotEnterHome() {
+        meResult = AuthResult.Success(AuthProfile(1, "test@example.com", "임시닉네임", null, null, null, null,
+            "USER", AuthProvider.LOCAL, false, true, null))
+        composeRule.runOnUiThread {
+            runBlocking {
+                sessions.acceptLogin(sessions.beginLogin(),
+                    AuthLogin("test-only", 1, "test@example.com", "unused", 3600, true), System.currentTimeMillis())
+            }
+            navController.navigate(AuthRoute.SessionEntry) {
                 popUpTo(AuthRoute.AuthChoice) { inclusive = true }
             }
-
-            assertEquals(AuthRoute.Home, navController.currentDestination?.route)
-            assertFalse(navController.popBackStack())
         }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            login.entryState.value == com.coworker.jjikmuk.feature.auth.presentation.login.SessionEntryState.ProfileRequired
+        }
+        composeRule.onNodeWithText("프로필 추가 입력이 필요해요").assertIsDisplayed()
+        composeRule.runOnIdle { assertFalse(sessions.state.value.canEnterHome) }
+        composeRule.onNodeWithText("로그아웃").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { navController.currentDestination?.route == AuthRoute.AuthChoice }
     }
+
+    @Test
+    fun startupWithoutSessionReturnsToAuthenticationChoice() {
+        composeRule.runOnUiThread { navController.navigate(AuthRoute.SessionEntry) }
+        composeRule.waitUntil(timeoutMillis = 5_000) { navController.currentDestination?.route == AuthRoute.AuthChoice }
+        composeRule.runOnUiThread { assertFalse(navController.popBackStack()) }
+    }
+
     @Test
     fun directHomeNavigationWithoutSessionReturnsToAuth() {
         composeRule.runOnUiThread { navController.navigate(AuthRoute.Home) }

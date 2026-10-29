@@ -25,6 +25,8 @@ import com.coworker.jjikmuk.JjikmukAppContent
 import com.coworker.jjikmuk.feature.auth.presentation.choice.AuthChoiceScreen
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginRoute
+import com.coworker.jjikmuk.feature.auth.presentation.login.SessionEntryState
+import com.coworker.jjikmuk.feature.auth.presentation.login.SessionEntryScreen
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetCompleteScreen
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetEmailRoute
@@ -72,7 +74,8 @@ fun AuthNavHost(
         ) {
             LaunchedEffect(Unit) {
                 delay(SPLASH_DURATION_MILLIS)
-                navController.navigate(AuthRoute.PermissionApproval) {
+                val destination = if (loginViewModel.hasRestoredSession()) AuthRoute.SessionEntry else AuthRoute.PermissionApproval
+                navController.navigate(destination) {
                     popUpTo(AuthRoute.Splash) { inclusive = true }
                 }
             }
@@ -98,11 +101,29 @@ fun AuthNavHost(
                     boundsTransform = { _, _ -> tween(SPLASH_TRANSITION_MILLIS, easing = LaunchEasing) },
                 ),
                 onContinue = {
-                    navController.navigate(AuthRoute.AuthChoice) {
+                    navController.navigate(AuthRoute.SessionEntry) {
                         popUpTo(AuthRoute.PermissionApproval) { inclusive = true }
                     }
                 },
             )
+        }
+
+        composable(AuthRoute.SessionEntry) {
+            val session by loginViewModel.sessionState.collectAsStateWithLifecycle()
+            val entry by loginViewModel.entryState.collectAsStateWithLifecycle()
+            LaunchedEffect(session.generation) { loginViewModel.checkSession() }
+            LaunchedEffect(entry, session) {
+                val destination = when {
+                    entry == SessionEntryState.Ready && session.canEnterHome && session.profile != null -> AuthRoute.Home
+                    entry == SessionEntryState.SignedOut && session.credentials == null -> AuthRoute.AuthChoice
+                    else -> null
+                }
+                if (destination != null) navController.navigate(destination) {
+                    popUpTo(navController.graph.id) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            SessionEntryScreen(entry, loginViewModel::checkSession, loginViewModel::logout)
         }
 
         composable(AuthRoute.AuthChoice) {
@@ -121,7 +142,9 @@ fun AuthNavHost(
                 onBackClick = navController::popBackStack,
                 onLoginSuccess = {
                         loginViewModel.reset()
-                        navigateToHome(navController)
+                        navController.navigate(AuthRoute.SessionEntry) {
+                            popUpTo(AuthRoute.AuthChoice) { inclusive = true }
+                        }
                 },
                 onForgotPasswordClick = {
                     passwordResetViewModel.reset()
@@ -152,18 +175,18 @@ fun AuthNavHost(
 
         composable(AuthRoute.Home) {
             val session by loginViewModel.sessionState.collectAsStateWithLifecycle()
-            if (!session.canEnterHome) {
+            if (!session.canEnterHome || session.profile == null) {
                 LaunchedEffect(session.generation) {
                     signUpViewModel.reset()
                     passwordResetViewModel.reset()
-                    navController.navigate(AuthRoute.AuthChoice) {
+                    navController.navigate(AuthRoute.SessionEntry) {
                         popUpTo(navController.graph.id) { inclusive = false }
                         launchSingleTop = true
                     }
                 }
             } else {
                 key(session.generation) {
-                    JjikmukAppContent(onReturnToAuthChoice = loginViewModel::logout)
+                    JjikmukAppContent(onReturnToAuthChoice = loginViewModel::logout, profile = session.profile)
                 }
             }
         }
@@ -326,13 +349,6 @@ internal fun nextRouteAfterConditions(
     state.hasAllergyCondition -> AuthRoute.SignUpAllergies
     state.hasVegetarianCondition -> AuthRoute.SignUpVegetarian
     else -> AuthRoute.SignUpProfile
-}
-
-private fun navigateToHome(navController: NavHostController) {
-    navController.navigate(AuthRoute.Home) {
-        popUpTo(AuthRoute.AuthChoice) { inclusive = true }
-        launchSingleTop = true
-    }
 }
 
 private const val SPLASH_DURATION_MILLIS = 1_800L

@@ -47,6 +47,7 @@ class SessionSnapshot(
     val validatedThisRun: Boolean = false,
     val storageFailed: Boolean = false,
     val refreshing: Boolean = false,
+    val profile: com.coworker.jjikmuk.feature.auth.domain.AuthProfile? = null,
     val failure: com.coworker.jjikmuk.feature.auth.domain.AuthFailure? = null,
 ) {
     val canEnterHome: Boolean get() = validatedThisRun && credentials?.profileCompleted == true && !credentials.refreshPending

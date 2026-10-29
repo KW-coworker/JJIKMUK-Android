@@ -18,5 +18,6 @@ internal object AuthRoute {
     const val SignUpAllergies = "sign-up/allergies"
     const val SignUpProfile = "sign-up/profile"
     const val SignUpComplete = "sign-up/complete"
+    const val SessionEntry = "session-entry"
     const val Home = "home"
 }

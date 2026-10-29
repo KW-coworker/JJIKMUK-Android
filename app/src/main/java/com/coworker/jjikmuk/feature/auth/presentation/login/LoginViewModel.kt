@@ -7,6 +7,8 @@ import com.coworker.jjikmuk.feature.auth.domain.AuthResult
 import com.coworker.jjikmuk.feature.auth.presentation.common.userMessage
 import com.coworker.jjikmuk.feature.auth.session.AuthSessionManager
 import com.coworker.jjikmuk.feature.auth.session.ServerLogoutStatus
+import com.coworker.jjikmuk.feature.auth.session.AuthProfiles
+import com.coworker.jjikmuk.feature.auth.session.AuthenticatedRequests
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -21,10 +23,15 @@ import kotlinx.coroutines.launch
 class LoginViewModel @Inject constructor(
     private val repository: AuthRepository,
     private val sessions: AuthSessionManager,
+    private val profiles: AuthProfiles = AuthProfiles(repository, sessions, AuthenticatedRequests(sessions, repository)),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState = _uiState.asStateFlow()
     val sessionState = sessions.state
+    private var entryRequest: Job? = null
+    private var entryGeneration: Long? = null
+    private val _entryState = MutableStateFlow<SessionEntryState>(SessionEntryState.Checking)
+    val entryState = _entryState.asStateFlow()
     private var request: Job? = null
     private var revision = 0L
     private var logoutRequest: Job? = null
@@ -43,6 +50,39 @@ class LoginViewModel @Inject constructor(
                     }
                     if (sessions.isSameSession(state)) sessions.accessForRequest(repository)
                 }
+            }
+        }
+    }
+
+    suspend fun hasRestoredSession(): Boolean {
+        sessions.restore()
+        return sessions.state.value.credentials != null
+    }
+
+    fun checkSession() {
+        val generation = sessions.state.value.generation
+        if (entryRequest?.isActive == true && entryGeneration == generation) return
+        entryRequest?.cancel()
+        entryGeneration = generation
+        _entryState.value = SessionEntryState.Checking
+        entryRequest = viewModelScope.launch {
+            _entryState.value = SessionEntryState.Checking
+            sessions.restore()
+            val observed = sessions.state.value
+            if (observed.credentials == null) {
+                _entryState.value = SessionEntryState.SignedOut
+                return@launch
+            }
+            val result = profiles.load()
+            if (sessions.state.value.generation != observed.generation) {
+                // Logout/invalid token may clear this session, but a newer account owns its own routing.
+                if (sessions.state.value.credentials == null) _entryState.value = SessionEntryState.SignedOut
+                return@launch
+            }
+            _entryState.value = when (result) {
+                is AuthResult.Success -> if (result.value.profileCompleted) SessionEntryState.Ready
+                    else SessionEntryState.ProfileRequired
+                is AuthResult.Failure -> SessionEntryState.Retry(result.error)
             }
         }
     }
@@ -92,9 +132,8 @@ class LoginViewModel @Inject constructor(
                         _uiState.update { it.copy(loginError = "로그인 정보를 저장하지 못했어요. 다시 시도해 주세요") }
                         false
                     } else {
-                        _uiState.update { it.copy(password = "", loginError = if (result.value.profileCompleted) null
-                            else "프로필 입력이 필요해요. 추가 입력 기능을 준비 중이에요") }
-                        result.value.profileCompleted // Never route incomplete profiles into Home.
+                        _uiState.update { it.copy(password = "", loginError = null) }
+                        true // The entry gate checks me before choosing Home or incomplete profile.
                     }
                 }
             }

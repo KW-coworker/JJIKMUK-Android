@@ -61,6 +61,8 @@ interface AuthRepository {
     suspend fun refresh(refreshToken: String): AuthResult<AuthLogin>
     suspend fun resetPassword(email: String, proof: String, newPassword: String): AuthResult<Unit>
     suspend fun logout(accessToken: String): AuthResult<LogoutReceipt>
+    suspend fun me(accessToken: String): AuthResult<AuthProfile>
+    suspend fun patchProfile(accessToken: String, patch: ProfilePatch): AuthResult<AuthProfile>
 }
 
 fun normalizeAuthEmail(email: String): String = normalizeAuthNickname(email).lowercase(java.util.Locale.ROOT)

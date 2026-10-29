@@ -63,6 +63,34 @@ class AuthSessionManager(
             }
         }
 
+    /** Profile reads may overlap rotation. Preserve the CURRENT token pair, never the request's pair. */
+    suspend fun acceptProfile(generation: Long, profile: AuthProfile): AuthResult<AuthProfile> =
+        refreshMutex.withLock {
+            withContext(NonCancellable) {
+                mutex.withLock {
+                    val current = state.value
+                    val saved = current.credentials
+                    if (current.generation != generation || saved == null) return@withLock rejected("SESSION_CHANGED")
+                    if (saved.refreshPending) return@withLock rejected("REFRESH_RETRY_UNCONFIRMED")
+                    if (profile.id != saved.userId || normalizeAuthEmail(profile.email) != normalizeAuthEmail(saved.email))
+                        return@withLock AuthResult.Failure(AuthFailure(AuthFailureKind.InvalidResponse))
+                    val updated = SessionCredentials(saved.accessToken, saved.userId, saved.email, saved.expiresAtMillis,
+                        profile.profileCompleted, saved.refresh,
+                        if (saved.refresh != null) profile.authProvider else null,
+                        if (saved.refresh != null) profile.hasPassword else null)
+                    try {
+                        updated.validate()
+                        store.write(updated)
+                    } catch (_: Exception) {
+                        clearLocked(storageFailed = true, failure = failure("SESSION_STORAGE_FAILED"))
+                        return@withLock rejected("SESSION_STORAGE_FAILED")
+                    }
+                    mutableState.value = SessionSnapshot(generation, updated, validatedThisRun = true, profile = profile)
+                    AuthResult.Success(profile)
+                }
+            }
+        }
+
     suspend fun clearIfCurrent(generation: Long) = withContext(NonCancellable) {
         mutex.withLock {
             if (mutableState.value.generation == generation) clearLocked()
@@ -125,7 +153,7 @@ class AuthSessionManager(
                     val saved = current.credentials
                     if (current.generation != observed.generation || saved == null) return@withLock rejected("SESSION_CHANGED")
                     if (saved.refreshPending) return@withLock AuthResult.Failure(current.failure ?: failure("REFRESH_OUTCOME_UNKNOWN"))
-                    if (saved !== observed.credentials) {
+                    if (!saved.hasSameTokens(observed.credentials)) {
                         return@withLock if (saved.expiresAtMillis > nowMillis()) AuthResult.Success(current)
                             else rejected("AUTH_TOKEN_EXPIRED")
                     }
@@ -142,7 +170,7 @@ class AuthSessionManager(
                     }
                     source = current
                     mutableState.value = SessionSnapshot(current.generation, saved,
-                        current.validatedThisRun, refreshing = true)
+                        current.validatedThisRun, refreshing = true, profile = current.profile)
                     null
                 }
                 if (immediate != null) return@withContext immediate
@@ -169,7 +197,7 @@ class AuthSessionManager(
                                 clearLocked(storageFailed = true, failure = failure("SESSION_STORAGE_FAILED"))
                                 return@withLock rejected("SESSION_STORAGE_FAILED")
                             }
-                            val updated = SessionSnapshot(previous.generation, replacement, previous.validatedThisRun)
+                            val updated = SessionSnapshot(previous.generation, replacement, previous.validatedThisRun, profile = previous.profile)
                             mutableState.value = updated
                             AuthResult.Success(updated)
                         }
@@ -217,10 +245,14 @@ class AuthSessionManager(
     /** An invalid OLD Access token must not clear an already rotated pair. */
     suspend fun rejectAccess(observed: SessionSnapshot) = withContext(NonCancellable) {
         mutex.withLock {
-            if (isSameSession(observed) && state.value.credentials === observed.credentials)
+            if (isSameSession(observed) && state.value.credentials?.hasSameTokens(observed.credentials) == true)
                 clearLocked(failure = failure("AUTH_TOKEN_INVALID"))
         }
     }
+
+    // Profile persistence changes object identity; rotation changes either token (even when Access is identical).
+    private fun SessionCredentials.hasSameTokens(other: SessionCredentials?): Boolean =
+        accessToken == other?.accessToken && refresh?.token == other.refresh?.token
 
     private fun credentials(login: AuthLogin, requestStartedAt: Long): SessionCredentials {
         val expires = login.expiresAtMillis ?: run {

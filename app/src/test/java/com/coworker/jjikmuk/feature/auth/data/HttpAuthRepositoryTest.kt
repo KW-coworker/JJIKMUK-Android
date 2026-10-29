@@ -17,6 +17,41 @@ class HttpAuthRepositoryTest {
     private fun enqueue(body: String, status: Int = 200) {
         server.enqueue(MockResponse.Builder().code(status).body(body).build())
     }
+    private val profileJson = """{"data":{"id":7,"email":"user@example.com","nickname":"사용자","allergies":"egg,wheat","specialDiet":"lowSugar","role":"USER","authProvider":"LOCAL","profileCompleted":true,"hasPassword":true}}"""
+
+    @Test fun `me uses explicit bearer and maps nested profile id`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        enqueue(profileJson)
+        val result = (repo.me("access") as AuthResult.Success).value
+        assertEquals(7L, result.id)
+        assertEquals("egg,wheat", result.allergies)
+        val request = server.takeRequest()
+        assertEquals("GET", request.method)
+        assertEquals("/api/users/me", request.url.encodedPath)
+        assertEquals("Bearer access", request.headers["Authorization"])
+    }
+
+    @Test fun `nickname PATCH omits every untouched field and explicit clear is JSON null`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        enqueue(profileJson)
+        assertTrue(repo.patchProfile("access", ProfilePatch(nickname = " 수정 ")) is AuthResult.Success)
+        val request = server.takeRequest()
+        assertEquals("PATCH", request.method)
+        assertEquals("/api/users/me", request.url.encodedPath)
+        assertEquals("Bearer access", request.headers["Authorization"])
+        assertEquals("""{"nickname":"수정"}""", request.body!!.utf8())
+        enqueue(profileJson)
+        repo.patchProfile("access", ProfilePatch(allergies = ProfileField.Clear))
+        assertEquals("""{"allergies":null}""", server.takeRequest().body!!.utf8())
+    }
+
+    @Test fun `profile patch is never replayed on retry-after zero`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        server.enqueue(MockResponse.Builder().code(503).addHeader("Retry-After", "0").body("{}").build())
+        assertTrue(repo.patchProfile("access", ProfilePatch(nickname = "수정")) is AuthResult.Failure)
+        assertEquals(1, server.requestCount)
+    }
+
     @Test fun `public OTP requests have no bearer and verify carries a string code`() = runBlocking {
         val repo = HttpAuthRepository.create(server.url("/"))
         enqueue("""{"data":{"email":"user@example.com","purpose":"signup","expiresInSeconds":300}}""")

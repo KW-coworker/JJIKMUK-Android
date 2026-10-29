@@ -3,7 +3,7 @@ package com.coworker.jjikmuk.feature.auth.data
 import retrofit2.Response
 import retrofit2.http.*
 
-/** Service endpoints; Google UI and profile adapters are subsequent steps. */
+/** Service endpoints; Google UI and profile completion are subsequent steps. */
 internal interface AuthApi {
     @POST("api/auth/email/send") suspend fun send(@Body body: SendBody): Response<Envelope<DispatchBody>>
     @POST("api/auth/email/verify") suspend fun verify(@Body body: VerifyBody): Response<Envelope<ProofBody>>
@@ -12,6 +12,9 @@ internal interface AuthApi {
     @POST("api/auth/login") suspend fun login(@Body body: LoginBody): Response<LoginResponse>
     @POST("api/auth/refresh") suspend fun refresh(@Body body: RefreshBody): Response<LoginResponse>
     @POST("api/auth/password/reset") suspend fun reset(@Body body: ResetBody): Response<MessageBody>
+    @GET("api/users/me") suspend fun me(@Header("Authorization") authorization: String): Response<Envelope<ProfileBody>>
+    @PATCH("api/users/me") suspend fun patchProfile(@Header("Authorization") authorization: String,
+        @Body patch: com.coworker.jjikmuk.feature.auth.domain.ProfilePatch): Response<Envelope<ProfileBody>>
     @POST("api/auth/logout") suspend fun logout(@Header("Authorization") authorization: String): Response<Envelope<LogoutBody>>
 }
 internal class SendBody(val email: String, val purpose: String)
