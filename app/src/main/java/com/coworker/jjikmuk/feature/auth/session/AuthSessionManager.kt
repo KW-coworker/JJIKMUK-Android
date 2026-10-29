@@ -24,7 +24,8 @@ class AuthSessionManager(
         initialized = true
         try {
             val saved = store.read()
-            if (saved != null && saved.expiresAtMillis <= nowMillis()) clearLocked()
+            saved?.validate()
+            if (saved != null && saved.expiresAtMillis <= nowMillis() && !saved.hasUsableRefresh(nowMillis())) clearLocked()
             else mutableState.value = SessionSnapshot(credentials = saved)
         } catch (cancelled: CancellationException) {
             initialized = false
@@ -47,9 +48,15 @@ class AuthSessionManager(
             mutex.withLock {
                 if (mutableState.value.generation != attempt) return@withLock false
                 try {
-                    val expires = Math.addExact(requestStartedAt, Math.multiplyExact(login.expiresInSeconds, 1000L))
+                    val expires = login.expiresAtMillis ?: run {
+                        require(login.refresh == null) // New sessions require the server's absolute expiry.
+                        Math.addExact(requestStartedAt, Math.multiplyExact(login.expiresInSeconds, 1000L))
+                    }
                     require(expires > nowMillis())
-                    val credentials = SessionCredentials(login.token, login.userId, login.email, expires, login.profileCompleted)
+                    require(login.refresh == null || login.refresh.expiresAtMillis > nowMillis())
+                    val credentials = SessionCredentials(login.token, login.userId, login.email, expires,
+                        login.profileCompleted, login.refresh, login.authProvider, login.hasPassword)
+                    credentials.validate()
                     store.write(credentials)
                     mutableState.value = SessionSnapshot(attempt, credentials, validatedThisRun = true)
                     true
@@ -91,7 +98,10 @@ class AuthSessionManager(
         val snapshot = mutableState.value
         if (!snapshot.canEnterHome) return@withLock null
         if (snapshot.credentials!!.expiresAtMillis <= nowMillis()) {
-            clearLocked()
+            if (snapshot.credentials.hasUsableRefresh(nowMillis())) {
+                // Retain the pair for stage 2-2; expired Access alone grants neither Home nor requests.
+                mutableState.value = SessionSnapshot(snapshot.generation, snapshot.credentials)
+            } else clearLocked()
             return@withLock null
         }
         snapshot

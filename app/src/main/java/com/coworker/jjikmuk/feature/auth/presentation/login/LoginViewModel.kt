@@ -35,7 +35,7 @@ class LoginViewModel @Inject constructor(
                     while (sessions.isCurrent(state)) {
                         delay(1_000)
                     }
-                    sessions.activeSnapshot() // Expiry clears the local session; refresh awaits its contract.
+                    sessions.activeSnapshot() // Suspend expired Access eligibility; keep a usable Refresh for stage 2-2.
                 }
             }
         }

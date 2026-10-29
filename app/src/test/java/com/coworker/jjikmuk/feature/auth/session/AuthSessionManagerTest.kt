@@ -11,6 +11,81 @@ class AuthSessionManagerTest {
     private fun login(token: String = "token", completed: Boolean = true) =
         AuthLogin(token, 1, "user@example.com", "unused", 3600, completed)
 
+    private fun refreshLogin(id: Long = 1, accessExpiry: Long = 900_000, refreshExpiry: Long = 2_592_000_000) =
+        AuthLogin("access-$id", id, "$id@example.com", "unused", 900, true,
+            RefreshCredentials("refresh-$id", refreshExpiry), AuthProvider.LOCAL, true, false, accessExpiry)
+
+    @Test fun `new login persists server absolute expiries and restart does not authorize Home`() = runTest {
+        val store = MemorySessionStore()
+        val sessions = AuthSessionManager(store) { 10_000 }
+        assertTrue(sessions.acceptLogin(sessions.beginLogin(), refreshLogin(), 5_000))
+        assertEquals(900_000L, store.saved!!.expiresAtMillis) // Not request start + 15 minutes.
+        assertEquals(2_592_000_000L, store.saved!!.refresh!!.expiresAtMillis)
+        assertEquals(AuthProvider.LOCAL, store.saved!!.authProvider)
+        assertEquals(true, store.saved!!.hasPassword)
+        val restarted = AuthSessionManager(store) { 10_000 }
+        restarted.restore()
+        assertEquals("refresh-1", restarted.state.value.credentials!!.refresh!!.token)
+        assertFalse(restarted.state.value.canEnterHome)
+        assertNull(restarted.activeSnapshot())
+    }
+
+    @Test fun `expired access preserves usable refresh but cannot enter Home or send requests`() = runTest {
+        val store = MemorySessionStore()
+        var now = 0L
+        val sessions = AuthSessionManager(store) { now }
+        assertTrue(sessions.acceptLogin(sessions.beginLogin(), refreshLogin(), 0))
+        val beforeExpiry = sessions.state.value
+        now = 900_000
+        assertFalse(sessions.isCurrent(beforeExpiry))
+        assertNull(sessions.activeSnapshot())
+        assertFalse(sessions.state.value.canEnterHome)
+        assertEquals("refresh-1", store.saved!!.refresh!!.token)
+        val restarted = AuthSessionManager(store) { now }
+        restarted.restore()
+        assertEquals("refresh-1", restarted.state.value.credentials!!.refresh!!.token)
+        var called = false
+        AuthenticatedRequests(restarted).execute { called = true; AuthResult.Success(Unit) }
+        assertFalse(called)
+        now = 2_592_000_000
+        val fullyExpired = AuthSessionManager(store) { now }
+        fullyExpired.restore()
+        assertNull(fullyExpired.state.value.credentials); assertNull(store.saved)
+    }
+
+    @Test fun `new account replaces entire pair and late login cannot mix old tokens into it`() = runTest {
+        val store = MemorySessionStore()
+        val sessions = AuthSessionManager(store) { 0 }
+        val first = sessions.beginLogin()
+        assertTrue(sessions.acceptLogin(first, refreshLogin(1), 0))
+        val second = sessions.beginLogin()
+        assertNull(store.saved)
+        assertTrue(sessions.acceptLogin(second, refreshLogin(2), 0))
+        assertFalse(sessions.acceptLogin(first, refreshLogin(1), 0))
+        assertEquals(2L, store.saved!!.userId)
+        assertEquals("access-2", store.saved!!.accessToken)
+        assertEquals("refresh-2", store.saved!!.refresh!!.token)
+        store.failWrite = true
+        assertFalse(sessions.acceptLogin(sessions.beginLogin(), refreshLogin(3), 0))
+        assertNull(store.saved); assertNull(sessions.state.value.credentials)
+        assertFalse(sessions.state.value.canEnterHome)
+    }
+
+    @Test fun `invalid new login is not saved and never receives a fabricated lifetime`() = runTest {
+        val store = MemorySessionStore()
+        val sessions = AuthSessionManager(store) { 100 }
+        for (invalid in listOf(
+            refreshLogin(accessExpiry = 100), refreshLogin(refreshExpiry = 100),
+            AuthLogin("access", 1, "user@example.com", "unused", 900, true,
+                RefreshCredentials("refresh", 999_999), AuthProvider.LOCAL, true),
+            AuthLogin("access", 1, "user@example.com", "unused", 900, true,
+                RefreshCredentials("refresh", 999_999), expiresAtMillis = 900_000),
+        )) {
+            assertFalse(sessions.acceptLogin(sessions.beginLogin(), invalid, 0))
+            assertNull(store.saved)
+        }
+    }
+
     @Test fun `restored session is not trusted without server profile validation and expiry clears it`() = runTest {
         val store = MemorySessionStore()
         val sessions = AuthSessionManager(store) { testScheduler.currentTime }
