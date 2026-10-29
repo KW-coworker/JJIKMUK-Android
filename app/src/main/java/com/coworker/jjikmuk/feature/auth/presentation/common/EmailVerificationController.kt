@@ -87,7 +87,11 @@ class EmailVerificationController(
                 is AuthResult.Failure -> {
                     if (result.error.outcomeUnknown) markUnknown()
                     else {
-                        if (result.error.status == 429) cooldowns[snapshot.email] = nowMillis() + 60_000
+                        if (result.error.status == 429) {
+                            // Optional server delay, not a guessed limit parsed from message text.
+                            val seconds = result.error.retryDelaySeconds ?: 60L
+                            cooldowns[snapshot.email] = nowMillis() + seconds.coerceAtMost(Int.MAX_VALUE.toLong()) * 1000L
+                        }
                         mutableState.update { it.copy(error = result.error.userMessage()) }
                     }
                     tick()
@@ -130,7 +134,8 @@ class EmailVerificationController(
                 is AuthResult.Failure -> {
                     if (result.error.outcomeUnknown) markUnknown()
                     else {
-                        if (result.error.code in setOf("OTP_EXPIRED", "OTP_NOT_REQUESTED", "OTP_RATE_LIMITED")) {
+                        if (result.error.code in setOf("OTP_EXPIRED", "OTP_NOT_REQUESTED", "OTP_RATE_LIMITED") ||
+                            (result.error.code == "OTP_INVALID" && result.error.remainingAttempts == 0)) {
                             otpDeadline = 0
                             mutableState.update { it.copy(sent = false) }
                         }

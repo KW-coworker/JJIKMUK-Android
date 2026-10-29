@@ -109,4 +109,19 @@ class EmailVerificationControllerTest {
         assertEquals("0427", c.state.value.code)
         c.updateCode("12"); assertFalse(c.verify())
     }
+    @Test fun `server retry delay replaces guessed cooldown and zero attempts stops verification`() = runTest {
+        val repo = TestAuthRepository()
+        val c = EmailVerificationController(repo, EmailPurpose.SignUp, backgroundScope) { testScheduler.currentTime }
+        c.reset("user@example.com")
+        repo.sendResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 429, "OTP_RATE_LIMITED",
+            retryAfterSeconds = 42, retryAfterHeaderSeconds = 45))
+        assertFalse(c.send()); assertEquals(45, c.state.value.resendSeconds)
+        advanceTimeBy(45_000)
+        repo.sendResult = null
+        assertTrue(c.send()); c.updateCode("1234")
+        repo.verifyResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 400, "OTP_INVALID", remainingAttempts = 0))
+        assertFalse(c.verify()); assertFalse(c.state.value.sent)
+        assertFalse(c.verify()); assertEquals(1, repo.verifies)
+    }
+
 }

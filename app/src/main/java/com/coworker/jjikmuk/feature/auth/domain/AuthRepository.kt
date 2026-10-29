@@ -16,17 +16,38 @@ data class AuthFailure(
     val status: Int? = null,
     val code: String? = null,
     val field: String? = null,
+    val retryAfterSeconds: Long? = null,
+    val remainingAttempts: Int? = null,
+    val retryAfterHeaderSeconds: Long? = null,
 ) {
+    // Keep both sources; conservatively avoid retrying before either supplied deadline.
+    val retryDelaySeconds: Long? get() = listOfNotNull(retryAfterSeconds, retryAfterHeaderSeconds).maxOrNull()
+
     // A lost response may have followed a successful mutation. Never replay automatically.
     val outcomeUnknown: Boolean get() = kind == AuthFailureKind.Network ||
         kind == AuthFailureKind.InvalidResponse || (status ?: 0) >= 500
 }
 
-data class EmailDispatch(val email: String, val purpose: EmailPurpose, val expiresInSeconds: Int)
+data class EmailDispatch(val email: String, val purpose: EmailPurpose, val expiresInSeconds: Int,
+    val expiresAtMillis: Long? = null, val resendAvailableAtMillis: Long? = null)
 // No generated toString: proofs and passwords must not enter logs through state/DTO logging.
-class EmailProof(val token: String, val email: String, val purpose: EmailPurpose, val expiresInSeconds: Int)
+class EmailProof(val token: String, val email: String, val purpose: EmailPurpose, val expiresInSeconds: Int,
+    val expiresAtMillis: Long? = null)
 class AuthLogin(val token: String, val userId: Long, val email: String, val expiresAt: String,
-    val expiresInSeconds: Long, val profileCompleted: Boolean)
+    val expiresInSeconds: Long, val profileCompleted: Boolean,
+    val refresh: RefreshCredentials? = null,
+    val authProvider: AuthProvider? = null,
+    val hasPassword: Boolean? = null,
+    val isNewUser: Boolean? = null,
+    val expiresAtMillis: Long? = null)
+
+// Credentials/proofs intentionally have no generated toString/copy/componentN.
+class RefreshCredentials(val token: String, val expiresAtMillis: Long)
+enum class AuthProvider { LOCAL, GOOGLE, LOCAL_AND_GOOGLE }
+sealed interface GoogleAuthResult {
+    class SignedIn(val login: AuthLogin) : GoogleAuthResult
+    class LinkRequired(val linkToken: String, val expiresAtMillis: Long, val expiresInSeconds: Long) : GoogleAuthResult
+}
 class SignUpSubmission(val email: String, val password: String, val nickname: String,
     val verificationToken: String, val allergies: String? = null, val specialDiet: String? = null)
 
@@ -40,4 +61,6 @@ interface AuthRepository {
     suspend fun logout(accessToken: String): AuthResult<Unit>
 }
 
-fun normalizeAuthEmail(email: String): String = email.trim().lowercase(java.util.Locale.ROOT)
+fun normalizeAuthEmail(email: String): String = normalizeAuthNickname(email).lowercase(java.util.Locale.ROOT)
+fun normalizeAuthNickname(nickname: String): String =
+    java.text.Normalizer.normalize(nickname, java.text.Normalizer.Form.NFKC).trim()

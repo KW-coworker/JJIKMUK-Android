@@ -17,6 +17,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.coworker.jjikmuk.feature.auth.development.developerHomeGraph
+import com.coworker.jjikmuk.feature.auth.development.openDeveloperHome
 import com.coworker.jjikmuk.JjikmukAppContent
 import com.coworker.jjikmuk.feature.auth.presentation.choice.AuthChoiceScreen
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
@@ -124,6 +126,10 @@ fun AuthNavHost(
                     navController.navigate(AuthRoute.SignUpEmail)
                 },
                 onGoogleLoginClick = loginViewModel::googleUnavailable,
+                onDeveloperHomeClick = {
+                    loginViewModel.reset()
+                    navController.openDeveloperHome()
+                },
             )
         }
 
@@ -135,6 +141,8 @@ fun AuthNavHost(
             navController = navController,
             viewModel = signUpViewModel,
         )
+
+        developerHomeGraph(navController)
 
         composable(AuthRoute.Home) {
             val session by loginViewModel.sessionState.collectAsStateWithLifecycle()

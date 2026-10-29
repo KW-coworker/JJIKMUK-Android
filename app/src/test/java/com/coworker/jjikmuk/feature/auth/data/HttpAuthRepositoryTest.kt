@@ -89,6 +89,33 @@ class HttpAuthRepositoryTest {
             assertTrue(repo.resetPassword("user@example.com", "proof", "password123") is AuthResult.Success)
         }
     }
+    @Test fun `new login contract is decoded through HTTP without sending bearer or normalizing password`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        enqueue(AuthContractModelsTest.loginJson)
+        val result = (repo.login(" Ｕｓｅｒ＠Ｅｘａｍｐｌｅ．ｃｏｍ ", " KeepCase1! ") as AuthResult.Success).value
+        assertEquals("refresh-secret", result.refresh!!.token)
+        val request = server.takeRequest()
+        assertNull(request.headers["Authorization"])
+        val body = JsonParser.parseString(request.body!!.utf8()).asJsonObject
+        assertEquals("user@example.com", body["email"].asString)
+        assertEquals(" KeepCase1! ", body["password"].asString)
+    }
+    @Test fun `HTTP OTP metadata includes offsets and structured limits while service 503 remains server failure`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        enqueue("""{"data":{"email":"user@example.com","purpose":"signup","expiresInSeconds":300,
+            "expiresAt":"2026-10-23T21:05:00+09:00","resendAvailableAt":"2026-10-23T21:01:00+09:00"}}""")
+        val dispatch = (repo.sendEmail("user@example.com", EmailPurpose.SignUp) as AuthResult.Success).value
+        assertEquals(AuthApiTime.parseMillis("2026-10-23T12:05:00Z"), dispatch.expiresAtMillis)
+        server.enqueue(MockResponse.Builder().code(429).addHeader("Retry-After", "43")
+            .body("""{"code":"OTP_RATE_LIMITED","retryAfterSeconds":42,"remainingAttempts":0}""").build())
+        val failure = (repo.verifyEmail("user@example.com", EmailPurpose.SignUp, "1234") as AuthResult.Failure).error
+        assertEquals(43L, failure.retryDelaySeconds); assertEquals(0, failure.remainingAttempts)
+        enqueue("""{"code":"AUTH_SERVICE_UNAVAILABLE"}""", 503)
+        val unavailable = (repo.login("user@example.com", "legacy") as AuthResult.Failure).error
+        assertEquals(AuthFailureKind.Server, unavailable.kind)
+        assertEquals("AUTH_SERVICE_UNAVAILABLE", unavailable.code)
+        assertEquals(3, server.requestCount)
+    }
     @Test fun `unconfigured service never pretends an OTP was sent`() = runBlocking {
         assertEquals(AuthFailureKind.NotConfigured,
             (HttpAuthRepository.unconfigured().sendEmail("user@example.com", EmailPurpose.SignUp) as AuthResult.Failure).error.kind)

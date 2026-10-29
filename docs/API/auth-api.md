@@ -1,13 +1,11 @@
 # 찍먹 인증 API 명세 — 로그인·회원가입
 
-> 문서 정리일: 2026-10-16  
-> 원문 기준일: 2026-10-15 — 이메일 인증번호 검증 페이지에 명시  
-> 출처: 사용자가 제공한 갱신된 Notion 페이지 본문 및 API 인덱스 스크린샷  
-> 권장 저장 경로: `docs/auth-api.md`
+> 최종 검토: **2026-10-29**. 기존 2026-10-15 인증 명세 + 2026-10-29 수신한 백엔드 변경 회신(본문 테스트 기준 2026-10-23)을 통합했다.
+> 회신 원본 PDF는 로컬 전용이다. 이 명세는 공유 가능한 API 계약 정리이며 비밀값을 포함하지 않는다.
 
-이 문서는 인덱스에 있는 인증 API 8개를 Android 및 Codex 연동용으로 정리한 문서다. Method·URL은 스크린샷과 본문을 대조했고, 발송 페이지에 중복된 인증번호 검증 설명은 검증 절에 통합했다. 문서 정리 과정에서 실서버 호출은 수행하지 않았다.
+**서버가 구현했다고 회신한 계약과 배포·실기기 검증 완료는 다르다.** Access 15분/Refresh 30일 고정, Google 연결 증명 제한, 비밀번호 추가 허용 범위, 사진·가족 제한은 서버의 현재 구현값이며 최종 정책 합의가 남았다. 개발/운영 주소 및 해당 버전 배포는 아직 확인하지 않았다.
 
-**이번에 제공된 갱신 명세를 기준으로 구현한다.** 이전 `auth-user-api.md`와 겹치는 인증 API는 이 문서를 우선한다. 프로필 조회·수정·로그인 상태의 비밀번호 변경 API 상세는 이번 제공 범위에 포함되지 않으므로 이전 계약을 최신으로 간주하지 않는다.
+이번 문서는 기존 인증 8개 API를 갱신한다. 새 Refresh·Google 연결·본인 프로필·사진·가족 및 상품 분석 대상 계약은 **[세션·프로필 확장 명세](auth-profile-session-api.md)**를 함께 읽는다. 충돌하는 구버전의 ‘24시간/갱신 없음’, ‘Google 자동 연결’, ‘PATCH/PUT으로 프로필 완료’, ‘로그아웃 서버 폐기 없음’, ‘시간대 없는 이메일 시각’ 설명은 폐기한다.
 
 ## 목차
 
@@ -24,7 +22,7 @@
   - [4.7 비밀번호 재설정](#password-reset)
   - [4.8 로그아웃](#logout)
 - [5. 화면과 연결할 호출 순서](#flows)
-- [6. 원문 미제공·추가 확인 항목](#open-questions)
+- [6. 추가 확인 항목](#open-questions)
 
 <a id="implementation-rules"></a>
 ## 1. Codex 구현 시 핵심 규칙
@@ -39,9 +37,10 @@
 8. **Google 로그인 후 추가 프로필 입력 여부는 `profileCompleted`로 판단한다.** `isNewUser=false`이면서 `profileCompleted=false`인 사용자도 있다.
 9. **같은 이메일·목적의 재전송 성공은 이전 OTP와 이전 인증 완료 증명을 무효화한다.** OTP 검증 성공은 OTP를 소비하며, 최종 가입·재설정 성공은 증명을 소비한다.
 10. **닉네임 중복 조회는 중복이어도 `200`과 `available=false`다.** 사전 조회는 예약이 아니므로 최종 가입·수정에서 중복을 다시 검사한다.
-11. **로그아웃 API는 서버 JWT를 폐기하지 않는다.** 앱이 저장된 토큰과 로그인 상태를 삭제해야 한다. 반면 비밀번호 재설정 성공은 모든 기존 JWT를 무효화한다.
+11. **로그아웃은 현재 기기 서버 세션의 Access/Refresh를 폐기한다.** 앱도 로컬 세션을 정리한다. 비밀번호 변경·재설정은 모든 기기 세션을 무효화한다. 구형 sid 없는 JWT의 로그아웃은 모든 세션을 폐기하는 호환 예외가 있다.
 12. **가입 선택 정보는 쉼표 연결 String 또는 null이다.** 알레르기·식단 ID를 JSON 배열이나 한글 표시명으로 임의 변경하지 않는다.
-13. **누락된 정책을 추측하지 않는다.** 공통 비밀번호·닉네임 정책, 전체 허용 ID, Base URL 등 미제공 사항은 [6절](#open-questions)을 따른다.
+13. **Google HTTP 200은 로그인 성공을 보장하지 않는다.** `code=GOOGLE_LINK_REQUIRED`, `loginGranted=false` 응답에는 서비스 토큰이 없다. 연결 증명과 서비스 세션을 분리한다.
+14. **토큰 수명은 서버 응답을 사용한다.** 새 로그인 모델의 Refresh도 함께 암호화 저장하고 갱신한다. 새 계약의 구조·미확인 사항은 확장 명세와 [6절](#open-questions)을 따른다.
 
 <a id="api-list"></a>
 ## 2. API 목록
@@ -64,7 +63,7 @@
 
 ### 3.1 서버 주소·요청 형식
 
-- **Base URL:** 이번 제공 자료에 미기재. 개발·운영 주소를 별도로 확인한다. OCR 테스트 주소를 인증 API 주소로 임의 사용하지 않는다.
+- **Base URL:** 회신에도 미제공. 배포 담당자에게 개발·운영 주소와 변경 버전의 실제 배포 여부를 확인한다. 기존 Tailscale 주소 접속만으로 새 API 배포를 판단하지 않는다. OCR 주소를 임의 사용하지 않는다.
 - JSON 본문을 보내는 요청은 `Content-Type: application/json`으로 구성한다. 검증 API에는 이 헤더가 명시되어 있고, 나머지 본문 API도 JSON 요청 예시를 기준으로 정리했다.
 - 닉네임 조회는 Query Parameter를 사용하고 Body가 없다.
 - 나머지 7개 API는 Query Parameter가 없으며, 로그아웃은 Body도 없다.
@@ -78,24 +77,25 @@
 | 가입용 `verificationToken` | `purpose=signup`으로 OTP 검증 성공 | 회원가입 Body의 `verificationToken` | 검증 성공 시점부터 30분, `1800`초 |
 | 재설정용 `verificationToken` | `purpose=password_reset`으로 OTP 검증 성공 | 비밀번호 재설정 Body의 `verificationToken` | 검증 성공 시점부터 5분, `300`초 |
 | Google `idToken` | Google | Google 로그인 Body의 `idToken` | 이번 문서에 Google 토큰 수명 미기재 |
-| 서비스 JWT `token` | 이메일·Google 로그인 성공 | 인증 필요 API의 `Authorization: Bearer {token}` | 기본 `86400`초. 응답의 만료 정보 사용 |
+| 서비스 JWT `token` | 이메일·Google 로그인 성공 | 인증 필요 API의 `Authorization: Bearer {token}` | 현재 서버 기본 `900`초(15분, 정책 합의 대기). 응답 만료 정보 사용 |
+
+추가 서비스 자격 정보는 `refreshToken`(불투명 문자열, JWT 아님)이며 만료는 `refreshExpiresAt`이다. 현재 구현은 최초 로그인부터 30일 고정으로 갱신해도 연장하지 않는다. 회전·유실 처리는 확장 명세를 따른다.
 
 증명 토큰은 **이메일·목적에 묶인 일회용 증명**이다. 다른 이메일이나 다른 목적에 재사용하지 않는다.
 
 ### 3.3 시간 필드
 
-| 위치 | 필드 | 형식·의미 |
+| 위치 | 필드 | 회신 기준 형식·의미 |
 | --- | --- | --- |
-| 발송 응답 | `data.expiresAt`, `data.resendAvailableAt` | 시간대 정보가 없는 서버 시각 문자열 |
-| 검증 응답 | `data.expiresAt` | 시간대 정보가 없는 서버 `LocalDateTime` 문자열 |
-| 발송·검증 응답 | `data.expiresInSeconds` | 유효시간, 정수 초 |
-| 로그인 응답 | `expiresAt` | UTC `Instant` 문자열. 예시에는 `Z` 포함 |
-| 로그인 응답 | `expiresInSeconds` | 로그인 토큰 유효시간, 정수 초. 기본 `86400` |
+| 이메일 발송·검증 | `expiresAt`, 발송의 `resendAvailableAt` | offset 포함, 예: `2026-10-23T21:05:00+09:00` |
+| 발송·검증 | `expiresInSeconds` | 유효시간, 정수 초 |
+| 로그인·갱신·연결 | `expiresAt`, `refreshExpiresAt` | UTC `Z` 문자열 |
+| Google 연결 필요 | `expiresAt`, `expiresInSeconds` | 연결 증명 만료, 서비스 세션과 구분 |
 
-- 시간대 없는 `LocalDateTime`에 임의로 `Z`를 붙이거나 UTC/KST라고 단정하지 않는다. 서버 시간대와 클라이언트 해석 기준은 확인이 필요하다.
-- 인증 완료 후 타이머는 원문 지침대로 `expiresInSeconds`를 사용한다.
-- 증명 만료 여부만 조회하는 별도 API는 없다. 최종 가입·재설정에서 서버가 판단한 만료는 `410 VERIFICATION_EXPIRED`로 처리한다.
-- 정상 발송 응답의 `resendAvailableAt`은 재전송 가능 시각 안내에 사용한다. 실제 메일 수신 시각과 API 응답 시각은 별개다.
+- offset 포함 문자열을 Instant로 해석한다. 구형 offset 없는 문자열에 임의로 Z를 붙이지 않는다.
+- 서버가 준 마감 시각과 남은 시간을 반영하고, 표시용 타이머는 단조 시계로 관리한다. 서버가 최종 만료를 판정한다.
+- OTP 5분, 가입 증명 30분, 재설정 증명 5분은 유지된다. 최종 `VERIFICATION_EXPIRED`는 재인증으로 복구한다.
+- 재전송 오류의 `retryAfterSeconds`/`Retry-After`와 OTP 오류의 `remainingAttempts`를 추가 반영한다. 필드 간 우선순위와 서버/단말 시계 오차 기준은 후속 확인한다.
 
 ### 3.4 응답 구조·오류 해석
 
@@ -105,7 +105,7 @@
 | 이메일 발송 | `message`, `data` 안에 이메일·목적·시간 정보 |
 | 이메일 검증 | `message`, `data` 안에 이메일·목적·증명·시간 정보 |
 | 회원가입 | `message`, `data.userId` |
-| 이메일·Google 로그인 | `message`, `token`, `tokenType`, `userId`, `email`, `expiresAt`, `expiresInSeconds`, `isNewUser`, `profileCompleted` 모두 최상위 |
+| 이메일·Google 로그인 | `message`, `token`, `tokenType`, `userId`, `email`, `expiresAt`, `expiresInSeconds`, `refreshToken`, `refreshExpiresAt`, `isNewUser`, `profileCompleted`, `authProvider`, `hasPassword` 모두 최상위. Google 연결 필요는 별도 모델 |
 | 비밀번호 재설정 | `message` |
 | 로그아웃 | `message`, `data.userId`, `data.serverTokenRevoked` |
 
@@ -116,7 +116,8 @@
   "status": 400,
   "code": "OTP_INVALID",
   "message": "인증번호가 일치하지 않습니다. 남은 시도 횟수: 4회",
-  "field": "code"
+  "field": "code",
+  "remainingAttempts": 4
 }
 ```
 
@@ -127,16 +128,19 @@
 | `message` | string | 오류 안내 문구 |
 | `field` | string | 오류 관련 필드 |
 
-각 API의 오류는 **HTTP 상태와 `code`를 함께** 확인한다. 모든 공통 오류의 전체 JSON, `field`의 항상 존재 여부·nullable 여부, 모든 오류 메시지 원문은 제공되지 않았다. 정확한 본문이 없는 오류의 메시지나 필드를 임의로 만들지 않는다.
+각 API의 오류는 **HTTP 상태와 `code`를 함께** 확인한다. 회신은 `field`, `retryAfterSeconds`, `remainingAttempts`가 선택 필드라고 명시한다. 누락/null을 허용하고 message에서 숫자를 파싱하지 않는다. 일부 상품 오류는 message만 있으므로 일반 오류 처리도 유지한다.
+
+`503 AUTH_SERVICE_UNAVAILABLE`, 네트워크 실패, `403 ACCESS_DENIED`는 일괄 로그아웃 사유가 아니다. 단 Refresh를 이미 보낸 뒤 처리 결과가 불명확한 경우는 동일 토큰 재시도가 금지되므로 확장 명세의 유실 규칙을 적용한다.
 
 ### 3.5 입력값·프로필 데이터
 
-- `email`, `nickname`, `password`에는 공통 정책이 적용되지만 상세 정규화·길이·허용 문자 규칙은 이번 자료에 없다.
+- **서버 현재 입력 규칙:** 새 비밀번호는 8자 이상, UTF-8 72바이트 이하, 영문 A–Z/a–z·숫자 0–9 각각 포함, ASCII U+0021~U+007E만 허용. 특수문자 필수 아님, trim/소문자화 금지. 기타 Unicode 불허 등 추가 범위는 최종 합의 대기. 기존 로그인은 새 생성 규칙을 강제하지 않는다.
+- 닉네임은 NFKC/trim, 완성형 한글·영문·숫자·밑줄 2~20자, 계정 닉네임 대소문자 미구분 중복. 이메일은 NFKC/trim/소문자·형식 검사. 현재 프론트는 NFKC를 아직 반영하지 않았다.
 - 닉네임 조회의 `data.nickname`은 정규화된 닉네임이다. 발송의 `data.email`, `data.purpose`도 정규화 문자열이다.
 - 회원가입의 `allergies`는 쉼표 연결 알레르기 ID 문자열, `specialDiet`는 쉼표 연결 채식·영양조건 ID 문자열이다.
 - 원문 예시: `egg,wheat`, `lactoOvoVegetarian,lowSugar,highProtein`.
 - 선택값을 입력하지 않는 회원가입은 4개 선택 필드를 모두 `null`로 보내거나 생략한다. 빈 문자열·공백·ID 순서 처리 규칙은 미기재다.
-- 지원하지 않는 알레르기·식단 ID 및 채식 유형 복수 선택은 `400 VALIDATION_FAILED` 대상이다. 전체 허용 ID 목록은 별도 확인한다.
+- 지원하지 않는 알레르기·식단 ID 및 채식 유형 복수 선택은 `400 VALIDATION_FAILED` 대상이다. 회신이 지정한 `GET /api/products/classifications`(알레르기 26개), `GET /api/products/filters`(채식 6개·영양 6개)의 실제 응답으로 전체 정규 key를 확인한다. 이번 회신에는 전체 응답 JSON이 없다.
 
 <a id="api-details"></a>
 ## 4. API 상세
@@ -214,9 +218,9 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
   "data": {
     "email": "user@example.com",
     "purpose": "signup",
-    "expiresAt": "2026-10-15T15:05:00",
+    "expiresAt": "2026-10-23T21:05:00+09:00",
     "expiresInSeconds": 300,
-    "resendAvailableAt": "2026-10-15T15:01:00"
+    "resendAvailableAt": "2026-10-23T21:01:00+09:00"
   }
 }
 ```
@@ -226,9 +230,9 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
 | `message` | string | 처리 결과 메시지 |
 | `data.email` | string | 정규화된 이메일 |
 | `data.purpose` | string | 정규화된 목적 |
-| `data.expiresAt` | string | OTP 만료 시각. 시간대 없는 서버 시각 |
+| `data.expiresAt` | string | OTP 만료 시각. offset 포함 서버 시각 |
 | `data.expiresInSeconds` | integer | OTP 유효시간, 초. `300` |
-| `data.resendAvailableAt` | string | 재전송 가능 시각. 시간대 없는 서버 시각 |
+| `data.resendAvailableAt` | string | 재전송 가능 시각. offset 포함 서버 시각 |
 
 **OTP 자체는 응답에 포함하지 않는다.**
 
@@ -253,7 +257,7 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
 | 429 | `OTP_RATE_LIMITED` | 재전송 대기·발송 횟수 제한 |
 | 500 | `INTERNAL_SERVER_ERROR` | 메일 발송 등 서버 오류 |
 
-`429` 응답에는 현재 `retryAfterSeconds` 등 별도 기계 판독 필드가 없다. 정상 발송 응답의 `resendAvailableAt`을 안내에 사용한다. 미제공 오류 본문이나 재시도 필드를 임의로 가정하지 않는다.
+회신 기준 `429`는 선택 필드 `retryAfterSeconds`와 `Retry-After` 헤더를 제공한다. 정상 발송의 `resendAvailableAt`도 반영한다. 누락은 허용하며 message에서 시간을 추출하지 않는다. 구조화된 값 사이의 우선순위는 추가 확인한다.
 
 <a id="email-verify"></a>
 ### 4.3 이메일 인증번호 검증 및 증명 발급
@@ -311,7 +315,7 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
     "email": "user@example.com",
     "purpose": "signup",
     "verificationToken": "example-verification-token",
-    "expiresAt": "2026-10-15T15:30:00",
+    "expiresAt": "2026-10-23T21:30:00+09:00",
     "expiresInSeconds": 1800
   }
 }
@@ -323,7 +327,7 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
 | `data.email` | string | 인증된 이메일 |
 | `data.purpose` | string | 인증 목적 |
 | `data.verificationToken` | string | 최종 가입 또는 재설정에 사용하는 일회용 증명. 로그인 토큰이 아님 |
-| `data.expiresAt` | string(LocalDateTime) | 증명 만료 시각. 시간대 없는 서버 시각 |
+| `data.expiresAt` | string(offset 포함) | 증명 만료 시각 |
 | `data.expiresInSeconds` | integer | 증명 유효시간, 초 |
 
 #### OTP와 증명의 유효시간
@@ -366,11 +370,14 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
   "status": 400,
   "code": "OTP_INVALID",
   "message": "인증번호가 일치하지 않습니다. 남은 시도 횟수: 4회",
-  "field": "code"
+  "field": "code",
+  "remainingAttempts": 4
 }
 ```
 
 #### 실패 횟수·재전송·만료 화면
+
+- 새 회신의 `remainingAttempts`가 있으면 표시하고 0이면 재발송으로 안내한다. 형식 오류·미요청 등 모든 오류에 횟수가 포함되는 것은 아니다.
 
 - **형식이 올바른 오답**은 최대 5회까지 검사한다. 마지막 실패 시 코드를 삭제하고 `429`를 반환한다. 이후 같은 코드는 미요청으로 처리될 수 있다.
 - **4자리 형식 자체가 잘못된 요청**도 `OTP_INVALID`지만 실패 횟수에는 포함하지 않는다.
@@ -485,10 +492,14 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
   "tokenType": "Bearer",
   "userId": 42,
   "email": "user@example.com",
-  "expiresAt": "2026-10-16T06:00:00Z",
-  "expiresInSeconds": 86400,
+  "expiresAt": "2026-10-23T12:15:00Z",
+  "expiresInSeconds": 900,
+  "refreshToken": "example-refresh-token",
+  "refreshExpiresAt": "2026-11-22T12:00:00Z",
   "isNewUser": false,
-  "profileCompleted": true
+  "profileCompleted": true,
+  "authProvider": "LOCAL",
+  "hasPassword": true
 }
 ```
 
@@ -500,7 +511,11 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
 | `userId` | integer(Long) | 본인 ID |
 | `email` | string | 저장 이메일 |
 | `expiresAt` | string(Instant) | 로그인 토큰 만료 시각, UTC |
-| `expiresInSeconds` | integer | 유효시간, 기본 `86400`초 |
+| `expiresInSeconds` | integer | Access 유효시간, 현재 기본 `900`초(정책 합의 대기) |
+| `refreshToken` | string | 회전하는 불투명 Refresh Token, JWT 아님 |
+| `refreshExpiresAt` | string(Instant) | Refresh 만료 시각, UTC |
+| `authProvider` | string | `LOCAL` / `GOOGLE` / `LOCAL_AND_GOOGLE` |
+| `hasPassword` | boolean | 비밀번호 로그인·변경 지원 여부 |
 | `isNewUser` | boolean | 이메일 로그인에서는 `false` |
 | `profileCompleted` | boolean | 추가 프로필 입력 완료 여부 |
 
@@ -544,20 +559,24 @@ GET /api/auth/nicknames/availability?nickname=찍먹_user1
   "tokenType": "Bearer",
   "userId": 43,
   "email": "google-user@example.com",
-  "expiresAt": "2026-10-16T06:00:00Z",
-  "expiresInSeconds": 86400,
+  "expiresAt": "2026-10-23T12:15:00Z",
+  "expiresInSeconds": 900,
+  "refreshToken": "example-refresh-token",
+  "refreshExpiresAt": "2026-11-22T12:00:00Z",
   "isNewUser": true,
-  "profileCompleted": false
+  "profileCompleted": false,
+  "authProvider": "GOOGLE",
+  "hasPassword": false
 }
 ```
 
 #### 계정·프로필 정책
 
-- 서버는 **`GOOGLE_CLIENT_ID`와 `aud`의 일치** 및 **`email_verified=true`**를 확인한다.
+- 서버는 issuer, audience, 만료, 이메일 검증 여부와 Google subject를 검사한다. 앱/서버 OAuth Client ID 및 앱 등록 정보를 배포 전 맞춘다.
 - 신규 사용자는 임시 닉네임으로 자동 가입한다.
-- `/api/users/me` 수정 성공 시 `profileCompleted=true`가 된다. 해당 수정 API의 Method·요청·응답 상세는 이번 자료에 없다.
+- **`POST /api/users/me/profile/complete`만** `profileCompleted=true`로 바꾼다. PATCH/PUT은 완료 여부를 바꾸지 않는다. 상세는 확장 명세 참조.
 - Google 가입자는 일반 가입 OTP를 반복할 필요가 없다.
-- 기존 일반 가입 이메일과 같으면 현재 구현은 **`LOCAL_AND_GOOGLE`로 자동 연결**한다.
+- 기존 일반 가입 이메일과 같으면 **HTTP 200 + `GOOGLE_LINK_REQUIRED`**와 5분짜리 `linkToken`을 반환한다. 서비스 Access/Refresh는 없다. 사용자가 기존 비밀번호로 `POST /api/auth/google/link`를 완료해야 연결·로그인한다. 5분/오입력 5회는 현재 임시 구현값이다.
 - 최초 가입 후 다시 로그인한 미완료 사용자는 `isNewUser=false`, `profileCompleted=false`일 수 있다. **화면 이동은 `profileCompleted`로 판단**한다.
 - Google 전용 계정의 일반 비밀번호 로그인·찾기·변경은 지원하지 않는다.
 - 두 방식이 연결된 계정은 기존 비밀번호 로그인이 가능하다.
@@ -636,34 +655,22 @@ Google `idToken`과 응답의 서비스 JWT `token`을 구분한다. 이후 서�
 
 로그인 필수. Query Parameter와 Request Body 없음. 성공 `200 OK`.
 
-#### Request Header
-
 ```http
 Authorization: Bearer {token}
 ```
 
-#### 성공 응답 — 200 OK
-
 ```json
 {
-  "message": "로그아웃 처리되었습니다. 기기에 저장된 토큰을 삭제해주세요.",
-  "data": {
-    "userId": 42,
-    "serverTokenRevoked": false
-  }
+  "message": "로그아웃 처리되었습니다.",
+  "data": { "userId": 42, "serverTokenRevoked": true }
 }
 ```
 
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `message` | string | 처리 메시지 |
-| `data.userId` | integer | 유저 ID |
-| `data.serverTokenRevoked` | boolean | 서버 토큰 폐기 여부. 현재 `false` |
+메시지 내용은 동작 분기 기준이 아니다. **현재 기기 서버 세션의 Access/Refresh를 폐기**한다. 사진·가족은 유지한다. 구형 sid 없는 JWT는 기기를 식별할 수 없어 모든 세션을 폐기한다.
 
-- **이 API는 서버에서 JWT를 폐기하지 않는다.**
-- 프론트가 저장된 토큰과 로그인 상태를 삭제해야 한다.
-- 요청 실패 시에도 사용자의 로컬 로그아웃 처리를 진행할 수 있다.
-- 만료·무효·미로그인은 공통 `401`이다. 정확한 공통 오류 코드·본문은 미제공이다.
+- 앱도 저장 토큰·로그인 상태를 삭제한다. 통신 실패여도 로컬 로그아웃은 가능하지만 서버 폐기 완료로 보고하지 않는다.
+- Access 만료 상태에서 로그아웃하려는 경우의 정확한 처리(만료 Bearer 허용 여부/갱신 필요 여부/오프라인 서버 폐기)는 추가 확인한다.
+- 비밀번호 변경·재설정은 모든 서버 세션 폐기, 탈퇴는 세션·사진·가족 등 계정 자료 삭제로 구분한다.
 
 <a id="flows"></a>
 ## 5. 화면과 연결할 호출 순서
@@ -696,7 +703,8 @@ Authorization: Bearer {token}
 2. `POST /api/auth/google`에 `idToken`으로 전송.
 3. 서비스 JWT와 `userId`, `profileCompleted` 확인.
 4. `profileCompleted=false`이면 추가 프로필 입력 흐름으로 연결. `isNewUser`만으로 분기하지 않음.
-5. `/api/users/me` 수정 성공 시 프로필 완료 상태가 됨. 정확한 수정 API 명세는 별도 확보.
+5. `POST /api/users/me/profile/complete` 최종 제출 성공 또는 GET me로 완료를 확인한 뒤 홈으로 이동. PATCH 중간 저장은 완료가 아니다.
+6. 동일 이메일 일반 계정 충돌은 연결 필요 상태 → 기존 비밀번호 확인 → 연결 성공 후 서비스 세션 저장으로 분기한다.
 
 일반 가입용 OTP 인증을 반복하지 않는다. 조건 미선택이라는 이유만으로 일반 가입자의 프로필을 미완료로 변경하지 않는다.
 
@@ -705,7 +713,7 @@ Authorization: Bearer {token}
 1. 서비스 JWT로 `POST /api/auth/logout` 호출.
 2. 앱의 저장된 토큰·로그인 상태 삭제. 요청 실패 시에도 로컬 로그아웃 가능.
 
-로컬 삭제를 서버 JWT 폐기로 해석하지 않는다. 토큰 갱신 API는 이번 인덱스·본문에 포함되지 않았다.
+서버 성공 전 로컬 삭제만으로 서버 폐기 완료라고 해석하지 않는다. Refresh API와 새 세션 저장 규칙은 확장 명세를 따른다.
 
 ### 5.5 화면 분기에 영향을 주는 오류
 
@@ -721,22 +729,19 @@ Authorization: Bearer {token}
 | 가입 응답 유실 후 재시도에서 `EMAIL_ALREADY_REGISTERED` | 서버 가입 완료 가능 상황에 대한 원문 지침은 로그인으로 진행 |
 
 <a id="open-questions"></a>
-## 6. 원문 미제공·추가 확인 항목
+## 6. 추가 확인 항목 (2026-10-29 기준)
 
-아래는 이번 본문만으로 확정할 수 없는 내용이다. 예시나 이전 문서에서 값을 추정해 채우지 않는다.
-
-| 항목 | 확인할 내용 |
+| 항목 | 남은 확인 |
 | --- | --- |
-| 서버 주소 | 인증 API의 개발·운영 Base URL |
-| 공통 비밀번호 정책 | 최소·최대 길이, 조합·공백·허용 문자 등. 예시 비밀번호를 정책으로 해석하지 않음 |
-| 공통 닉네임·이메일 정책 | 정규화 방법, 대소문자·앞뒤 공백·허용 문자·길이·중복 비교 기준 |
-| 시간대 없는 서버 시각 | `LocalDateTime`의 실제 서버 시간대, `resendAvailableAt`을 앱 시각으로 해석하는 기준 |
-| 알레르기·식단 ID 전체 목록 | 모든 허용 ID, 복수 값 처리, 빈 문자열·공백·중복·순서 규칙 |
-| 공통 오류 명세 | 공통 `400`·`401`·`500` 등의 정확한 `code`·전체 본문, `field` 존재·nullable 규칙 |
-| Google 클라이언트 설정 | Android에서 사용할 Client ID 및 서버가 검증하는 대상 설정값 |
-| 본인 프로필 수정 | `/api/users/me`의 정확한 Method·인증·필드·응답·오류. 이번 문서에는 성공 시 `profileCompleted=true`가 된다는 설명만 있음 |
-| 세션 관련 추가 API | 토큰 갱신 등 이번 인덱스 밖 기능이 있다면 별도 최신 명세 확보 |
+| 배포 주소·버전 | 개발/운영 Base URL, Tailscale 접근, V14 MySQL 적용 및 해당 API 배포 여부, 테스트 계정 |
+| 세션 최종 합의 | Access 15분 + 최초 로그인부터 Refresh 30일 고정, 응답 유실 재로그인 수용 여부 |
+| Refresh 예외 | 회전 전 확정 503와 회전 후 응답 유실 구분, 동일 Refresh 재시도 허용 조건, 만료 Access의 logout |
+| 입력 최종 합의 | ASCII 특수문자 선택 허용/기타 Unicode 불허, NFKC/닉네임 정책. 가족 이름 상세 규칙은 별도 미제공 |
+| 카탈로그 | classifications/filters 전체 응답 JSON 및 정규 key; 미지원/중복/정렬/빈 값 정규화 |
+| Google 설정·접근 정책 | Client ID/앱 등록 정보, 미완료 계정의 서버 API 허용 범위, 연결 5분/5회 합의 |
+| 가입 사진 | 가입은 JWT 미발급, 사진 업로드는 Bearer 필수. 가입 때 선택한 사진을 언제 업로드할지 UI 정책 필요 |
+| 비밀번호 변경·탈퇴 | 효과는 설명됐으나 이번 회신에도 상세 Method/URL/Body/오류/재확인 절차 없음 |
+| 가족·사진 | 가족 관계/이모지 필드, 이름·인원 제한, 선택 상태·로컬 데이터 이전, 사진 저장 방식·제한 합의 |
+| 상품 상세 계약 | 새 분석 필드의 전체 스키마/enum, 기존 검색·정렬·페이지 계약과 조합, 가족/none 이력·챗봇 범위 |
 
----
-
-편집 범위: 인덱스 순서에 맞춘 구성, 표·JSON 정리, 중복 인증 검증 설명 통합, 깨진 로컬 편집기 링크를 문서 내부 링크로 교체. 서로 다른 토큰·유효시간·응답 구조와 원문의 예외 처리를 구분했다. 예시 토큰과 시각은 설명용이며 실제 발급값으로 사용하지 않는다.
+원본 PDF는 로컬에만 보관한다. 변경 계약 상세는 [세션·프로필 확장 명세](auth-profile-session-api.md), 사용자 회신 초안·구현 순서는 로컬 인수인계 문서에서 관리한다. 예시 토큰은 실제 자격 정보가 아니다.

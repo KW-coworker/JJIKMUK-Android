@@ -1,7 +1,6 @@
 package com.coworker.jjikmuk.feature.auth.data
 
 import com.coworker.jjikmuk.feature.auth.domain.*
-import com.google.gson.Gson
 import com.google.gson.JsonParseException
 import kotlinx.coroutines.CancellationException
 import okhttp3.HttpUrl
@@ -14,14 +13,17 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-class HttpAuthRepository private constructor(private val api: AuthApi?) : AuthRepository {
-    private val gson = Gson()
+class HttpAuthRepository private constructor(
+    private val api: AuthApi?,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
+) : AuthRepository {
 
     override suspend fun sendEmail(email: String, purpose: EmailPurpose) = request(200,
         { it.send(SendBody(normalizeAuthEmail(email), purpose.wireValue)) }) { body ->
         val data = requireNotNull(body.data)
         require(data.email == normalizeAuthEmail(email) && data.purpose == purpose.wireValue)
-        EmailDispatch(data.email, purpose, requireNotNull(data.expiresInSeconds).also { require(it in 1..300) })
+        EmailDispatch(data.email, purpose, requireNotNull(data.expiresInSeconds).also { require(it in 1..300) },
+            data.expiresAt?.let(AuthApiTime::parseMillis), data.resendAvailableAt?.let(AuthApiTime::parseMillis))
     }
 
     override suspend fun verifyEmail(email: String, purpose: EmailPurpose, code: String) = request(200,
@@ -29,24 +31,21 @@ class HttpAuthRepository private constructor(private val api: AuthApi?) : AuthRe
         val data = requireNotNull(body.data)
         require(data.email == normalizeAuthEmail(email) && data.purpose == purpose.wireValue)
         EmailProof(requireNotNull(data.verificationToken).also { require(it.isNotBlank()) }, data.email,
-            purpose, requireNotNull(data.expiresInSeconds).also { require(it in 1..purpose.proofLifetimeSeconds) })
+            purpose, requireNotNull(data.expiresInSeconds).also { require(it in 1..purpose.proofLifetimeSeconds) },
+            data.expiresAt?.let(AuthApiTime::parseMillis))
     }
 
     override suspend fun nicknameAvailable(nickname: String) = request(200,
-        { it.nickname(nickname.trim()) }) { requireNotNull(it.data?.available) }
+        { it.nickname(normalizeAuthNickname(nickname)) }) { requireNotNull(it.data?.available) }
 
     override suspend fun signUp(input: SignUpSubmission) = request(201, {
-        it.signUp(SignupBody(normalizeAuthEmail(input.email), input.password, input.nickname.trim(),
+        it.signUp(SignupBody(normalizeAuthEmail(input.email), input.password, normalizeAuthNickname(input.nickname),
             input.verificationToken, input.allergies, input.specialDiet))
     }) { requireNotNull(it.data?.userId).also { id -> require(id > 0) } }
 
     override suspend fun login(email: String, password: String) = request(200,
         { it.login(LoginBody(normalizeAuthEmail(email), password)) }) {
-        require(it.tokenType == "Bearer")
-        AuthLogin(requireNotNull(it.token).also { token -> require(token.isNotBlank()) },
-            requireNotNull(it.userId).also { id -> require(id > 0) }, requireNotNull(it.email),
-            requireNotNull(it.expiresAt).also { value -> require(value.isNotBlank()) },
-            requireNotNull(it.expiresInSeconds).also { ttl -> require(ttl > 0) }, requireNotNull(it.profileCompleted))
+        AuthResponseMapper.login(it)
     }
 
     override suspend fun resetPassword(email: String, proof: String, newPassword: String) = request(200,
@@ -68,11 +67,8 @@ class HttpAuthRepository private constructor(private val api: AuthApi?) : AuthRe
         return try {
             val response = call(configuredApi)
             if (!response.isSuccessful) {
-                val error = response.errorBody()?.use { body ->
-                    runCatching { gson.fromJson(body.string(), ErrorBody::class.java) }.getOrNull()
-                }
-                // Never expose arbitrary backend text or response bodies to logs/UI.
-                AuthResult.Failure(AuthFailure(AuthFailureKind.Server, response.code(), error?.code, error?.field))
+                AuthResult.Failure(AuthErrorMapper.decode(response.code(),
+                    response.errorBody()?.use { it.string() }, response.headers()["Retry-After"], nowMillis()))
             } else {
                 require(response.code() == status)
                 AuthResult.Success(decode(requireNotNull(response.body())))
@@ -90,7 +86,7 @@ class HttpAuthRepository private constructor(private val api: AuthApi?) : AuthRe
 
     companion object {
         fun unconfigured(): AuthRepository = HttpAuthRepository(null)
-        fun create(baseUrl: HttpUrl): AuthRepository {
+        fun create(baseUrl: HttpUrl, nowMillis: () -> Long = System::currentTimeMillis): AuthRepository {
             require(baseUrl.username.isEmpty() && baseUrl.password.isEmpty())
             require(baseUrl.query == null && baseUrl.fragment == null && baseUrl.encodedPath == "/")
             val client = OkHttpClient.Builder()
@@ -111,7 +107,7 @@ class HttpAuthRepository private constructor(private val api: AuthApi?) : AuthRe
                 }
                 .build() // No BODY logger, shared auth interceptor, cookies or automatic token refresh.
             return HttpAuthRepository(Retrofit.Builder().baseUrl(baseUrl).client(client)
-                .addConverterFactory(GsonConverterFactory.create()).build().create(AuthApi::class.java))
+                .addConverterFactory(GsonConverterFactory.create(authJson())).build().create(AuthApi::class.java), nowMillis)
         }
     }
 }

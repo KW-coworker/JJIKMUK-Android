@@ -38,6 +38,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.coworker.jjikmuk.feature.auth.development.DeveloperHomeEntry
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.component.JjikmukAuthTopBar
 import com.coworker.jjikmuk.ui.component.JjikmukEmailTextField
@@ -56,6 +57,7 @@ fun LoginRoute(
     onSignUpClick: () -> Unit,
     onGoogleLoginClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onDeveloperHomeClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -70,6 +72,7 @@ fun LoginRoute(
         onSignUpClick = onSignUpClick,
         onGoogleLoginClick = onGoogleLoginClick,
         modifier = modifier,
+        onDeveloperHomeClick = onDeveloperHomeClick,
     )
 }
 
@@ -84,6 +87,7 @@ fun LoginScreen(
     onSignUpClick: () -> Unit,
     onGoogleLoginClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onDeveloperHomeClick: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     val colors = JjikmukTheme.colors
@@ -190,6 +194,7 @@ fun LoginScreen(
                         contentDescription = stringResource(R.string.auth_google_login),
                         onClick = onGoogleLoginClick,
                     )
+                    DeveloperHomeEntry(onClick = onDeveloperHomeClick)
                 }
             }
         }

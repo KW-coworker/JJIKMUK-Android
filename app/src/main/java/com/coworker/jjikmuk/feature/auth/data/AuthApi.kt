@@ -3,7 +3,7 @@ package com.coworker.jjikmuk.feature.auth.data
 import retrofit2.Response
 import retrofit2.http.*
 
-/** Google/linking and refresh are intentionally absent until their revised contracts arrive. */
+/** New contracts are decoded separately; refresh orchestration and Google UI are subsequent steps. */
 internal interface AuthApi {
     @POST("api/auth/email/send") suspend fun send(@Body body: SendBody): Response<Envelope<DispatchBody>>
     @POST("api/auth/email/verify") suspend fun verify(@Body body: VerifyBody): Response<Envelope<ProofBody>>
@@ -20,12 +20,19 @@ internal class ResetBody(val email: String, val verificationToken: String, val n
 internal class SignupBody(val email: String, val password: String, val nickname: String,
     val verificationToken: String, val allergies: String?, val specialDiet: String?)
 internal class Envelope<T>(val data: T?)
-internal class DispatchBody(val email: String?, val purpose: String?, val expiresInSeconds: Int?)
-internal class ProofBody(val email: String?, val purpose: String?, val verificationToken: String?, val expiresInSeconds: Int?)
+internal class DispatchBody(val email: String?, val purpose: String?, val expiresInSeconds: Int?,
+    val expiresAt: String?, val resendAvailableAt: String?)
+internal class ProofBody(val email: String?, val purpose: String?, val verificationToken: String?, val expiresInSeconds: Int?,
+    val expiresAt: String?)
 internal class NicknameBody(val available: Boolean?)
 internal class UserBody(val userId: Long?)
 internal class LogoutBody(val userId: Long?, val serverTokenRevoked: Boolean?)
 internal class MessageBody(val message: String?)
 internal class LoginResponse(val token: String?, val tokenType: String?, val userId: Long?, val email: String?,
-    val expiresAt: String?, val expiresInSeconds: Long?, val profileCompleted: Boolean?)
-internal class ErrorBody(val code: String?, val field: String?)
+    val expiresAt: String?, val expiresInSeconds: Long?, val profileCompleted: Boolean?,
+    val refreshToken: String?, val refreshExpiresAt: String?, val authProvider: String?,
+    val hasPassword: Boolean?, val isNewUser: Boolean?, val code: String?, val loginGranted: Boolean?)
+internal class ProfileBody(val id: Long?, val email: String?, val nickname: String?,
+    val allergies: String?, val diseases: String?, val specialDiet: String?, val dislikedIngredients: String?,
+    val role: String?, val authProvider: String?, val profileCompleted: Boolean?,
+    val hasPassword: Boolean?, val photoUrl: String?)
