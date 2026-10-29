@@ -120,4 +120,33 @@ class HttpAuthRepositoryTest {
         assertEquals(AuthFailureKind.NotConfigured,
             (HttpAuthRepository.unconfigured().sendEmail("user@example.com", EmailPurpose.SignUp) as AuthResult.Failure).error.kind)
     }
+
+    @Test fun `refresh sends only refresh body with no bearer and requires complete new contract`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        enqueue(AuthContractModelsTest.loginJson)
+        val login = (repo.refresh("old-refresh") as AuthResult.Success).value
+        assertEquals("refresh-secret", login.refresh!!.token)
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/auth/refresh", request.url.encodedPath)
+        assertNull(request.headers["Authorization"])
+        val body = JsonParser.parseString(request.body!!.utf8()).asJsonObject
+        assertEquals(setOf("refreshToken"), body.keySet())
+        assertEquals("old-refresh", body["refreshToken"].asString)
+        enqueue("""{"token":"jwt","tokenType":"Bearer","userId":7,"email":"user@example.com","expiresAt":"2026-10-22T00:00:00Z","expiresInSeconds":86400,"profileCompleted":true}""")
+        assertEquals(AuthFailureKind.InvalidResponse, (repo.refresh("another") as AuthResult.Failure).error.kind)
+    }
+
+    @Test fun `refresh never follows redirect or retry-after even for transient errors`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        for (status in listOf(307, 503, 408, 429, 401)) {
+            server.enqueue(MockResponse.Builder().code(status).addHeader("Retry-After", "0")
+                .addHeader("Location", server.url("/redirect"))
+                .body("""{"code":"REFRESH_TOKEN_REUSED"}""").build())
+            val before = server.requestCount
+            val result = repo.refresh("single-use") as AuthResult.Failure
+            assertEquals(status, result.error.status)
+            assertEquals(before + 1, server.requestCount)
+        }
+    }
 }

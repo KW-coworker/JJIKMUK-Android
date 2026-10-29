@@ -31,7 +31,7 @@ class EncryptedSessionStore(
             require(file.length() in 30..MAX_FILE_BYTES)
             DataInputStream(file.inputStream()).use { input ->
                 val version = input.readInt()
-                require(version == 1 || version == FORMAT_VERSION)
+                require(version in 1..FORMAT_VERSION)
                 val iv = ByteArray(12).also(input::readFully)
                 val cipher = Cipher.getInstance("AES/GCM/NoPadding")
                 cipher.init(Cipher.DECRYPT_MODE, keys.decryptionKey(), GCMParameterSpec(128, iv))
@@ -48,8 +48,9 @@ class EncryptedSessionStore(
                         val refresh = if (hasRefresh) RefreshCredentials(data.readUTF(), data.readLong()) else null
                         val provider = if (hasRefresh) AuthProvider.valueOf(data.readUTF()) else null
                         val hasPassword = if (hasRefresh) data.readBoolean() else null
+                        val refreshPending = version >= 3 && data.readBoolean()
                         val session = SessionCredentials(token, userId, email, expiresAt, completed,
-                            refresh, provider, hasPassword)
+                            refresh, provider, hasPassword, refreshPending)
                         require(data.available() == 0)
                         session.validate()
                         session
@@ -80,6 +81,7 @@ class EncryptedSessionStore(
                     data.writeUTF(requireNotNull(credentials.authProvider).name)
                     data.writeBoolean(requireNotNull(credentials.hasPassword))
                 }
+                data.writeBoolean(credentials.refreshPending)
             }
         }.toByteArray()
         val pending = File(file.parentFile, "${file.name}.pending")
@@ -114,7 +116,7 @@ class EncryptedSessionStore(
     } }
 
     companion object {
-        private const val FORMAT_VERSION = 2
+        private const val FORMAT_VERSION = 3
         private const val MAX_FILE_BYTES = 128 * 1024L
         private fun aad(version: Int) = "jjikmuk-auth-session-v$version".toByteArray(Charsets.UTF_8)
     }

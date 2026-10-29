@@ -13,12 +13,14 @@ class SessionCredentials(
     val refresh: RefreshCredentials? = null,
     val authProvider: AuthProvider? = null,
     val hasPassword: Boolean? = null,
+    // Durable before dispatch; never replay this token after process death or uncertain failure.
+    val refreshPending: Boolean = false,
 ) {
     // Legacy Access-only sessions never acquire an invented Refresh token or expiry.
     internal fun validate() {
         require(accessToken.isNotBlank() && userId > 0 && email.isNotBlank() && expiresAtMillis > 0)
         if (refresh == null) {
-            require(authProvider == null && hasPassword == null)
+            require(authProvider == null && hasPassword == null && !refreshPending)
         } else {
             require(refresh.token.isNotBlank() && refresh.expiresAtMillis > 0)
             requireNotNull(authProvider)
@@ -27,6 +29,9 @@ class SessionCredentials(
     }
 
     fun hasUsableRefresh(nowMillis: Long): Boolean = (refresh?.expiresAtMillis ?: 0) > nowMillis
+
+    internal fun pendingRefresh() = SessionCredentials(accessToken, userId, email, expiresAtMillis,
+        profileCompleted, refresh, authProvider, hasPassword, refreshPending = true)
 }
 
 interface SessionStore {
@@ -41,6 +46,8 @@ class SessionSnapshot(
     // Restored credentials await GET /users/me. Local persistence alone never authorizes Home.
     val validatedThisRun: Boolean = false,
     val storageFailed: Boolean = false,
+    val refreshing: Boolean = false,
+    val failure: com.coworker.jjikmuk.feature.auth.domain.AuthFailure? = null,
 ) {
-    val canEnterHome: Boolean get() = validatedThisRun && credentials?.profileCompleted == true
+    val canEnterHome: Boolean get() = validatedThisRun && credentials?.profileCompleted == true && !credentials.refreshPending
 }

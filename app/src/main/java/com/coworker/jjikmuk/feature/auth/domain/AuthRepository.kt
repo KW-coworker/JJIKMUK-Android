@@ -57,6 +57,7 @@ interface AuthRepository {
     suspend fun nicknameAvailable(nickname: String): AuthResult<Boolean>
     suspend fun signUp(input: SignUpSubmission): AuthResult<Long>
     suspend fun login(email: String, password: String): AuthResult<AuthLogin>
+    suspend fun refresh(refreshToken: String): AuthResult<AuthLogin>
     suspend fun resetPassword(email: String, proof: String, newPassword: String): AuthResult<Unit>
     suspend fun logout(accessToken: String): AuthResult<Unit>
 }

@@ -3,19 +3,21 @@ package com.coworker.jjikmuk.feature.auth.data
 import retrofit2.Response
 import retrofit2.http.*
 
-/** New contracts are decoded separately; refresh orchestration and Google UI are subsequent steps. */
+/** Service endpoints; Google UI and profile adapters are subsequent steps. */
 internal interface AuthApi {
     @POST("api/auth/email/send") suspend fun send(@Body body: SendBody): Response<Envelope<DispatchBody>>
     @POST("api/auth/email/verify") suspend fun verify(@Body body: VerifyBody): Response<Envelope<ProofBody>>
     @GET("api/auth/nicknames/availability") suspend fun nickname(@Query("nickname") nickname: String): Response<Envelope<NicknameBody>>
     @POST("api/auth/signup") suspend fun signUp(@Body body: SignupBody): Response<Envelope<UserBody>>
     @POST("api/auth/login") suspend fun login(@Body body: LoginBody): Response<LoginResponse>
+    @POST("api/auth/refresh") suspend fun refresh(@Body body: RefreshBody): Response<LoginResponse>
     @POST("api/auth/password/reset") suspend fun reset(@Body body: ResetBody): Response<MessageBody>
     @POST("api/auth/logout") suspend fun logout(@Header("Authorization") authorization: String): Response<Envelope<LogoutBody>>
 }
 internal class SendBody(val email: String, val purpose: String)
 internal class VerifyBody(val email: String, val purpose: String, val code: String)
 internal class LoginBody(val email: String, val password: String)
+internal class RefreshBody(val refreshToken: String)
 internal class ResetBody(val email: String, val verificationToken: String, val newPassword: String)
 internal class SignupBody(val email: String, val password: String, val nickname: String,
     val verificationToken: String, val allergies: String?, val specialDiet: String?)

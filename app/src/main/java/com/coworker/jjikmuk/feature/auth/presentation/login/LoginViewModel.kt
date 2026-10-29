@@ -31,11 +31,12 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch { sessions.restore() }
         viewModelScope.launch {
             sessions.state.collectLatest { state ->
-                if (state.canEnterHome) {
+                state.failure?.let { error -> _uiState.update { it.copy(loginError = error.userMessage()) } }
+                if (state.canEnterHome && !state.refreshing) {
                     while (sessions.isCurrent(state)) {
                         delay(1_000)
                     }
-                    sessions.activeSnapshot() // Suspend expired Access eligibility; keep a usable Refresh for stage 2-2.
+                    if (sessions.isSameSession(state)) sessions.accessForRequest(repository)
                 }
             }
         }

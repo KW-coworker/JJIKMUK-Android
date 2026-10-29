@@ -30,6 +30,13 @@ class AndroidSessionStoreTest {
             assertEquals("instrumented-refresh", restored.refresh!!.token)
             assertEquals(Long.MAX_VALUE, restored.refresh.expiresAtMillis)
             assertEquals(AuthProvider.LOCAL, restored.authProvider)
+            store.write(restored.pendingRefresh())
+            val restartedStore = EncryptedSessionStore(file, AndroidSessionKeyProvider("jjikmuk.auth.test.$suffix"))
+            assertTrue(restartedStore.read()!!.refreshPending)
+            val restarted = AuthSessionManager(restartedStore)
+            restarted.restore()
+            assertNull(restarted.state.value.credentials)
+            assertEquals("REFRESH_OUTCOME_UNKNOWN", restarted.state.value.failure!!.code)
             store.clear()
             assertNull(store.read())
         } finally { store.clear() }

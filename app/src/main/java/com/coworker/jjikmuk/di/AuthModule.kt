@@ -26,7 +26,7 @@ object AuthModule {
     fun provideSessionManager(store: SessionStore): AuthSessionManager = AuthSessionManager(store)
 
     @Provides @Singleton
-    fun provideAuthenticatedRequests(sessions: AuthSessionManager) = AuthenticatedRequests(sessions)
+    fun provideAuthenticatedRequests(sessions: AuthSessionManager, repository: AuthRepository) = AuthenticatedRequests(sessions, repository)
 
     @Provides @Singleton
     fun provideAuthRepository(@ApplicationContext context: Context): AuthRepository {

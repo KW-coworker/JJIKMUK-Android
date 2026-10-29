@@ -70,7 +70,7 @@ class EncryptedSessionStoreTest {
             val pair = SessionCredentials("access-secret", 7, "other@example.com", 900_000, false,
                 RefreshCredentials("refresh-secret", 2_592_000_000), provider, provider != AuthProvider.GOOGLE)
             store.write(pair)
-            assertEquals(2, DataInputStream(file.inputStream()).use { it.readInt() })
+            assertEquals(3, DataInputStream(file.inputStream()).use { it.readInt() })
             val bytes = file.readBytes().toString(Charsets.ISO_8859_1)
             assertFalse(bytes.contains("access-secret")); assertFalse(bytes.contains("refresh-secret"))
             val restored = EncryptedSessionStore(file, keys).read()!!
@@ -86,7 +86,7 @@ class EncryptedSessionStoreTest {
         }
     }
 
-    @Test fun `legacy v1 stays access only and a new login replaces it with v2`() = runBlocking {
+    @Test fun `legacy v1 stays access only and a new login replaces it with v3`() = runBlocking {
         val file = File(temp.root, "session")
         writeLegacy(file)
         val store = EncryptedSessionStore(file, keys)
@@ -95,7 +95,7 @@ class EncryptedSessionStoreTest {
         assertNull(restored.refresh); assertNull(restored.authProvider); assertNull(restored.hasPassword)
         store.write(SessionCredentials("new-access", 2, "new@example.com", 900_000, true,
             RefreshCredentials("new-refresh", 2_592_000_000), AuthProvider.LOCAL, true))
-        assertEquals(2, DataInputStream(file.inputStream()).use { it.readInt() })
+        assertEquals(3, DataInputStream(file.inputStream()).use { it.readInt() })
         assertEquals("new-refresh", store.read()!!.refresh!!.token)
         assertEquals(2L, store.read()!!.userId)
     }
@@ -105,10 +105,37 @@ class EncryptedSessionStoreTest {
         val store = EncryptedSessionStore(file, keys)
         store.write(credentials)
         val bytes = file.readBytes()
-        for (version in listOf(1, 3)) {
+        for (version in listOf(1, 2, 4)) {
             file.writeBytes(bytes.copyOf().apply { this[3] = version.toByte() })
             try { store.read(); fail("Version change was accepted") } catch (_: IOException) { }
         }
+    }
+
+    @Test fun `v2 encrypted pair migrates on next write and pending rotation survives restart`() = runBlocking {
+        val file = File(temp.root, "session")
+        val plaintext = ByteArrayOutputStream().also { bytes -> DataOutputStream(bytes).use {
+            it.writeUTF("v2-access"); it.writeLong(1); it.writeUTF("user@example.com")
+            it.writeLong(900_000); it.writeBoolean(true); it.writeBoolean(true)
+            it.writeUTF("v2-refresh"); it.writeLong(2_592_000_000); it.writeUTF("LOCAL"); it.writeBoolean(true)
+        } }.toByteArray()
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, keys.encryptionKey())
+        cipher.updateAAD("jjikmuk-auth-session-v2".toByteArray(Charsets.UTF_8))
+        DataOutputStream(file.outputStream()).use {
+            it.writeInt(2); it.write(cipher.iv); it.write(cipher.doFinal(plaintext))
+        }
+        val store = EncryptedSessionStore(file, keys)
+        val legacy = store.read()!!
+        assertEquals("v2-refresh", legacy.refresh!!.token)
+        assertFalse(legacy.refreshPending)
+        store.write(legacy.pendingRefresh())
+        assertEquals(3, DataInputStream(file.inputStream()).use { it.readInt() })
+        assertTrue(EncryptedSessionStore(file, keys).read()!!.refreshPending)
+        val restoredManager = AuthSessionManager(EncryptedSessionStore(file, keys)) { 1 }
+        restoredManager.restore()
+        assertNull(restoredManager.state.value.credentials)
+        assertEquals("REFRESH_OUTCOME_UNKNOWN", restoredManager.state.value.failure!!.code)
+        assertFalse(file.exists())
     }
 
     @Test fun `failed replacement preserves previous pair and pending file is never restored`() = runBlocking {

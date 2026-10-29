@@ -74,4 +74,52 @@ class LoginViewModelTest {
         assertFalse(vm.login()); assertFalse(sessions.state.value.canEnterHome)
         assertNotNull(vm.uiState.value.loginError)
     }
+
+    @Test fun `foreground expiry refreshes without navigating out of Home`() = runTest {
+        val storage = MemorySessionStore()
+        val manager = AuthSessionManager(storage) { testScheduler.currentTime }
+        var refreshes = 0
+        val repo = object : TestAuthRepository() {
+            override suspend fun login(email: String, password: String) = AuthResult.Success(
+                AuthLogin("old", 1, "user@example.com", "unused", 1, true,
+                    RefreshCredentials("refresh-old", 100_000), AuthProvider.LOCAL, true, false, 1_000))
+            override suspend fun refresh(refreshToken: String): AuthResult<AuthLogin> {
+                refreshes++
+                assertEquals("refresh-old", refreshToken)
+                delay(1_000)
+                return AuthResult.Success(AuthLogin("new", 1, "user@example.com", "unused", 15, true,
+                    RefreshCredentials("refresh-new", 100_000), AuthProvider.LOCAL, true, false, 17_000))
+            }
+        }
+        val vm = LoginViewModel(repo, manager)
+        vm.updateEmail("user@example.com"); vm.updatePassword("old")
+        assertTrue(vm.login()); runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        assertTrue(manager.state.value.refreshing)
+        assertTrue(manager.state.value.canEnterHome)
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(1, refreshes)
+        assertEquals("refresh-new", storage.saved!!.refresh!!.token)
+        assertTrue(manager.state.value.canEnterHome)
+        assertFalse(manager.state.value.refreshing)
+        manager.clear(); runCurrent()
+    }
+
+    @Test fun `lost refresh response exposes relogin message through existing login UI`() = runTest {
+        val manager = AuthSessionManager(MemorySessionStore()) { testScheduler.currentTime }
+        val repo = object : TestAuthRepository() {
+            override suspend fun login(email: String, password: String) = AuthResult.Success(
+                AuthLogin("old", 1, "user@example.com", "unused", 1, true,
+                    RefreshCredentials("refresh-old", 100_000), AuthProvider.LOCAL, true, false, 1_000))
+            override suspend fun refresh(refreshToken: String): AuthResult<AuthLogin> =
+                AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+        }
+        val vm = LoginViewModel(repo, manager)
+        vm.updateEmail("user@example.com"); vm.updatePassword("old")
+        assertTrue(vm.login()); runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        assertNull(manager.state.value.credentials)
+        assertFalse(manager.state.value.canEnterHome)
+        assertTrue(vm.uiState.value.loginError!!.contains("다시 로그인"))
+    }
 }

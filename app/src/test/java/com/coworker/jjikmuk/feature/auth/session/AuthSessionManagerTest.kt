@@ -27,7 +27,7 @@ class AuthSessionManagerTest {
         restarted.restore()
         assertEquals("refresh-1", restarted.state.value.credentials!!.refresh!!.token)
         assertFalse(restarted.state.value.canEnterHome)
-        assertNull(restarted.activeSnapshot())
+        assertTrue(restarted.accessForRequest(TestAuthRepository()) is AuthResult.Failure)
     }
 
     @Test fun `expired access preserves usable refresh but cannot enter Home or send requests`() = runTest {
@@ -38,14 +38,14 @@ class AuthSessionManagerTest {
         val beforeExpiry = sessions.state.value
         now = 900_000
         assertFalse(sessions.isCurrent(beforeExpiry))
-        assertNull(sessions.activeSnapshot())
+        assertTrue(sessions.accessForRequest(TestAuthRepository()) is AuthResult.Failure)
         assertFalse(sessions.state.value.canEnterHome)
         assertEquals("refresh-1", store.saved!!.refresh!!.token)
         val restarted = AuthSessionManager(store) { now }
         restarted.restore()
         assertEquals("refresh-1", restarted.state.value.credentials!!.refresh!!.token)
         var called = false
-        AuthenticatedRequests(restarted).execute { called = true; AuthResult.Success(Unit) }
+        AuthenticatedRequests(restarted, TestAuthRepository()).execute { called = true; AuthResult.Success(Unit) }
         assertFalse(called)
         now = 2_592_000_000
         val fullyExpired = AuthSessionManager(store) { now }
@@ -96,7 +96,7 @@ class AuthSessionManagerTest {
         restarted.restore()
         assertNotNull(restarted.state.value.credentials)
         assertFalse(restarted.state.value.canEnterHome)
-        assertNull(restarted.activeSnapshot())
+        assertTrue(restarted.accessForRequest(TestAuthRepository()) is AuthResult.Failure)
         advanceTimeBy(3600_000)
         val expired = AuthSessionManager(store) { testScheduler.currentTime }
         expired.restore()
@@ -107,7 +107,7 @@ class AuthSessionManagerTest {
         val sessions = AuthSessionManager(MemorySessionStore()) { 0 }
         assertTrue(sessions.acceptLogin(sessions.beginLogin(), login(completed = false), 0))
         assertFalse(sessions.state.value.canEnterHome)
-        assertNull(sessions.activeSnapshot())
+        assertTrue(sessions.accessForRequest(TestAuthRepository()) is AuthResult.Failure)
     }
 
     @Test fun `failed persistence and late login after logout cannot become authenticated`() = runTest {
@@ -154,7 +154,7 @@ class AuthSessionManagerTest {
         val sessions = AuthSessionManager(MemorySessionStore()) { 0 }
         sessions.acceptLogin(sessions.beginLogin(), login("old"), 0)
         val gate = CompletableDeferred<Unit>()
-        val requests = AuthenticatedRequests(sessions)
+        val requests = AuthenticatedRequests(sessions, TestAuthRepository())
         val request = async {
             requests.execute { token ->
                 assertEquals("old", token)
@@ -171,7 +171,7 @@ class AuthSessionManagerTest {
 
     @Test fun `only explicit session token errors sign out - not network 403 or login failures`() = runTest {
         val sessions = AuthSessionManager(MemorySessionStore()) { 0 }
-        val requests = AuthenticatedRequests(sessions)
+        val requests = AuthenticatedRequests(sessions, TestAuthRepository())
         sessions.acceptLogin(sessions.beginLogin(), login(), 0)
         for (error in listOf(AuthFailure(AuthFailureKind.Network),
             AuthFailure(AuthFailureKind.Server, 403, "ACCESS_DENIED"),

@@ -48,6 +48,11 @@ class HttpAuthRepository private constructor(
         AuthResponseMapper.login(it)
     }
 
+    override suspend fun refresh(refreshToken: String) = request(200,
+        { it.refresh(RefreshBody(refreshToken)) }) {
+        AuthResponseMapper.login(it, requireRefresh = true)
+    }
+
     override suspend fun resetPassword(email: String, proof: String, newPassword: String) = request(200,
         { it.reset(ResetBody(normalizeAuthEmail(email), proof, newPassword)) }) {
         requireNotNull(it.message)
