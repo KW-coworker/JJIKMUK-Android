@@ -6,6 +6,7 @@ import com.coworker.jjikmuk.feature.auth.domain.AuthRepository
 import com.coworker.jjikmuk.feature.auth.domain.AuthResult
 import com.coworker.jjikmuk.feature.auth.presentation.common.userMessage
 import com.coworker.jjikmuk.feature.auth.session.AuthSessionManager
+import com.coworker.jjikmuk.feature.auth.session.ServerLogoutStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -26,6 +27,10 @@ class LoginViewModel @Inject constructor(
     val sessionState = sessions.state
     private var request: Job? = null
     private var revision = 0L
+    private var logoutRequest: Job? = null
+    private var logoutSourceGeneration: Long? = null
+    private val _notices = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val notices = _notices.asSharedFlow()
 
     init {
         viewModelScope.launch { sessions.restore() }
@@ -110,8 +115,24 @@ class LoginViewModel @Inject constructor(
     }
 
     fun logout() {
+        if (logoutRequest?.isActive == true && (sessions.state.value.credentials == null ||
+                sessions.state.value.generation == logoutSourceGeneration)) return
         reset()
-        viewModelScope.launch { sessions.logout(repository) }
+        logoutSourceGeneration = sessions.state.value.generation
+        val logoutRevision = revision
+        logoutRequest = viewModelScope.launch {
+            val result = sessions.logout(repository)
+            // A previous account's delayed logout must not alter the new login form or show its notice.
+            if (revision != logoutRevision || sessions.state.value.generation != result.generation ||
+                sessions.state.value.credentials != null) return@launch
+            val message = when {
+                !result.localStorageCleared -> "기기 로그인 정보를 완전히 지우지 못했어요. 다시 시도해 주세요"
+                result.serverStatus == ServerLogoutStatus.Confirmed -> "로그아웃했어요"
+                result.serverStatus == ServerLogoutStatus.Unconfirmed -> "기기에서는 로그아웃했어요. 서버 로그아웃 완료는 확인하지 못했어요"
+                else -> null
+            }
+            message?.let(_notices::tryEmit)
+        }
     }
 
     fun reset() {

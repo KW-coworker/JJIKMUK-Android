@@ -1,5 +1,7 @@
 package com.coworker.jjikmuk.feature.auth.navigation
 
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -52,6 +54,10 @@ fun AuthNavHost(
     passwordResetViewModel: PasswordResetViewModel = hiltViewModel(),
     signUpViewModel: SignUpViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(loginViewModel, context) {
+        loginViewModel.notices.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
     SharedTransitionLayout {
     NavHost(
         navController = navController,

@@ -117,4 +117,25 @@ class AuthNavHostTest {
         }
     }
 
+    @Test
+    fun logoutRemovesHomeEvenIfServerUnavailable() {
+        composeRule.runOnUiThread {
+            runBlocking {
+                sessions.acceptLogin(sessions.beginLogin(),
+                    AuthLogin("test-only", 1, "test@example.com", "unused", 3600, true), System.currentTimeMillis())
+            }
+            navController.navigate(AuthRoute.Home) {
+                popUpTo(AuthRoute.AuthChoice) { inclusive = true }
+            }
+            login.logout() // Repository is deliberately unconfigured; local navigation must still finish.
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            navController.currentDestination?.route == AuthRoute.AuthChoice
+        }
+        composeRule.runOnUiThread {
+            assertFalse(sessions.state.value.canEnterHome)
+            assertFalse(navController.popBackStack())
+        }
+    }
+
 }

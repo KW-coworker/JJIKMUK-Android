@@ -61,9 +61,10 @@ class HttpAuthRepository private constructor(
 
     override suspend fun logout(accessToken: String) = request(200,
         { it.logout("Bearer $accessToken") }) {
-        requireNotNull(it.data?.userId)
-        requireNotNull(it.data.serverTokenRevoked)
-        Unit
+        val data = requireNotNull(it.data)
+        val userId = requireNotNull(data.userId).also { id -> require(id > 0) }
+        require(data.serverTokenRevoked == true)
+        LogoutReceipt(userId, serverTokenRevoked = true)
     }
 
     private suspend fun <T, R> request(status: Int, call: suspend (AuthApi) -> Response<T>,

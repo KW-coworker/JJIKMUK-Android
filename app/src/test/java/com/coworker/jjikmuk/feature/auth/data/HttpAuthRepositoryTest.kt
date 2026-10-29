@@ -56,8 +56,8 @@ class HttpAuthRepositoryTest {
         val body = JsonParser.parseString(reset.body!!.utf8()).asJsonObject
         assertEquals("proof", body["verificationToken"].asString); assertFalse(body.has("code"))
         assertNull(reset.headers["Authorization"])
-        enqueue("""{"data":{"userId":7,"serverTokenRevoked":false}}""")
-        assertTrue(repo.logout("jwt") is AuthResult.Success)
+        enqueue("""{"data":{"userId":7,"serverTokenRevoked":true}}""")
+        assertEquals(AuthResult.Success(LogoutReceipt(7, true)), repo.logout("jwt"))
         assertEquals("Bearer jwt", server.takeRequest().headers["Authorization"])
     }
     @Test fun `redirects do not forward credentials and errors retain code field without backend text`() = runBlocking {
@@ -148,5 +148,28 @@ class HttpAuthRepositoryTest {
             assertEquals(status, result.error.status)
             assertEquals(before + 1, server.requestCount)
         }
+    }
+
+    @Test fun `logout requires a positive user ID and explicit true revocation`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        for (body in listOf("{}", """{"data":{"userId":7,"serverTokenRevoked":false}}""",
+            """{"data":{"userId":7}}""", """{"data":{"userId":0,"serverTokenRevoked":true}}""")) {
+            enqueue(body)
+            assertEquals(AuthFailureKind.InvalidResponse, (repo.logout("access") as AuthResult.Failure).error.kind)
+        }
+    }
+
+    @Test fun `logout is one bodyless bearer request even when server asks to retry`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        server.enqueue(MockResponse.Builder().code(503).addHeader("Retry-After", "0")
+            .body("""{"code":"AUTH_SERVICE_UNAVAILABLE"}""").build())
+        assertTrue(repo.logout("captured-access") is AuthResult.Failure)
+        assertEquals(1, server.requestCount)
+        val request = server.takeRequest()
+        assertEquals("/api/auth/logout", request.url.encodedPath)
+        assertEquals("POST", request.method)
+        assertEquals("Bearer captured-access", request.headers["Authorization"])
+        assertTrue(request.url.query == null)
+        assertTrue(request.body == null || request.body!!.size == 0)
     }
 }

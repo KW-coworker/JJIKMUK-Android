@@ -127,7 +127,7 @@ class AuthSessionManagerTest {
         sessions.acceptLogin(sessions.beginLogin(), login("old"), 0)
         val gate = CompletableDeferred<Unit>()
         val repository = object : TestAuthRepository() {
-            override suspend fun logout(accessToken: String): AuthResult<Unit> {
+            override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
                 assertEquals("old", accessToken)
                 assertNull(store.saved); assertFalse(sessions.state.value.canEnterHome)
                 gate.await()

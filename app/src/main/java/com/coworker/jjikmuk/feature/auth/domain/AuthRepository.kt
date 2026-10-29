@@ -43,6 +43,7 @@ class AuthLogin(val token: String, val userId: Long, val email: String, val expi
 
 // Credentials/proofs intentionally have no generated toString/copy/componentN.
 class RefreshCredentials(val token: String, val expiresAtMillis: Long)
+data class LogoutReceipt(val userId: Long, val serverTokenRevoked: Boolean)
 enum class AuthProvider { LOCAL, GOOGLE, LOCAL_AND_GOOGLE }
 sealed interface GoogleAuthResult {
     class SignedIn(val login: AuthLogin) : GoogleAuthResult
@@ -59,7 +60,7 @@ interface AuthRepository {
     suspend fun login(email: String, password: String): AuthResult<AuthLogin>
     suspend fun refresh(refreshToken: String): AuthResult<AuthLogin>
     suspend fun resetPassword(email: String, proof: String, newPassword: String): AuthResult<Unit>
-    suspend fun logout(accessToken: String): AuthResult<Unit>
+    suspend fun logout(accessToken: String): AuthResult<LogoutReceipt>
 }
 
 fun normalizeAuthEmail(email: String): String = normalizeAuthNickname(email).lowercase(java.util.Locale.ROOT)

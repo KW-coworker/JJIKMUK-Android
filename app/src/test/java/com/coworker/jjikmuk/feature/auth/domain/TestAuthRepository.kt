@@ -27,5 +27,5 @@ open class TestAuthRepository : AuthRepository {
         resets++
         return resetResult
     }
-    override suspend fun logout(accessToken: String): AuthResult<Unit> = error("Not used by this test")
+    override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> = error("Not used by this test")
 }

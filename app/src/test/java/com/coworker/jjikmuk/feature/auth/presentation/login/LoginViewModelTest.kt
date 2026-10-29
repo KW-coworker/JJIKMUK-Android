@@ -4,6 +4,7 @@ import com.coworker.jjikmuk.MainDispatcherRule
 import com.coworker.jjikmuk.feature.auth.domain.*
 import com.coworker.jjikmuk.feature.auth.session.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.test.*
 import org.junit.Assert.*
 import org.junit.Rule
@@ -121,5 +122,45 @@ class LoginViewModelTest {
         assertNull(manager.state.value.credentials)
         assertFalse(manager.state.value.canEnterHome)
         assertTrue(vm.uiState.value.loginError!!.contains("다시 로그인"))
+    }
+
+    @Test fun `logout double tap is suppressed and new account can log out while old request waits`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        var logoutCalls = 0
+        val repo = object : TestAuthRepository() {
+            override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
+                logoutCalls++
+                if (accessToken == "old") { gate.await(); return AuthResult.Failure(AuthFailure(AuthFailureKind.Network)) }
+                return AuthResult.Success(LogoutReceipt(2, true))
+            }
+        }
+        val vm = LoginViewModel(repo, sessions)
+        val notices = mutableListOf<String>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.notices.collect { notices.add(it) } }
+        sessions.acceptLogin(sessions.beginLogin(), AuthLogin("old", 1, "1@example.com", "unused", 3600, true), System.currentTimeMillis())
+        vm.logout(); vm.logout(); runCurrent()
+        assertEquals(1, logoutCalls); assertNull(store.saved)
+        sessions.acceptLogin(sessions.beginLogin(), AuthLogin("new", 2, "2@example.com", "unused", 3600, true), System.currentTimeMillis())
+        vm.logout(); runCurrent()
+        assertEquals(2, logoutCalls); assertNull(store.saved)
+        assertEquals(listOf("로그아웃했어요"), notices)
+        gate.complete(Unit); runCurrent()
+        assertEquals(listOf("로그아웃했어요"), notices) // Old failure does not overwrite the new outcome.
+    }
+
+    @Test fun `logout network failure reports only local exit and clears form input`() = runTest {
+        val repo = object : TestAuthRepository() {
+            override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> =
+                AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+        }
+        val vm = model(repo)
+        val notices = mutableListOf<String>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.notices.collect { notices.add(it) } }
+        sessions.acceptLogin(sessions.beginLogin(), AuthLogin("old", 1, "1@example.com", "unused", 3600, true), System.currentTimeMillis())
+        vm.logout(); runCurrent()
+        assertNull(store.saved); assertFalse(sessions.state.value.canEnterHome)
+        assertEquals("", vm.uiState.value.email); assertEquals("", vm.uiState.value.password)
+        assertEquals(1, notices.size)
+        assertTrue(notices.single().contains("서버 로그아웃 완료는 확인하지 못했어요"))
     }
 }

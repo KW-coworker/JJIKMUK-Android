@@ -78,16 +78,27 @@ class AuthSessionManager(
 
     suspend fun clear() = withContext(NonCancellable) { mutex.withLock { clearLocked() } }
 
-    /** Clear locally first. This captures the OLD token; its response can never clear a newer session. */
-    suspend fun logout(repository: AuthRepository) {
-        val previous = withContext(NonCancellable) {
-            mutex.withLock {
-                val token = mutableState.value.credentials?.accessToken
-                clearLocked()
-                token
-            }
+    /** Local exit never waits for the server. Never refresh/replay logout or persist a retry credential. */
+    suspend fun logout(repository: AuthRepository): LogoutOutcome = withContext(NonCancellable) {
+        val (previous, cleared) = mutex.withLock {
+            initialized = true // A later restore must not revive the cleared file in this process.
+            val credentials = state.value.credentials
+            clearLocked()
+            credentials to state.value
         }
-        if (previous != null) repository.logout(previous)
+        if (previous == null) return@withContext LogoutOutcome(cleared.generation,
+            !cleared.storageFailed, ServerLogoutStatus.NoSession)
+        // Also make one best-effort request for expired Access; acceptance is a pending BE contract.
+        // Finish this bounded HTTP operation despite screen cancellation; never mutate session afterwards.
+        val response = try { repository.logout(previous.accessToken) }
+            catch (_: Exception) { AuthResult.Failure(AuthFailure(AuthFailureKind.Network)) }
+        val failure = when (response) {
+            is AuthResult.Success -> if (response.value.userId == previous.userId && response.value.serverTokenRevoked)
+                null else AuthFailure(AuthFailureKind.InvalidResponse)
+            is AuthResult.Failure -> response.error
+        }
+        LogoutOutcome(cleared.generation, !cleared.storageFailed,
+            if (failure == null) ServerLogoutStatus.Confirmed else ServerLogoutStatus.Unconfirmed, failure)
     }
 
     /** Incomplete/restored users may request me/complete when explicitly allowed; this never grants Home. */
