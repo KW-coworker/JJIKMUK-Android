@@ -1,7 +1,7 @@
 # 인증 확장 계약 — 세션·프로필·사진·가족·상품 분석 대상
 
-> 정리: 2026-10-29. 근거: 백엔드 변경 회신 11쪽(본문 검증일 2026-10-23). 기존 인증 API는 [auth-api.md](auth-api.md).
-> **백엔드 구현 회신 기준이며 배포 완료나 최종 정책 합의를 뜻하지 않는다.** 실서버 호출은 이번 검토에서 하지 않았다. 원본 전달 PDF 두 개는 로컬 전용이며, 이 문서는 비밀값 없는 공유용 계약 정리다.
+> 갱신: **2026-10-31**. 백엔드 main `7dd4273`의 [인증 v2 원문](backend/api-spec/frontend-auth-integration-v2.md)과 관련 구현을 대조했다. [출처/우선순위](README.md), [기본 인증](auth-api.md) 참조.
+> 공식 원문 확보·일부 코드 대조 완료이며 실서버 배포 검증은 아니다. 사용자 합의와 서버 현재 구현값을 구분한다.
 
 ## 1. 변경 목록과 상태
 
@@ -23,7 +23,7 @@
 | PATCH `/api/users/me/family-profiles/{id}` | Bearer | 부분 필드 + `version` → 최신 FamilyProfile/version |
 | DELETE `/api/users/me/family-profiles/{id}?version={version}` | Bearer | version 필수 → 200 message |
 
-기존 login/google/logout의 주소는 같지만 응답·동작이 바뀌었다. 회신의 ‘신규 13개, 전체 40개’는 서버 전체 API 기준이며 이 표는 인증 프론트에 필요한 기존/추가 계약을 함께 나열한다. 비밀번호 변경·탈퇴의 정확한 주소와 요청을 이 표에서 추측하지 않는다.
+기존 login/google/logout의 주소는 같지만 응답·동작이 바뀌었다. 회신의 ‘신규 13개, 전체 40개’는 서버 전체 API 기준이며 이 표는 인증 프론트에 필요한 기존/추가 계약을 함께 나열한다. 비밀번호 변경·탈퇴는 전체 원문에서 확보했다. [기본 인증 7절](auth-api.md#7-추가-확보한-계정-관리-계약) 참조.
 
 ## 2. 새 로그인 모델·Refresh·로그아웃 (회신 1~4쪽)
 
@@ -58,7 +58,7 @@
 - 회신은 네트워크/503의 세션 보존도 설명한다. Refresh의 경우 **회전 전 확정 실패와 회전 후 유실을 어떻게 구별할지**는 추가 질문 대상이다. 모든 IOException을 안전한 재시도로 취급하지 않는다.
 - login/google/refresh/google-link는 보통 Bearer를 첨부하지 않는다. 오래된 Bearer 때문에 자체 증명 검증이 차단되지 않는다고 회신했다.
 
-로그아웃은 Body 없는 `POST /api/auth/logout`, Bearer 사용, 200 `data.userId`/`serverTokenRevoked=true`. 현재 기기 Access/Refresh를 폐기하며 사진·가족은 남는다. 구형 sid 없는 JWT는 모든 세션 폐기 예외가 있다. 비밀번호 변경·재설정은 tokenVersion 증가 + 모든 세션 폐기, 탈퇴는 계정 세션·사진·가족 삭제다. 정확한 변경/탈퇴 요청 계약은 추가 확보한다.
+로그아웃은 Body 없는 `POST /api/auth/logout`, Bearer 사용, 200 `data.userId`/`serverTokenRevoked=true`. 현재 기기 Access/Refresh를 폐기하며 사진·가족은 남는다. 구형 sid 없는 JWT는 모든 세션 폐기 예외가 있다. 비밀번호 변경·재설정은 tokenVersion 증가 + 모든 세션 폐기, 탈퇴는 계정 세션·사진·가족 삭제다. 변경은 PUT /api/users/{id}/password, 탈퇴는 DELETE /api/users/{id}이며 전체 원문과 UserController에서 확인했다.
 
 프론트 2-3: 로그아웃 응답의 userId/true 폐기를 검증하고, 기기 정리 성공과 서버 폐기 확인을 별도 결과로 관리한다. 만료 Access도 캡처한 토큰으로 한 번 시도하되, 실패 시 서버 폐기 완료로 안내하지 않는다. 자동 갱신/재전송은 하지 않는다. 만료 Access 계약과 동시 갱신 후 폐기 보장은 실서버/백엔드 확인 대기다.
 
@@ -144,7 +144,7 @@ PATCH 허용: `nickname`, `allergies`, `diseases`, `specialDiet`, `dislikedIngre
 
 **PATCH 직렬화 주의:** 프론트 모델에서 미전송/명시적 null/실제 값을 구분한다. Gson의 기본 null 생략으로 ‘모두 해제’가 사라지거나, 전역 serializeNulls로 다른 필드까지 비워지는 일이 없어야 한다.
 
-카탈로그는 `GET /api/products/classifications`(알레르기 26), `GET /api/products/filters`(채식 6·영양 6)를 따른다. 실제 전체 JSON/정규 key 목록은 이번 PDF에 없으므로 응답 예시를 확보해야 한다. low_sugar → lowSugar처럼 **명시적 매핑표**를 만든다. 모든 underscore를 자동 camelCase로 바꾸지 않는다. 예를 들어 pine_nut의 실제 서버 값도 확인한다. diseases/dislikedIngredients 미입력은 null이며 저당을 질환으로 변환하지 않는다.
+카탈로그는 `GET /api/products/classifications`(알레르기 26), `GET /api/products/filters`(채식 6·영양 6)를 따른다. **전체 JSON/정규 key 및 공개 조회 계약 확보·가입 매핑 완료.** [매핑표](../auth-signup-condition-mapping.md) 참조. low_sugar → lowSugar를 명시적으로 매핑하며 pine_nut은 그대로 사용한다. diseases/dislikedIngredients 미입력은 null이며 저당을 질환으로 변환하지 않는다.
 
 ## 5. 사진 (회신 6~7쪽)
 
@@ -175,7 +175,7 @@ PATCH 허용: `nickname`, `allergies`, `diseases`, `specialDiet`, `dislikedIngre
 ```
 
 - 목록 data 배열, 단건 data 객체. 비밀번호/ownerId를 보내지 않고 Bearer로 소유자 제한.
-- ‘나’는 GET me이며 가족으로 복제하지 않는다. 가족 이름의 전역 중복 검사는 없음. 현재 최대 20명, 정확한 이름 제한·20명에 본인 포함 여부는 추가 확인.
+- ‘나’는 GET me이며 가족으로 복제하지 않는다. 가족 이름의 전역 중복 검사는 없음. 코드상 가족 행 최대 20개(본인은 별도 me이므로 제외), 이름은 계정과 같은 NFKC·trim 후 2~20자 한글/영문/숫자/밑줄이다. 인원/이름 제약을 제품 정책으로 수용할지 결정한다.
 - PATCH: 부분 수정 규칙 + 마지막 `version` 필수. DELETE: query version 필수.
 - 타인/삭제된 ID: `404 FAMILY_NOT_FOUND`; 오래된 버전: `409 PROFILE_VERSION_CONFLICT`; 누락/잘못된 버전: 400.
 - 충돌 시 GET 재조회 후 사용자 확인을 거쳐 최신 version 제출. 무조건 덮어쓰기/자동 재시도 금지.
@@ -204,15 +204,15 @@ GET /api/products/search?keyword=두유&analysisMode=none
 GET /api/products/8800000000000?analysisMode=selected&includeSelf=true&familyProfileIds=41,42
 ```
 
-- 서버가 실제 가족 조건을 읽는다. 계정 식별은 Bearer, 가족 식별은 서버 가족 ID. GET Body로 임의 조건을 전송하지 않는다. 기존 프론트 userId/allergies query와의 호환/우선순위는 확인 후 새 계약으로 전환.
+- 서버가 실제 가족 조건을 읽는다. 계정 식별은 Bearer, 가족 식별은 서버 가족 ID. GET Body로 임의 조건을 전송하지 않는다. 구형 allergies query가 본인 조건을 바꾸지 않는다는 백엔드 격리 테스트 기록이 있다. 가족 선택은 반드시 서버 가족 ID/analysisMode 계약으로 전환한다.
 - 알레르기·기피 성분은 합집합, 식단·질환 제한은 모두 충족. 필수 조건은 후보 부족 때문에 완화하지 않는다.
 - none: `analysis.status=NOT_EVALUATED`, `analysis.analysisApplied=false`, `analysis.selection.mode=none`. `isDangerous=false`만 보고 안전 표시 금지.
-- 상품의 기존 analysis.status는 알레르기 판정. 새 `analysis.dietConstraints`는 식단 판정이며 PASS라도 식단 MISMATCH/UNKNOWN일 수 있다. 전체 DTO/enum/사유 필드는 추가 확보.
+- 상품의 기존 analysis.status는 알레르기 판정. 새 `analysis.dietConstraints`는 식단 판정이며 PASS라도 식단 MISMATCH/UNKNOWN일 수 있다. 전체 DTO/enum/사유는 확보한 전체 명세·v2를 기준으로 프론트 모델에 대조·반영한다.
 - 추천 대상 정보 `data.analysisSelection`. none은 홈 recommendationMode/대체 resultMode GENERAL, safety/dietConstraints NOT_EVALUATED, 대체 recommendationTier GENERAL. ‘맞춤 안심 추천’으로 표시하지 않는다.
 - 가족/none에서는 본인 행동 이력으로 개인화하지 않는다. 단건 자동 SCAN은 self에서만. 기존 POST histories/events도 가족/none을 본인 선호로 보내지 않는다.
 - 계정·선택 대상·조건·카테고리 변경 시 cursor와 이전 요청 결과를 버리고 첫 페이지 조회. 구형 cursor 재사용 금지, excludeBarcodes 중복 제외는 유지.
 - 같은 용량의 여러 행은 알레르기·식단 모두 보수적으로 합침. 충돌을 대표 행만 보고 무시하지 않는다.
-- 별도 AI 챗봇에는 이 query가 전파되지 않았다. 가족 분석 조건 전달은 별도 계약 필요.
+- 최신 `/api/chat`은 같은 분석 대상 query와 공통 판정을 사용한다. [챗봇 계약](backend/api-spec/chat-analysis-contract-v1.md) 확보 완료. 별도 AI의 실제 수신·헤더 확인 및 공동 배포는 후속이며 계약만으로 전체 연동 완료는 아니다.
 - 이것은 복수 **사람**에 대한 판정 계약이다. 여러 **상품**의 비교 레포트/순위 API가 확보됐다는 뜻은 아니다.
 
 ## 8. 오류·응답 유실·실서버 검증
@@ -234,3 +234,10 @@ GET /api/products/8800000000000?analysisMode=selected&includeSelf=true&familyPro
 백엔드 보고: 2026-10-23 테스트 144개 중 140개 통과, 실패 0, 조건부 CSV 4개 제외. H2/모의 외부 인증 기반이며 운영 MySQL·실제 Google·메일 검증은 아니다. V14 파일 추가는 실제 DB 적용 완료를 뜻하지 않는다.
 
 실서버 검증 시작 조건: 배포 담당자의 버전·V14 적용 확인, 정확한 주소, 테스트 계정, 실제 메일/Google 설정. 두 기기 로그인·회전·기기별 로그아웃·비밀번호 전체 폐기·가족 충돌·사진 격리를 단계적으로 검증한다. 백엔드 배포/DB 적용은 프론트 작업에서 실행하지 않는다.
+
+
+## 9. 이번 갱신에서 확인한 범위
+
+AuthController/UserController/FamilyProfiles/ProfilePhotos/ProfileInputs/AccountInputPolicy/UserPreferenceCatalog 및 JwtAuthenticationFilter/AuthSessions의 관련 경로·검증을 읽었다. 가족 relation/emoji는 허용 필드에 없고 추가하면 현재 400이다. 가족 중복 이름은 허용되지만 이름 규칙은 계정과 동일하다.
+
+만료 Access는 JWT 필터가 logout 전에 거절한다. 만료 시 서버 세션 폐기 대안 및 Refresh의 오류별 안전 재시도 정책은 여전히 협의 대상이다. 사진·가족 API는 실제 구현이 있지만 원격 배포·SMTP·Google·DB는 확인하지 않았다.

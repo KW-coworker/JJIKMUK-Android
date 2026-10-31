@@ -1,6 +1,6 @@
 package com.coworker.jjikmuk.feature.auth.domain
 
-open class TestAuthRepository : AuthRepository {
+open class TestAuthRepository : AuthRepository by com.coworker.jjikmuk.feature.auth.data.HttpAuthRepository.unconfigured() {
     var sends = 0
     var verifies = 0
     var resets = 0

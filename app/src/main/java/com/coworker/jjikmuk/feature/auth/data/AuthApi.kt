@@ -16,7 +16,34 @@ internal interface AuthApi {
     @PATCH("api/users/me") suspend fun patchProfile(@Header("Authorization") authorization: String,
         @Body patch: com.coworker.jjikmuk.feature.auth.domain.ProfilePatch): Response<Envelope<ProfileBody>>
     @POST("api/auth/logout") suspend fun logout(@Header("Authorization") authorization: String): Response<Envelope<LogoutBody>>
+    @POST("api/users/me/profile/complete") suspend fun complete(@Header("Authorization") authorization: String,
+        @Body body: com.coworker.jjikmuk.feature.auth.domain.ProfileSubmission): Response<Envelope<ProfileBody>>
+    @POST("api/auth/google") suspend fun google(@Body body: GoogleBody): Response<com.google.gson.JsonObject>
+    @POST("api/auth/google/link") suspend fun linkGoogle(@Body body: GoogleLinkBody): Response<LoginResponse>
+    @POST("api/auth/google/link/cancel") suspend fun cancelGoogle(@Body body: GoogleCancelBody): Response<MessageBody>
+    @Streaming @GET("api/users/me/photo") suspend fun photo(@Header("Authorization") authorization: String): Response<okhttp3.ResponseBody>
+    @Multipart @PUT("api/users/me/photo") suspend fun uploadPhoto(@Header("Authorization") authorization: String,
+        @Part file: okhttp3.MultipartBody.Part): Response<Envelope<PhotoReceiptBody>>
+    @DELETE("api/users/me/photo") suspend fun deletePhoto(@Header("Authorization") authorization: String): Response<MessageBody>
+    @GET("api/users/me/family-profiles") suspend fun families(@Header("Authorization") authorization: String): Response<Envelope<List<FamilyBody>>>
+    @GET("api/users/me/family-profiles/{id}") suspend fun family(@Header("Authorization") authorization: String, @Path("id") id: Long): Response<Envelope<FamilyBody>>
+    @POST("api/users/me/family-profiles") suspend fun createFamily(@Header("Authorization") authorization: String,
+        @Body body: com.coworker.jjikmuk.feature.auth.domain.ProfileSubmission): Response<Envelope<FamilyBody>>
+    @PATCH("api/users/me/family-profiles/{id}") suspend fun patchFamily(@Header("Authorization") authorization: String,
+        @Path("id") id: Long, @Body body: okhttp3.RequestBody): Response<Envelope<FamilyBody>>
+    @DELETE("api/users/me/family-profiles/{id}") suspend fun deleteFamily(@Header("Authorization") authorization: String,
+        @Path("id") id: Long, @Query("version") version: Long): Response<MessageBody>
+    @PUT("api/users/{id}/password") suspend fun changePassword(@Header("Authorization") authorization: String,
+        @Path("id") id: Long, @Body body: ChangePasswordBody): Response<MessageBody>
+    @DELETE("api/users/{id}") suspend fun deleteAccount(@Header("Authorization") authorization: String, @Path("id") id: Long): Response<MessageBody>
 }
+internal class GoogleBody(val idToken: String)
+internal class GoogleLinkBody(val linkToken: String, val currentPassword: String)
+internal class GoogleCancelBody(val linkToken: String)
+internal class ChangePasswordBody(val currentPassword: String, val newPassword: String)
+internal class PhotoReceiptBody(val photoUrl: String?, val authenticationRequired: Boolean?)
+internal class FamilyBody(val id: Long?, val nickname: String?, val allergies: String?, val specialDiet: String?,
+    val diseases: String?, val dislikedIngredients: String?, val version: Long?)
 internal class SendBody(val email: String, val purpose: String)
 internal class VerifyBody(val email: String, val purpose: String, val code: String)
 internal class LoginBody(val email: String, val password: String)

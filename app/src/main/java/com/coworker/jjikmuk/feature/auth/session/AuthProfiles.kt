@@ -23,6 +23,10 @@ class AuthProfiles @Inject constructor(
         requests.execute(requireCompletedProfile = false) { repository.patchProfile(it, patch) }
     }
 
+    suspend fun complete(input: ProfileSubmission): AuthResult<AuthProfile> = perform {
+        requests.execute(requireCompletedProfile = false) { repository.completeProfile(it, input) }
+    }
+
     private suspend fun perform(request: suspend () -> AuthResult<AuthProfile>): AuthResult<AuthProfile> {
         val generation = sessions.state.value.generation
         return mutex.withLock {

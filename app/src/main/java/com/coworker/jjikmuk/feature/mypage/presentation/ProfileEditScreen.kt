@@ -46,7 +46,8 @@ fun ProfileEditRoute(onBackClick: () -> Unit, viewModel: ProfileEditViewModel = 
         onDispose { viewModel.close() }
     }
     ProfileEditScreen(onBackClick = onBackClick, state = state,
-        onNicknameChange = viewModel::updateNickname, onSave = viewModel::save, onReload = viewModel::reload)
+        onNicknameChange = viewModel::updateNickname, onSave = viewModel::save, onReload = viewModel::reload,
+        photoEditor = { com.coworker.jjikmuk.feature.auth.photo.AccountPhotoEditor() })
 }
 
 @Composable
@@ -57,6 +58,7 @@ fun ProfileEditScreen(
     onNicknameChange: (String) -> Unit = {},
     onSave: () -> Unit = {},
     onReload: () -> Unit = {},
+    photoEditor: (@Composable () -> Unit)? = null,
 ) {
 
     Scaffold(
@@ -85,7 +87,7 @@ fun ProfileEditScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             Spacer(modifier = Modifier.height(42.dp))
-            JjikmukProfileImagePicker(
+            if (photoEditor != null) photoEditor() else JjikmukProfileImagePicker(
                 imageModel = null,
                 onClick = {},
                 containerSize = 108.dp,

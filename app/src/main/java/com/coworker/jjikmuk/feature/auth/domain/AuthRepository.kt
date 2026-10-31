@@ -63,6 +63,20 @@ interface AuthRepository {
     suspend fun logout(accessToken: String): AuthResult<LogoutReceipt>
     suspend fun me(accessToken: String): AuthResult<AuthProfile>
     suspend fun patchProfile(accessToken: String, patch: ProfilePatch): AuthResult<AuthProfile>
+    suspend fun completeProfile(accessToken: String, input: ProfileSubmission): AuthResult<AuthProfile>
+    suspend fun google(idToken: String): AuthResult<GoogleAuthResult>
+    suspend fun linkGoogle(linkToken: String, currentPassword: String): AuthResult<AuthLogin>
+    suspend fun cancelGoogleLink(linkToken: String): AuthResult<Unit>
+    suspend fun photo(accessToken: String): AuthResult<ProfilePhoto>
+    suspend fun uploadPhoto(accessToken: String, photo: ProfilePhoto): AuthResult<PhotoUploadReceipt>
+    suspend fun deletePhoto(accessToken: String): AuthResult<Unit>
+    suspend fun families(accessToken: String): AuthResult<List<FamilyProfile>>
+    suspend fun family(accessToken: String, id: Long): AuthResult<FamilyProfile>
+    suspend fun createFamily(accessToken: String, input: ProfileSubmission): AuthResult<FamilyProfile>
+    suspend fun patchFamily(accessToken: String, id: Long, version: Long, patch: ProfilePatch): AuthResult<FamilyProfile>
+    suspend fun deleteFamily(accessToken: String, id: Long, version: Long): AuthResult<Unit>
+    suspend fun changePassword(accessToken: String, userId: Long, currentPassword: String, newPassword: String): AuthResult<Unit>
+    suspend fun deleteAccount(accessToken: String, userId: Long): AuthResult<Unit>
 }
 
 fun normalizeAuthEmail(email: String): String = normalizeAuthNickname(email).lowercase(java.util.Locale.ROOT)
