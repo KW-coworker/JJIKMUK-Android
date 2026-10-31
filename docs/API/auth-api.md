@@ -742,7 +742,7 @@ Authorization: Bearer {token}
 | 카탈로그 | **확보·가입 매핑 완료:** 알레르기 26/채식 6/영양 6, 공개 조회와 CSV 계약. [매핑표](../auth-signup-condition-mapping.md) |
 | Google 설정·접근 정책 | Client ID/앱 등록 정보, 미완료 계정의 서버 API 허용 범위, 연결 5분/5회 합의 |
 | 가입 사진 | 가입은 JWT 미발급, 사진 업로드는 Bearer 필수. 가입 때 선택한 사진을 언제 업로드할지 UI 정책 필요 |
-| 비밀번호 변경·탈퇴 | **계약 확보:** PUT /api/users/{id}/password 및 DELETE /api/users/{id}. 아래 상세. 프론트 연결·재확인 UX·실서버 검증 후속 |
+| 비밀번호 변경·탈퇴 | **계약 확보:** PUT /api/users/{id}/password 및 DELETE /api/users/{id}. 아래 상세. 프론트 화면 연결·결과 유실 복구 구현 완료. 실서버 검증 후속 |
 | 가족·사진 | 가족 관계/이모지 필드, 이름·인원 제한, 선택 상태·로컬 데이터 이전, 사진 저장 방식·제한 합의 |
 | 상품 상세 계약 | 새 분석 필드의 전체 스키마/enum, 기존 검색·정렬·페이지 계약과 조합, 가족/none 이력·챗봇 범위 |
 

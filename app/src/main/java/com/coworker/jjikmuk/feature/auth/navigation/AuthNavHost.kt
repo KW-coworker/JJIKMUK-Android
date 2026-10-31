@@ -1,5 +1,7 @@
 package com.coworker.jjikmuk.feature.auth.navigation
 
+import com.coworker.jjikmuk.feature.auth.presentation.profile.ProfileCompletionRoute
+import com.coworker.jjikmuk.feature.auth.presentation.profile.ProfileCompletionViewModel
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.fadeIn
@@ -60,6 +62,7 @@ fun AuthNavHost(
     passwordResetViewModel: PasswordResetViewModel = hiltViewModel(),
     signUpViewModel: SignUpViewModel = hiltViewModel(),
     accountActionViewModel: AccountActionViewModel = hiltViewModel(),
+    profileCompletionViewModel: ProfileCompletionViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -122,6 +125,7 @@ fun AuthNavHost(
                 val destination = when {
                     entry == SessionEntryState.Ready && session.canEnterHome && session.profile != null -> AuthRoute.Home
                     entry == SessionEntryState.SignedOut && session.credentials == null -> AuthRoute.AuthChoice
+                    entry == SessionEntryState.ProfileRequired && session.credentials != null && session.profile?.profileCompleted == false -> AuthRoute.ProfileCompletion
                     else -> null
                 }
                 if (destination != null) navController.navigate(destination) {
@@ -130,6 +134,18 @@ fun AuthNavHost(
                 }
             }
             SessionEntryScreen(entry, loginViewModel::checkSession, loginViewModel::logout)
+        }
+
+        composable(AuthRoute.ProfileCompletion) {
+            fun returnToEntry() {
+                if (navController.currentDestination?.route != AuthRoute.ProfileCompletion) return
+                navController.navigate(AuthRoute.SessionEntry) {
+                    popUpTo(navController.graph.id) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            ProfileCompletionRoute(profileCompletionViewModel, onFinished = ::returnToEntry,
+                onSessionLost = ::returnToEntry, onLogout = loginViewModel::logout)
         }
 
         composable(AuthRoute.AuthChoice) {

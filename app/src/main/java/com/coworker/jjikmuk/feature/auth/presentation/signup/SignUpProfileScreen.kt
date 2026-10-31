@@ -162,6 +162,9 @@ fun SignUpProfileScreen(
     onLoginClick: () -> Unit = {},
     onEditPassword: () -> Unit = {},
     modifier: Modifier = Modifier,
+    photoContent: (@Composable () -> Unit)? = null,
+    actionContent: (@Composable () -> Unit)? = null,
+    description: String? = null,
 ) {
     val colors = JjikmukTheme.colors
     val selectedItems = profileSelectedItems(uiState)
@@ -196,14 +199,16 @@ fun SignUpProfileScreen(
                         style = JjikmukTheme.typography.h1,
                     )
                     Text(
-                        text = stringResource(R.string.sign_up_profile_description),
+                        text = description ?: stringResource(R.string.sign_up_profile_description),
                         color = colors.textSecondary,
                         style = JjikmukTheme.typography.bodyL,
                         modifier = Modifier.padding(top = 18.dp),
                     )
                 }
 
-                JjikmukProfileImagePicker(
+                if (photoContent != null) Box(Modifier.align(Alignment.TopCenter).offset(y = 134.dp)) {
+                    photoContent()
+                } else JjikmukProfileImagePicker(
                     imageModel = uiState.profilePhotoBitmap ?: uiState.profilePhotoUri,
                     onClick = onPhotoClick,
                     modifier = Modifier
@@ -315,7 +320,7 @@ fun SignUpProfileScreen(
                 (uiState.submitError ?: uiState.nicknameError)?.let {
                     Text(it, color = colors.textSecondary, style = JjikmukTheme.typography.bodyM)
                 }
-                when (uiState.recovery) {
+                if (actionContent != null) actionContent() else when (uiState.recovery) {
                     SignUpRecovery.None -> JjikmukPrimaryButton(
                         text = if (uiState.isSubmitting) "가입 중…" else stringResource(R.string.sign_up_email_next),
                         onClick = onNextClick,

@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.feature.auth.navigation
 
+import com.coworker.jjikmuk.feature.auth.presentation.profile.ProfileCompletionViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.coworker.jjikmuk.feature.mypage.presentation.AccountActionViewModel
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -10,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import com.coworker.jjikmuk.feature.auth.session.*
 import com.coworker.jjikmuk.feature.auth.domain.*
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
@@ -74,7 +76,7 @@ class AuthNavHostTest {
         composeRule.setContent {
             JjikmukTheme {
                 AuthNavHost(navController = navController, signUpViewModel = signup, passwordResetViewModel = passwordReset, loginViewModel = login,
-                    accountActionViewModel = account)
+                    accountActionViewModel = account, profileCompletionViewModel = ProfileCompletionViewModel(repository, AuthProfiles(repository, sessions, AuthenticatedRequests(sessions, repository)), sessions))
             }
         }
         // These tests isolate auth navigation from permission onboarding.
@@ -206,8 +208,10 @@ class AuthNavHostTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             login.entryState.value == com.coworker.jjikmuk.feature.auth.presentation.login.SessionEntryState.ProfileRequired
         }
-        composeRule.onNodeWithText("프로필 추가 입력이 필요해요").assertIsDisplayed()
+        composeRule.waitUntil(5_000) { navController.currentDestination?.route == AuthRoute.ProfileCompletion }
+        composeRule.onNodeWithText("닉네임 생성").assertIsDisplayed()
         composeRule.runOnIdle { assertFalse(sessions.state.value.canEnterHome) }
+        composeRule.onNodeWithContentDescription("뒤로가기").performClick()
         composeRule.onNodeWithText("로그아웃").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) { navController.currentDestination?.route == AuthRoute.AuthChoice }
     }

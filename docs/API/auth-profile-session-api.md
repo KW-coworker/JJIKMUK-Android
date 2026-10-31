@@ -140,7 +140,7 @@ PATCH 허용: `nickname`, `allergies`, `diseases`, `specialDiet`, `dislikedIngre
 
 본인 nickname 유지/대소문자 변경은 허용하지만 공개 중복 조회는 available=false일 수 있다. 본인 프로필은 필드별 마지막 저장 우선이고 가족처럼 version이 없다. 응답 유실 시 GET me로 확인한다.
 
-프론트 3단계: GET me로 세션 복원·본인 ID/이메일 확인, 마이페이지 표시 및 닉네임 PATCH 연결. 통신 실패는 세션/입력 보존, 수정 응답 유실은 최신 조회 후 사용자 재제출. `profileCompleted=false`는 홈 차단·안내까지이며 실제 추가 입력/완료와 가족·조건 편집 연결은 후속이다. 서버 계약 변경 없이 위 계약을 구현했다.
+프론트 3단계: GET me로 세션 복원·본인 ID/이메일 확인, 마이페이지 표시 및 닉네임 PATCH 연결. 통신 실패는 세션/입력 보존, 수정 응답 유실은 최신 조회 후 사용자 재제출. `profileCompleted=false`는 홈을 차단하고 기존 가입 UI를 재사용한 추가 입력/complete 제출로 연결한다. 완료 응답 유실 시 GET me로 확인하고, 완료 확인 후 홈으로 이동한다. 가족·본인 조건 편집 연결은 후속이다. 서버 계약 변경 없이 위 계약을 구현했다.
 
 **PATCH 직렬화 주의:** 프론트 모델에서 미전송/명시적 null/실제 값을 구분한다. Gson의 기본 null 생략으로 ‘모두 해제’가 사라지거나, 전역 serializeNulls로 다른 필드까지 비워지는 일이 없어야 한다.
 

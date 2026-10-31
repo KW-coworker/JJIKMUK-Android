@@ -187,4 +187,19 @@ class AuthProfilesTest {
         assertNull(sessions.state.value.profile)
         assertTrue(sessions.state.value.storageFailed)
     }
+    @Test fun `completion refuses a previous account draft before sending a mutation`() = runTest {
+        restore()
+        val oldGeneration = sessions.state.value.generation
+        sessions.acceptLogin(sessions.beginLogin(), login("new", id = 2), now)
+        var completions = 0
+        val repo = object : TestAuthRepository() {
+            override suspend fun completeProfile(accessToken: String, input: ProfileSubmission): AuthResult<AuthProfile> {
+                completions++; return AuthResult.Success(profile(id = 2))
+            }
+        }
+        val result = service(repo).complete(ProfileSubmission("이전계정입력"), oldGeneration)
+        assertEquals("SESSION_CHANGED", (result as AuthResult.Failure).error.code)
+        assertEquals(0, completions); assertEquals(2L, sessions.state.value.credentials!!.userId)
+    }
+
 }

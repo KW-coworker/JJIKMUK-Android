@@ -30,14 +30,7 @@ fun SessionEntryScreen(state: SessionEntryState, onRetry: () -> Unit, onLogout: 
                     JjikmukSecondaryButton("로그아웃", onLogout)
                 }
                 SessionEntryState.ProfileRequired -> {
-                    Text("프로필 추가 입력이 필요해요", style = JjikmukTheme.typography.h1)
-                    Spacer(Modifier.height(12.dp))
-                    Text("추가 입력 기능을 준비 중이에요. 완료 전에는 홈을 이용할 수 없어요.",
-                        style = JjikmukTheme.typography.bodyL)
-                    Spacer(Modifier.height(24.dp))
-                    JjikmukPrimaryButton("완료 상태 다시 확인", onRetry)
-                    Spacer(Modifier.height(12.dp))
-                    JjikmukSecondaryButton("로그아웃", onLogout)
+                    Text("추가 프로필 입력으로 이동하고 있어요", style = JjikmukTheme.typography.bodyL)
                 }
                 else -> {
                     CircularProgressIndicator(color = JjikmukTheme.colors.brand)

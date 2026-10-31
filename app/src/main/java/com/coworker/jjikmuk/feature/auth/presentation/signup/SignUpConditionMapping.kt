@@ -40,5 +40,21 @@ internal object SignUpConditionMapping {
         )
     }
 
+    /** Refuse unknown server values instead of silently clearing them on full submission. */
+    fun decode(allergyCsv: String?, dietCsv: String?): SignUpUiState? {
+        fun values(csv: String?) = csv.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        val selectedAllergies = values(allergyCsv)
+        val selectedDiet = values(dietCsv)
+        if (selectedAllergies.any { it !in allergies } ||
+            selectedDiet.any { it !in nutrition.values && it !in vegetarian.values }) return null
+        val vegetarians = vegetarian.filterValues { it in selectedDiet }.keys
+        if (vegetarians.size > 1) return null
+        val selected = nutrition.filterValues { it in selectedDiet }.keys.toMutableSet()
+        if (selectedAllergies.isNotEmpty()) selected += SignUpCondition.Allergy
+        if (vegetarians.isNotEmpty()) selected += SignUpCondition.Vegetarian
+        return SignUpUiState(selectedConditions = selected, allergies = selectedAllergies,
+            vegetarianDiet = vegetarians.singleOrNull())
+    }
+
     data class Conditions(val allergies: String?, val specialDiet: String?)
 }
