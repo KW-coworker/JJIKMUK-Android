@@ -20,4 +20,6 @@ internal object AuthRoute {
     const val SignUpComplete = "sign-up/complete"
     const val SessionEntry = "session-entry"
     const val Home = "home"
+    const val AccountPassword = "account/password"
+    const val AccountWithdrawal = "account/withdrawal"
 }

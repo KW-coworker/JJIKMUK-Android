@@ -17,6 +17,10 @@ import androidx.compose.runtime.key
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountAction
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountActionRoute
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountActionViewModel
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.coworker.jjikmuk.feature.auth.development.developerHomeGraph
@@ -55,8 +59,10 @@ fun AuthNavHost(
     loginViewModel: LoginViewModel = hiltViewModel(),
     passwordResetViewModel: PasswordResetViewModel = hiltViewModel(),
     signUpViewModel: SignUpViewModel = hiltViewModel(),
+    accountActionViewModel: AccountActionViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val currentEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(loginViewModel, context) {
         loginViewModel.notices.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }
@@ -173,10 +179,28 @@ fun AuthNavHost(
 
         developerHomeGraph(navController)
 
+        for ((route, action) in listOf(AuthRoute.AccountPassword to AccountAction.Password,
+            AuthRoute.AccountWithdrawal to AccountAction.Withdrawal)) {
+            composable(route) {
+                fun exitTo(destination: String) {
+                    loginViewModel.reset()
+                    navController.navigate(destination) {
+                        popUpTo(navController.graph.id) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+                AccountActionRoute(action, accountActionViewModel,
+                    onBack = { navController.popBackStack() },
+                    onAuthRequired = { exitTo(AuthRoute.SessionEntry) },
+                    onComplete = { exitTo(if (action == AccountAction.Withdrawal) AuthRoute.AuthChoice else AuthRoute.Login) })
+            }
+        }
+
         composable(AuthRoute.Home) {
             val session by loginViewModel.sessionState.collectAsStateWithLifecycle()
             if (!session.canEnterHome || session.profile == null) {
-                LaunchedEffect(session.generation) {
+                LaunchedEffect(session.generation, currentEntry?.destination?.route) {
+                    if (currentEntry?.destination?.route != AuthRoute.Home) return@LaunchedEffect
                     signUpViewModel.reset()
                     passwordResetViewModel.reset()
                     navController.navigate(AuthRoute.SessionEntry) {
@@ -186,7 +210,9 @@ fun AuthNavHost(
                 }
             } else {
                 key(session.generation) {
-                    JjikmukAppContent(onReturnToAuthChoice = loginViewModel::logout, profile = session.profile)
+                    JjikmukAppContent(onReturnToAuthChoice = loginViewModel::logout, profile = session.profile,
+                        onPasswordChangeClick = { navController.navigate(AuthRoute.AccountPassword) { launchSingleTop = true } },
+                        onWithdrawalClick = { navController.navigate(AuthRoute.AccountWithdrawal) { launchSingleTop = true } })
                 }
             }
         }

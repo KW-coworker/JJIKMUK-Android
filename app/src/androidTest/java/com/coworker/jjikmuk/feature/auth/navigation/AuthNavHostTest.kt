@@ -1,5 +1,7 @@
 package com.coworker.jjikmuk.feature.auth.navigation
 
+import androidx.lifecycle.SavedStateHandle
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountActionViewModel
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
@@ -12,6 +14,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
 import kotlinx.coroutines.runBlocking
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.data.HttpAuthRepository
@@ -38,8 +43,16 @@ class AuthNavHostTest {
     private var meResult: AuthResult<AuthProfile> = AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
     private var signupResult: AuthResult<Long> = AuthResult.Success(42L)
     private var signupCalls = 0
+    private var accountCalls = 0
+    private var accountResult: AuthResult<Unit> = AuthResult.Success(Unit)
     private val repository = object : AuthRepository by HttpAuthRepository.unconfigured() {
         override suspend fun me(accessToken: String): AuthResult<AuthProfile> = meResult
+        override suspend fun deleteAccount(accessToken: String, userId: Long): AuthResult<Unit> {
+            accountCalls++; return accountResult
+        }
+        override suspend fun changePassword(accessToken: String, userId: Long, currentPassword: String, newPassword: String): AuthResult<Unit> {
+            accountCalls++; return accountResult
+        }
         override suspend fun sendEmail(email: String, purpose: EmailPurpose) = AuthResult.Success(EmailDispatch(email, purpose, 300))
         override suspend fun verifyEmail(email: String, purpose: EmailPurpose, code: String) =
             AuthResult.Success(EmailProof("test-proof", email, purpose, 1800))
@@ -50,6 +63,7 @@ class AuthNavHostTest {
     private val login = LoginViewModel(repository, sessions)
     private val signup = SignUpViewModel(repository)
     private val passwordReset = PasswordResetViewModel(HttpAuthRepository.unconfigured(), sessions)
+    private val account = AccountActionViewModel(AuthAccountActions(repository, AuthenticatedRequests(sessions, repository), sessions), sessions, SavedStateHandle())
     private lateinit var navController: TestNavHostController
 
     @Before
@@ -59,7 +73,8 @@ class AuthNavHostTest {
         }
         composeRule.setContent {
             JjikmukTheme {
-                AuthNavHost(navController = navController, signUpViewModel = signup, passwordResetViewModel = passwordReset, loginViewModel = login)
+                AuthNavHost(navController = navController, signUpViewModel = signup, passwordResetViewModel = passwordReset, loginViewModel = login,
+                    accountActionViewModel = account)
             }
         }
         // These tests isolate auth navigation from permission onboarding.
@@ -231,6 +246,70 @@ class AuthNavHostTest {
             assertFalse(sessions.state.value.canEnterHome)
             assertFalse(navController.popBackStack())
         }
+    }
+
+    private fun openAccountAction(route: String, hasPassword: Boolean = true) {
+        composeRule.runOnUiThread {
+            runBlocking {
+                sessions.acceptLogin(sessions.beginLogin(),
+                    AuthLogin("test-only", 1, "test@example.com", "unused", 3600, true), System.currentTimeMillis())
+                sessions.acceptProfile(sessions.state.value.generation,
+                    AuthProfile(1, "test@example.com", "테스트사용자", null, null, null, null,
+                        "USER", if (hasPassword) AuthProvider.LOCAL else AuthProvider.GOOGLE, true, hasPassword, null))
+            }
+            navController.navigate(route)
+        }
+    }
+
+    @Test
+    fun withdrawalWaitsForConsentAndCompletionSurvivesSessionRemoval() {
+        openAccountAction(AuthRoute.AccountWithdrawal)
+        composeRule.onNodeWithText("탈퇴하기").assertIsNotEnabled()
+        composeRule.onNodeWithText("계속 이용하기").assertIsEnabled()
+        composeRule.onNodeWithText("위 내용을 모두 확인했으며, 이에 동의합니다.").performScrollTo().performClick()
+        composeRule.onNodeWithText("탈퇴하기").performClick()
+        composeRule.onNodeWithText("회원탈퇴 완료").assertIsDisplayed()
+        composeRule.runOnIdle {
+            assertEquals(1, accountCalls); assertTrue(sessions.state.value.credentials == null)
+            assertEquals(AuthRoute.AccountWithdrawal, navController.currentDestination?.route)
+        }
+        composeRule.onNodeWithText("처음으로").performClick()
+        composeRule.waitUntil(5_000) { navController.currentDestination?.route == AuthRoute.AuthChoice }
+        composeRule.runOnUiThread { assertFalse(navController.popBackStack()) }
+    }
+
+    @Test
+    fun passwordSuccessShowsLoginNoticeAndRemovesAccountBackStack() {
+        openAccountAction(AuthRoute.AccountPassword)
+        composeRule.onNodeWithText("현재 비밀번호").performTextInput("old")
+        composeRule.onNodeWithText("새 비밀번호").performTextInput("Password123")
+        composeRule.onNodeWithText("새 비밀번호 확인").performTextInput("Password123")
+        composeRule.onNodeWithText("비밀번호 변경하기").performScrollTo().performClick()
+        composeRule.onNodeWithText("비밀번호가 변경되었어요").assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals(1, accountCalls); assertTrue(sessions.state.value.credentials == null) }
+        composeRule.onNodeWithText("로그인하기").performClick()
+        composeRule.waitUntil(5_000) { navController.currentDestination?.route == AuthRoute.Login }
+        composeRule.runOnUiThread { assertFalse(navController.popBackStack()) }
+    }
+
+    @Test
+    fun unknownWithdrawalDisablesRepeatAndRequiresExplicitSignOut() {
+        accountResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+        openAccountAction(AuthRoute.AccountWithdrawal)
+        composeRule.onNodeWithText("위 내용을 모두 확인했으며, 이에 동의합니다.").performScrollTo().performClick()
+        composeRule.onNodeWithText("탈퇴하기").performClick()
+        composeRule.onNodeWithText("탈퇴하기").assertIsNotEnabled()
+        composeRule.runOnIdle { assertEquals(1, accountCalls); assertTrue(sessions.state.value.credentials != null) }
+        composeRule.onNodeWithText("다시 로그인하기").performClick()
+        composeRule.waitUntil(5_000) { navController.currentDestination?.route == AuthRoute.AuthChoice }
+        composeRule.runOnIdle { assertEquals(1, accountCalls); assertTrue(sessions.state.value.credentials == null) }
+    }
+
+    @Test
+    fun googleOnlyAccountExplainsWhyPasswordChangeIsUnavailable() {
+        openAccountAction(AuthRoute.AccountPassword, hasPassword = false)
+        composeRule.onNodeWithText("Google로 로그인한 계정입니다. 비밀번호 변경을 사용할 수 없습니다.").assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals(0, accountCalls) }
     }
 
 }
