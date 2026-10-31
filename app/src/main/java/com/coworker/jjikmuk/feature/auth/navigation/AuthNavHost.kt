@@ -328,6 +328,29 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
             viewModel = viewModel,
             onEditConditionsClick = { navController.navigate(AuthRoute.SignUpConditions) },
             onBackClick = navController::popBackStack,
+            onRegistrationComplete = {
+                navController.navigate(AuthRoute.SignUpComplete) {
+                    popUpTo(AuthRoute.SignUpEmail) { inclusive = true }
+                    launchSingleTop = true
+                }
+            },
+            onReverifyEmail = {
+                navController.navigate(AuthRoute.SignUpEmail) {
+                    popUpTo(AuthRoute.SignUpEmail) { inclusive = true }
+                }
+            },
+            onLoginClick = {
+                viewModel.reset()
+                navController.navigate(AuthRoute.Login) {
+                    popUpTo(AuthRoute.AuthChoice) { inclusive = false }
+                    launchSingleTop = true
+                }
+            },
+            onEditPassword = {
+                navController.navigate(AuthRoute.SignUpPassword) {
+                    popUpTo(AuthRoute.SignUpPassword) { inclusive = true }
+                }
+            },
         )
     }
     composable(AuthRoute.SignUpComplete) {

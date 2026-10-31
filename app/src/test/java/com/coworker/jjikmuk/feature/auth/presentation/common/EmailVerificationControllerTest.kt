@@ -8,6 +8,21 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EmailVerificationControllerTest {
+    @Test fun `absolute proof expiry may shorten but never extend the relative lifetime`() = runTest {
+        val repo = TestAuthRepository()
+        val clock = { testScheduler.currentTime }
+        val c = EmailVerificationController(repo, EmailPurpose.SignUp, backgroundScope,
+            wallMillis = { 1_000_000 + clock() }, nowMillis = clock)
+        c.reset("user@example.com"); c.send(); c.updateCode("1234")
+        repo.verifyResult = AuthResult.Success(EmailProof("proof", "user@example.com", EmailPurpose.SignUp, 1800, 1_001_000))
+        assertTrue(c.verify())
+        advanceTimeBy(1_000)
+        assertNull(c.currentProof())
+        c.reset("user@example.com"); advanceTimeBy(60_000); c.send(); c.updateCode("1234")
+        repo.verifyResult = AuthResult.Success(EmailProof("proof", "user@example.com", EmailPurpose.SignUp, 1, Long.MAX_VALUE / 2))
+        assertTrue(c.verify()); advanceTimeBy(1_000); assertNull(c.currentProof())
+    }
+
     @Test fun `proof is bound to normalized email purpose and expires independently of OTP`() = runTest {
         for (purpose in EmailPurpose.entries) {
             val repository = TestAuthRepository()

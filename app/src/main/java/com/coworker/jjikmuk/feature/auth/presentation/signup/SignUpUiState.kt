@@ -6,6 +6,10 @@ import com.coworker.jjikmuk.feature.auth.presentation.common.authPasswordValidat
 import com.coworker.jjikmuk.feature.auth.presentation.common.isAuthPasswordValid
 
 data class SignUpUiState(
+    val isSubmitting: Boolean = false,
+    val registrationCompleted: Boolean = false,
+    val submitError: String? = null,
+    val recovery: SignUpRecovery = SignUpRecovery.None,
     val isAuthRequestInFlight: Boolean = false,
     val resendSeconds: Int = 0,
     val email: String = "",
@@ -70,3 +74,5 @@ enum class VegetarianDiet {
     Pesco,
     Pollo,
 }
+
+enum class SignUpRecovery { None, ReverifyEmail, Login, CheckOutcome, EditPassword }

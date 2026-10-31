@@ -28,6 +28,7 @@ class EmailVerificationController(
     private val repository: AuthRepository,
     private val purpose: EmailPurpose,
     private val scope: CoroutineScope,
+    private val wallMillis: () -> Long = System::currentTimeMillis,
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
     private val mutableState = MutableStateFlow(EmailVerificationState())
@@ -124,7 +125,8 @@ class EmailVerificationController(
             return when (result) {
                 is AuthResult.Success -> {
                     proof = result.value
-                    proofDeadline = startedAt + result.value.expiresInSeconds * 1000L
+                    proofDeadline = minOf(startedAt + result.value.expiresInSeconds * 1000L,
+                        result.value.expiresAtMillis?.let { nowMillis() + (it - wallMillis()).coerceAtLeast(0) } ?: Long.MAX_VALUE)
                     otpDeadline = 0 // Server consumed this OTP.
                     mutableState.update { it.copy(code = "", verified = true, sent = false, remainingSeconds = 0) }
                     tick()

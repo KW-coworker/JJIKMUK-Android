@@ -11,6 +11,7 @@ import com.coworker.jjikmuk.feature.auth.domain.*
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import kotlinx.coroutines.runBlocking
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.data.HttpAuthRepository
@@ -35,11 +36,19 @@ class AuthNavHostTest {
         override suspend fun clear() = Unit
     })
     private var meResult: AuthResult<AuthProfile> = AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+    private var signupResult: AuthResult<Long> = AuthResult.Success(42L)
+    private var signupCalls = 0
     private val repository = object : AuthRepository by HttpAuthRepository.unconfigured() {
         override suspend fun me(accessToken: String): AuthResult<AuthProfile> = meResult
+        override suspend fun sendEmail(email: String, purpose: EmailPurpose) = AuthResult.Success(EmailDispatch(email, purpose, 300))
+        override suspend fun verifyEmail(email: String, purpose: EmailPurpose, code: String) =
+            AuthResult.Success(EmailProof("test-proof", email, purpose, 1800))
+        override suspend fun signUp(input: SignUpSubmission): AuthResult<Long> {
+            signupCalls++; return signupResult
+        }
     }
     private val login = LoginViewModel(repository, sessions)
-    private val signup = SignUpViewModel(HttpAuthRepository.unconfigured())
+    private val signup = SignUpViewModel(repository)
     private val passwordReset = PasswordResetViewModel(HttpAuthRepository.unconfigured(), sessions)
     private lateinit var navController: TestNavHostController
 
@@ -58,6 +67,52 @@ class AuthNavHostTest {
             navController.navigate(AuthRoute.AuthChoice) {
                 popUpTo(AuthRoute.Splash) { inclusive = true }
             }
+        }
+    }
+
+    private fun openVerifiedSignUpProfile() {
+        composeRule.runOnUiThread {
+            runBlocking {
+                signup.updateEmail("test@example.com"); signup.validateEmail()
+                signup.updateOtp("0427"); signup.verifyOtp()
+            }
+            signup.updatePassword("Password123!"); signup.updatePasswordConfirm("Password123!")
+            signup.updateNickname("테스트사용자")
+            navController.navigate(AuthRoute.SignUpEmail)
+            navController.navigate(AuthRoute.SignUpProfile)
+        }
+    }
+
+    @Test
+    fun successfulRegistrationAloneOpensCompletionThenLogin() {
+        openVerifiedSignUpProfile()
+        composeRule.onNodeWithText("다음").performScrollTo().performClick()
+        composeRule.waitUntil(5_000) { navController.currentDestination?.route == AuthRoute.SignUpComplete }
+        composeRule.runOnIdle {
+            assertEquals(1, signupCalls)
+            assertEquals("", signup.uiState.value.password)
+            assertTrue(sessions.state.value.credentials == null)
+        }
+        composeRule.onNodeWithText("로그인하기").performClick()
+        composeRule.waitUntil(5_000) { navController.currentDestination?.route == AuthRoute.Login }
+        composeRule.runOnUiThread {
+            assertTrue(navController.popBackStack())
+            assertEquals(AuthRoute.AuthChoice, navController.currentDestination?.route)
+        }
+    }
+
+    @Test
+    fun unknownRegistrationRetainsDraftAndOffersReverificationInsteadOfReplay() {
+        signupResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+        openVerifiedSignUpProfile()
+        composeRule.onNodeWithText("다음").performScrollTo().performClick()
+        composeRule.onNodeWithText("이메일 다시 인증").performScrollTo().assertIsDisplayed().performClick()
+        composeRule.waitUntil(5_000) { navController.currentDestination?.route == AuthRoute.SignUpEmail }
+        composeRule.runOnIdle {
+            assertEquals(1, signupCalls)
+            assertEquals("테스트사용자", signup.uiState.value.nickname)
+            assertEquals("Password123!", signup.uiState.value.password)
+            assertFalse(signup.uiState.value.registrationCompleted)
         }
     }
 
