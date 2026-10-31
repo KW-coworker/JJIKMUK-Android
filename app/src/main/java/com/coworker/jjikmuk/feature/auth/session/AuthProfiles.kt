@@ -19,9 +19,9 @@ class AuthProfiles @Inject constructor(
         requests.execute(retrySafeRead = true, requireCompletedProfile = false, request = repository::me)
     }
 
-    suspend fun patch(patch: ProfilePatch): AuthResult<AuthProfile> {
-        val generation = sessions.state.value.generation
+    suspend fun patch(patch: ProfilePatch, generation: Long = sessions.state.value.generation): AuthResult<AuthProfile> {
         return perform {
+            if (sessions.state.value.generation != generation) return@perform changed()
             requests.execute(requireCompletedProfile = false) { token ->
                 if (sessions.state.value.generation != generation) changed() else repository.patchProfile(token, patch)
             }

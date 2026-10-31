@@ -14,6 +14,7 @@ import com.coworker.jjikmuk.feature.chat.presentation.ChatHistoryScreen
 import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.AccountSecurityScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.SelfDietConditionRoute
 import com.coworker.jjikmuk.feature.mypage.presentation.DietConditionManagementScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageProductListType
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageScreen
@@ -78,7 +79,8 @@ fun JjikmukAppContent(
                 if (profile != null) ProfileEditRoute(onBackClick = { showProfileEdit = false })
                 else ProfileEditScreen(onBackClick = { showProfileEdit = false })
             } else if (showDietConditionManagement) {
-                DietConditionManagementScreen(
+                if (profile != null) SelfDietConditionRoute(onBackClick = { showDietConditionManagement = false })
+                else DietConditionManagementScreen(
                     onBackClick = { showDietConditionManagement = false },
                 )
             } else when (selectedTab) {
