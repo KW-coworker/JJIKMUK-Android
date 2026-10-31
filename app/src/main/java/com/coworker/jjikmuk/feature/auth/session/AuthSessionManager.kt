@@ -47,6 +47,16 @@ class AuthSessionManager(
         }
     }
 
+    /** An external account picker may finish after another login started. */
+    suspend fun beginLoginIfCurrent(generation: Long): Long? = withContext(NonCancellable) {
+        mutex.withLock {
+            if (mutableState.value.generation != generation) return@withLock null
+            initialized = true
+            clearLocked()
+            mutableState.value.generation
+        }
+    }
+
     suspend fun acceptLogin(attempt: Long, login: AuthLogin, requestStartedAt: Long): Boolean =
         withContext(NonCancellable) {
             mutex.withLock {

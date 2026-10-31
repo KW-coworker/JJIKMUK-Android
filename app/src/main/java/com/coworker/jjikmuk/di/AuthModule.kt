@@ -1,6 +1,8 @@
 package com.coworker.jjikmuk.di
 
 import com.coworker.jjikmuk.feature.auth.session.*
+import com.coworker.jjikmuk.feature.auth.google.GoogleCredentialCleaner
+import com.coworker.jjikmuk.feature.auth.google.AndroidGoogleCredentialCleaner
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import com.coworker.jjikmuk.feature.auth.data.HttpAuthRepository
@@ -18,6 +20,9 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 @Module
 @InstallIn(SingletonComponent::class)
 object AuthModule {
+    @Provides @Singleton
+    fun provideGoogleCleaner(@ApplicationContext context: Context): GoogleCredentialCleaner = AndroidGoogleCredentialCleaner(context)
+
     @Provides @Singleton
     fun provideSessionStore(@ApplicationContext context: Context): SessionStore =
         EncryptedSessionStore(File(context.noBackupFilesDir, "auth-session.bin"), AndroidSessionKeyProvider())

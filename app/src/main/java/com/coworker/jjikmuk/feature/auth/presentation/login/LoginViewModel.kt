@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.feature.auth.presentation.login
 
+import com.coworker.jjikmuk.feature.auth.google.GoogleCredentialCleaner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coworker.jjikmuk.feature.auth.domain.AuthRepository
@@ -24,6 +25,7 @@ class LoginViewModel @Inject constructor(
     private val repository: AuthRepository,
     private val sessions: AuthSessionManager,
     private val profiles: AuthProfiles = AuthProfiles(repository, sessions, AuthenticatedRequests(sessions, repository)),
+    private val googleCleaner: GoogleCredentialCleaner = GoogleCredentialCleaner.None,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState = _uiState.asStateFlow()
@@ -148,11 +150,6 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    fun googleUnavailable() {
-        cancelRequest()
-        _uiState.update { it.copy(loginError = "Google 로그인을 준비 중이에요. 이메일 로그인을 이용해 주세요") }
-    }
-
     fun logout() {
         if (logoutRequest?.isActive == true && (sessions.state.value.credentials == null ||
                 sessions.state.value.generation == logoutSourceGeneration)) return
@@ -162,6 +159,9 @@ class LoginViewModel @Inject constructor(
         logoutRequest = viewModelScope.launch {
             val result = sessions.logout(repository)
             // A previous account's delayed logout must not alter the new login form or show its notice.
+            if (revision != logoutRevision || sessions.state.value.generation != result.generation ||
+                sessions.state.value.credentials != null) return@launch
+            googleCleaner.clear()
             if (revision != logoutRevision || sessions.state.value.generation != result.generation ||
                 sessions.state.value.credentials != null) return@launch
             val message = when {

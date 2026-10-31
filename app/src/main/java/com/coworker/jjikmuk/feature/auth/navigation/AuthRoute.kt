@@ -4,6 +4,7 @@ internal object AuthRoute {
     const val Splash = "splash"
     const val PermissionApproval = "permission-approval"
     const val AuthChoice = "auth-choice"
+    const val GoogleLogin = "google/login"
     const val Login = "login"
     const val PasswordResetEmail = "password-reset/email"
     const val PasswordResetOtp = "password-reset/otp"

@@ -2,6 +2,8 @@ package com.coworker.jjikmuk.feature.auth.navigation
 
 import com.coworker.jjikmuk.feature.auth.presentation.profile.ProfileCompletionRoute
 import com.coworker.jjikmuk.feature.auth.presentation.profile.ProfileCompletionViewModel
+import com.coworker.jjikmuk.feature.auth.google.GoogleLoginRoute
+import com.coworker.jjikmuk.feature.auth.google.GoogleLoginViewModel
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.fadeIn
@@ -63,6 +65,7 @@ fun AuthNavHost(
     signUpViewModel: SignUpViewModel = hiltViewModel(),
     accountActionViewModel: AccountActionViewModel = hiltViewModel(),
     profileCompletionViewModel: ProfileCompletionViewModel = hiltViewModel(),
+    googleLoginViewModel: GoogleLoginViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -176,12 +179,33 @@ fun AuthNavHost(
                     signUpViewModel.reset()
                     navController.navigate(AuthRoute.SignUpEmail)
                 },
-                onGoogleLoginClick = loginViewModel::googleUnavailable,
+                onGoogleLoginClick = {
+                    googleLoginViewModel.prepareEntry()
+                    loginViewModel.reset()
+                    navController.navigate(AuthRoute.GoogleLogin) { launchSingleTop = true }
+                },
                 onDeveloperHomeClick = {
                     loginViewModel.reset()
                     navController.openDeveloperHome()
                 },
             )
+        }
+
+        composable(AuthRoute.GoogleLogin) {
+            GoogleLoginRoute(googleLoginViewModel,
+                onSignedIn = {
+                    navController.navigate(AuthRoute.SessionEntry) {
+                        popUpTo(navController.graph.id) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onBack = { navController.popBackStack() },
+                onPasswordReset = {
+                    passwordResetViewModel.reset()
+                    navController.navigate(AuthRoute.PasswordResetEmail) {
+                        popUpTo(AuthRoute.GoogleLogin) { inclusive = true }
+                    }
+                })
         }
 
         passwordResetGraph(

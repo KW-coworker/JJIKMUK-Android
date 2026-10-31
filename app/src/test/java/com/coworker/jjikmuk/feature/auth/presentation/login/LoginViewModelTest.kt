@@ -44,12 +44,11 @@ class LoginViewModelTest {
         assertEquals("old", vm.uiState.value.password); assertNotNull(vm.uiState.value.loginError)
         vm.updateEmail("new@example.com"); assertNull(vm.uiState.value.loginError)
     }
-    @Test fun `profile incomplete and Google placeholder cannot enter Home`() = runTest {
+    @Test fun `profile incomplete cannot enter Home`() = runTest {
         result = AuthResult.Success(AuthLogin("token", 1, "user@example.com", "unused", 3600, false))
         val vm = model()
         assertTrue(vm.login()); assertFalse(sessions.state.value.canEnterHome)
         assertNull(vm.uiState.value.loginError)
-        vm.googleUnavailable(); assertFalse(sessions.state.value.canEnterHome)
         sessions.clear()
     }
     @Test fun `double tap is suppressed and editing input cancels stale success`() = runTest {
