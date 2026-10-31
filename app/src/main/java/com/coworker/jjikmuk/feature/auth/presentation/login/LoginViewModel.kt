@@ -32,6 +32,7 @@ class LoginViewModel @Inject constructor(
     val sessionState = sessions.state
     private var entryRequest: Job? = null
     private var entryGeneration: Long? = null
+    private var announcedFailureGeneration: Long? = null
     private val _entryState = MutableStateFlow<SessionEntryState>(SessionEntryState.Checking)
     val entryState = _entryState.asStateFlow()
     private var request: Job? = null
@@ -45,7 +46,13 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch { sessions.restore() }
         viewModelScope.launch {
             sessions.state.collectLatest { state ->
-                state.failure?.let { error -> _uiState.update { it.copy(loginError = error.userMessage()) } }
+                state.failure?.let { error ->
+                    _uiState.update { it.copy(loginError = error.userMessage()) }
+                    if (state.credentials == null && announcedFailureGeneration != state.generation) {
+                        announcedFailureGeneration = state.generation
+                        _notices.tryEmit(error.userMessage())
+                    }
+                }
                 if (state.canEnterHome && !state.refreshing) {
                     while (sessions.isCurrent(state)) {
                         delay(1_000)

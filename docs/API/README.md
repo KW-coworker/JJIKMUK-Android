@@ -1,6 +1,6 @@
 # API 명세 시작하기
 
-> 검토·동기화: 2026-10-31. 백엔드 main `7dd4273ee456329593a82b2b60934ef1b8c20240` 기준. 이번 작업은 문서 갱신이며 서버 배포·앱 API 설정 변경은 하지 않았다.
+> 검토·동기화: 2026-10-31. 백엔드 main `7dd4273ee456329593a82b2b60934ef1b8c20240` 기준. 후속 TEAM_DELIVERY에 따라 앱 주소와 OCR 인증을 변경했다. [최신 반영](../institution-auth-migration.md).
 
 ## 먼저 읽을 문서
 
@@ -13,7 +13,7 @@
 | 가입 알레르기·식단 ID | [전체 매핑표](../auth-signup-condition-mapping.md) |
 | 상품 내부 ID·용량·관측 이력 | [상품 ID 계약](backend/catalog-evolution-stage1-3.md) |
 | 챗봇 공통 판정과 AI 연동 | [챗봇 계약](backend/api-spec/chat-analysis-contract-v1.md) |
-| OCR 서비스 | [기존 OCR 명세](scanner-ocr-api.md) — 별도 서비스, 이번 Backend 명세가 대체하지 않음 |
+| OCR 서비스 | [기존 OCR 명세](scanner-ocr-api.md) — 기관 서버 및 로그인 JWT 변경 반영 |
 | 남은 개발·회신·사용자 결정 | [로컬 인수인계](../인수인계/로그인-회원가입.md), [백엔드 답변 정리](../인수인계/인증-백엔드-답변과-요청.md) |
 
 ## 최신 여부 확인 결과
@@ -33,7 +33,7 @@
 
 ## 실제 서버 사용 가능 여부
 
-팀 개발 주소는 `https://jjikmuk-backend-dev.tail198441.ts.net`로 명시돼 있다. 그러나 **실행 중인 서버의 커밋, DB 마이그레이션 적용, SMTP/Google 설정, Tailscale 접근은 아직 확인하지 않았다.**
+현재 주소는 `https://43.203.42.36/`다. TEAM_DELIVERY상 Tailscale이 필요 없다. 기본 HTTPS 검증과 무인증 응답은 확인했다. **실행 커밋·SMTP/Google 설정 및 실제 계정 작업 검증은 남아 있다.**
 
 [백엔드의 10월 28일 검증 보고](backend/staging-integration-20261028.md)는 원격 서버 timeout/배포 버전 미확인과 모의 메일·AI 기반 테스트를 기록한다. 이것은 당시 보고이며 현재 서버가 꺼져 있다는 증거는 아니다. 이 보고의 Android 지적도 과거 `feature/product-search` 커밋 대상이며 현재 인증 브랜치의 완료 작업을 취소하는 근거가 아니다.
 

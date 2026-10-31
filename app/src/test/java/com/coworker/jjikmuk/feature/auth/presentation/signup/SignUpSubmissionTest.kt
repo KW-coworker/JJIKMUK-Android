@@ -20,7 +20,9 @@ class SignUpSubmissionTest {
             calls++; this@SignUpSubmissionTest.input = input; return response
         }
     }
-    private suspend fun ready(repository: AuthRepository = repo): SignUpViewModel = SignUpViewModel(repository).apply {
+    private suspend fun ready(repository: AuthRepository = repo,
+        photos: com.coworker.jjikmuk.feature.auth.photo.SignupPhotoPreparation = com.coworker.jjikmuk.feature.auth.photo.SignupPhotoPreparation.Unavailable
+    ): SignUpViewModel = SignUpViewModel(repository, photos).apply {
         updateEmail(" USER@Example.com "); check(validateEmail()); updateOtp("0427"); check(verifyOtp())
         updatePassword("Password123!"); updatePasswordConfirm("Password123!"); updateNickname("사용자")
     }
@@ -182,6 +184,22 @@ class SignUpSubmissionTest {
         assertEquals(SignUpRecovery.CheckOutcome, vm.uiState.value.recovery)
         assertFalse(vm.uiState.value.isSubmitting)
         vm.reset()
+    }
+
+    @Test fun `photo is staged before signup and bound only to successful account`() = runTest {
+        val events = mutableListOf<String>()
+        val preparation = object : com.coworker.jjikmuk.feature.auth.photo.SignupPhotoPreparation {
+            override suspend fun stage(email: String, uri: String?, bitmap: android.graphics.Bitmap?): String {
+                assertEquals(0, calls); assertEquals("content://photo", uri); events += "stage"; return "draft"
+            }
+            override suspend fun confirm(email: String, id: String, userId: Long) {
+                assertEquals(1, calls); assertEquals("draft", id); assertTrue(userId > 0); events += "confirmed"
+            }
+            override suspend fun discard(email: String, id: String) { events += "discarded" }
+        }
+        val vm = ready(photos = preparation); vm.updateProfilePhoto("content://photo", null)
+        assertTrue(vm.submit()); assertEquals(listOf("stage", "confirmed"), events)
+        assertNull(vm.uiState.value.profilePhotoUri); vm.reset()
     }
 
     @Test fun `selected photo is not silently lost or treated as uploaded`() = runTest {

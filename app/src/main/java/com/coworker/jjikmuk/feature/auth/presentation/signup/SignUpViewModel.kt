@@ -15,7 +15,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class SignUpViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
+class SignUpViewModel @Inject constructor(private val repository: AuthRepository,
+    private val signupPhotos: com.coworker.jjikmuk.feature.auth.photo.SignupPhotoPreparation =
+        com.coworker.jjikmuk.feature.auth.photo.SignupPhotoPreparation.Unavailable) : ViewModel() {
     private val _uiState = MutableStateFlow(SignUpUiState())
     val uiState = _uiState.asStateFlow()
     private val verification = EmailVerificationController(repository, EmailPurpose.SignUp, viewModelScope)
@@ -163,20 +165,39 @@ class SignUpViewModel @Inject constructor(private val repository: AuthRepository
             submissionError("선택한 일부 식이조건은 아직 등록할 수 없어요. 선택한 항목을 유지하고 나중에 다시 시도해 주세요")
             return false
         }
-        if (input.profilePhotoUri != null || input.profilePhotoBitmap != null) {
-            submissionError("사진 등록은 준비 중이에요. 사진 선택을 해제한 뒤 가입해 주세요")
-            return false
-        }
         val currentRevision = revision
         submitting = true
         _uiState.update { it.copy(isSubmitting = true, submitError = null, nicknameError = null) }
+        var photoId: String? = null
+        var dispatched = false
         try {
+            if (input.profilePhotoUri != null || input.profilePhotoBitmap != null) {
+                try { photoId = signupPhotos.stage(proof.email, input.profilePhotoUri, input.profilePhotoBitmap) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) {
+                    submissionError("사진을 임시 보관하지 못했어요. 사진을 다시 선택하거나 선택 해제 후 가입해 주세요")
+                    return false
+                }
+            }
+            currentCoroutineContext().ensureActive()
+            if (currentRevision != revision) return false
+            if (verification.currentProof()?.token != proof.token) {
+                submissionError("이메일 인증이 만료됐어요. 다시 인증해 주세요", SignUpRecovery.ReverifyEmail)
+                return false
+            }
+            dispatched = true
             val result = repository.signUp(SignUpSubmission(proof.email, input.password, nickname,
                 proof.token, conditions.allergies, conditions.specialDiet))
             currentCoroutineContext().ensureActive()
             if (currentRevision != revision) return false
             return when (result) {
                 is AuthResult.Success -> {
+                    photoId?.let { id ->
+                        // If marking fails, keep the pending photo for explicit confirmation after verified login.
+                        try { signupPhotos.confirm(proof.email, id, result.value) }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { }
+                    }
                     // No login token is issued by signup. Consume the proof and clear sensitive input.
                     verification.reset()
                     _uiState.value = SignUpUiState(registrationCompleted = true)
@@ -184,6 +205,11 @@ class SignUpViewModel @Inject constructor(private val repository: AuthRepository
                 }
                 is AuthResult.Failure -> {
                     val error = result.error
+                    if (!error.outcomeUnknown) photoId?.let { id ->
+                        try { signupPhotos.discard(proof.email, id) }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { } // A leftover draft still needs explicit confirmation, never automatic upload.
+                    }
                     val recovery = when {
                         error.outcomeUnknown -> SignUpRecovery.CheckOutcome
                         error.code in setOf("VERIFICATION_EXPIRED", "VERIFICATION_REQUIRED", "VERIFICATION_TOKEN_INVALID") -> SignUpRecovery.ReverifyEmail
@@ -203,12 +229,17 @@ class SignUpViewModel @Inject constructor(private val repository: AuthRepository
                 }
             }
         } catch (cancelled: CancellationException) {
-            if (currentRevision == revision) {
+            if (currentRevision == revision && dispatched) {
                 verification.invalidateProof()
                 submissionError("가입 결과를 확인하지 못했어요. 로그인으로 확인하거나 다시 인증해 주세요", SignUpRecovery.CheckOutcome)
             }
             throw cancelled
         } finally {
+            if (!dispatched) photoId?.let { id ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    runCatching { signupPhotos.discard(proof.email, id) }
+                }
+            }
             submitting = false
             if (currentRevision == revision) _uiState.update { it.copy(isSubmitting = false) }
         }

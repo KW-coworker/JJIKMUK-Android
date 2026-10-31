@@ -34,9 +34,9 @@ class AuthPhotos @Inject constructor(
         }
     }
 
-    suspend fun load() = perform(mutation = false) { generation -> fetch(generation) }
+    suspend fun load(generation: Long = sessions.state.value.generation) = perform(mutation = false, expectedGeneration = generation) { generation -> fetch(generation) }
 
-    suspend fun upload(photo: ProfilePhoto) = perform(mutation = true) { generation ->
+    suspend fun upload(photo: ProfilePhoto, generation: Long = sessions.state.value.generation) = perform(mutation = true, expectedGeneration = generation) { generation ->
         when (val result = requests.execute(requireCompletedProfile = false) {
             if (current(generation)) repository.uploadPhoto(it, photo) else changed()
         }) {
@@ -63,8 +63,9 @@ class AuthPhotos @Inject constructor(
             is AuthResult.Success -> result
         }
 
-    private suspend fun perform(mutation: Boolean, call: suspend (Long) -> AuthResult<ProfilePhoto?>): AuthResult<ProfilePhoto?> {
-        val generation = sessions.state.value.generation
+    private suspend fun perform(mutation: Boolean, expectedGeneration: Long = sessions.state.value.generation, call: suspend (Long) -> AuthResult<ProfilePhoto?>): AuthResult<ProfilePhoto?> {
+        val generation = expectedGeneration
+        if (!current(generation)) return changed()
         val mutex = synchronized(this) {
             if (operationGeneration != generation) {
                 operationGeneration = generation

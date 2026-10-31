@@ -1,5 +1,7 @@
 # 찍먹 인증 API 명세 — 로그인·회원가입
 
+> **2026-10-31 최신 반영:** 기관 HTTPS·OCR JWT, 가입 사진 임시 보관/같은 계정 서버 복원, ASCII 비밀번호를 구현했다. [최신 구현·검증·남은 작업](../institution-auth-migration.md)을 우선한다. 아래 이전 단계의 미구현/설정 안내는 해당 시점 기록이다.
+
 > 최종 검토: **2026-10-31**. 백엔드 main `7dd4273`의 공식 원문·관련 컨트롤러와 대조했다. [명세 시작하기/출처와 우선순위](README.md), [전체 원문](backend/api-spec/API_REFERENCE.md), [우선 적용 인증 v2](backend/api-spec/frontend-auth-integration-v2.md)를 함께 읽는다.
 > 이 파일은 프론트용 정리이며 원문 PDF/인수인계는 로컬 전용이다. 실제 자격 정보는 포함하지 않는다.
 

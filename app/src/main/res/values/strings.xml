@@ -20,7 +20,7 @@
     <string name="password_reset_otp_resent_message">새로운 인증번호가 전송됐습니다.</string>
     <string name="password_reset_otp_expired_message">인증시간이 만료되었습니다. 인증번호를 재전송해 주세요.</string>
     <string name="password_reset_new_password_title">새 비밀번호 생성</string>
-    <string name="password_reset_new_password_description">새 비밀번호를 설정해 주세요\n비밀번호는 8자리 이상이어야 합니다</string>
+    <string name="password_reset_new_password_description">새 비밀번호를 설정해 주세요\n영문·숫자 포함 8~72자 (특수문자 선택)</string>
     <string name="password_reset_new_password_placeholder">새 비밀번호</string>
     <string name="password_reset_password_confirm_placeholder">비밀번호 확인</string>
     <string name="password_reset_password_too_short">비밀번호는 8자리 이상이어야 합니다.</string>
@@ -36,7 +36,7 @@
     <string name="sign_up_email_description">로그인을 위해\n이메일 주소를 입력해 주세요</string>
     <string name="sign_up_email_next">다음</string>
     <string name="sign_up_password_title">비밀번호 생성</string>
-    <string name="sign_up_password_description">비밀번호를 설정해 주세요\n비밀번호는 8자리 이상이어야 합니다</string>
+    <string name="sign_up_password_description">비밀번호를 설정해 주세요\n영문·숫자 포함 8~72자 (특수문자 선택)</string>
     <string name="sign_up_password_placeholder">비밀번호 설정</string>
     <string name="sign_up_nickname_title">닉네임 생성</string>
     <string name="sign_up_nickname_description">앱에서 사용할 이름을 생성해 주세요</string>
@@ -137,5 +137,5 @@
     <string name="account_withdrawal_complete_description">그동안 찍먹을 이용해 주셔서 감사합니다!\n더 좋은 모습으로 다시 만나뵐게요.</string>
     <string name="account_withdrawal_return_to_start">처음으로</string>
     <string name="auth_otp_resend_wait">%1$d초 후 재전송</string>
-    <string name="auth_password_requirements">영문과 숫자를 포함해 8자 이상, 72바이트 이하로 입력해 주세요. 공백과 한글은 사용할 수 없어요.</string>
+    <string name="auth_password_requirements">영문·숫자를 포함해 8~72자로 입력해 주세요. 특수문자는 선택이며 한글·공백·이모지·악센트 문자는 사용할 수 없어요.</string>
 </resources>

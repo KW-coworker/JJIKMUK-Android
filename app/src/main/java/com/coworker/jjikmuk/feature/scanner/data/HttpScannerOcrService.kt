@@ -26,23 +26,21 @@ import retrofit2.http.Streaming
 internal interface ScannerOcrApi {
     @POST("api/ocr")
     @Streaming
-    suspend fun recognize(@Header("X-OCR-Test-Token") token: String, @Body image: MultipartBody): Response<ResponseBody>
+    suspend fun recognize(@Header("Authorization") authorization: String, @Body image: MultipartBody): Response<ResponseBody>
 }
 
-/** Debug team endpoint only. No token constant, logging, automatic retries or user JWT. */
+/** Explicit service Bearer only; no logging, redirect, authenticator or automatic upload replay. */
 class HttpScannerOcrService internal constructor(
     private val api: ScannerOcrApi,
-    private val tokenProvider: () -> String?,
-) : ScannerOcrService {
-    override val available = true
+) : ScannerOcrTransport {
     private val inFlight = AtomicBoolean(false)
     private var lastRequestNanos: Long? = null
 
-    override suspend fun recognize(photo: PreparedScannerPhoto): OcrResult {
+    override suspend fun recognize(photo: PreparedScannerPhoto, accessToken: String): OcrResult {
         if (!inFlight.compareAndSet(false, true)) return OcrResult.Failure(OcrFailure.Busy)
         try {
-            val token = tokenProvider()?.takeIf { it.isNotBlank() && it.all { char -> char.code in 33..126 } }
-                ?: return OcrResult.Failure(OcrFailure.NotConfigured)
+            val token = accessToken.takeIf { it.isNotBlank() && it.all { char -> char.code in 33..126 } }
+                ?: return OcrResult.Failure(OcrFailure.Unauthorized)
             return withContext(Dispatchers.IO) {
                 if (!photo.isUploadable() || !photo.hasJpegSignature()) {
                     return@withContext OcrResult.Failure(OcrFailure.InvalidImage)
@@ -66,7 +64,7 @@ class HttpScannerOcrService internal constructor(
                 if (remaining > 0) return@withContext OcrResult.Failure(
                     OcrFailure.RateLimited, retryAfterSeconds = ((remaining + 999_999_999L) / 1_000_000_000L).toInt())
                 lastRequestNanos = now
-                val response = api.recognize(token, body)
+                val response = api.recognize("Bearer $token", body)
                 val responseBody = response.body() ?: response.errorBody()
                 // Bound malformed proxy/server responses rather than reading unlimited data.
                 val raw = responseBody?.use { value ->
@@ -105,11 +103,11 @@ class HttpScannerOcrService internal constructor(
             .authenticator(Authenticator.NONE).proxyAuthenticator(Authenticator.NONE)
             .build()
 
-        fun create(baseUrl: HttpUrl, tokenProvider: () -> String?): HttpScannerOcrService {
+        fun create(baseUrl: HttpUrl): HttpScannerOcrService {
             require(baseUrl.isHttps && baseUrl.encodedPath == "/" && baseUrl.query == null)
             require(baseUrl.username.isEmpty() && baseUrl.password.isEmpty() && baseUrl.fragment == null)
             val api = Retrofit.Builder().baseUrl(baseUrl).client(client()).build().create(ScannerOcrApi::class.java)
-            return HttpScannerOcrService(api, tokenProvider)
+            return HttpScannerOcrService(api)
         }
     }
 }

@@ -40,7 +40,7 @@ SHA-1은 이 작업 폴더에서 `./gradlew :app:signingReport`로 확인한다.
 
 debug에서는 기존 앱 내부 `no_backup/auth-api.properties`에 `googleWebClientId=받은_Web_Client_ID`를 추가할 수도 있다. **기존 `baseUrl` 등 설정을 보존하여 병합**한다. debug 파일 값이 빌드 설정보다 우선하며 release는 이 파일을 읽지 않는다. Client ID는 식별자지만 OAuth Client secret, 계정 비밀번호, 서비스/Google 토큰은 설정 문서나 커밋에 넣지 않는다.
 
-Client ID만 넣는다고 서버까지 연결되는 것은 아니다. 기존 인증 API `baseUrl` 설정과 접근 가능 여부도 필요하며, 현재 release 인증 서버 설정은 여전히 미설정이다. 다른 상품/OCR 서버 주소를 추정해서 넣지 않는다.
+인증 서버는 debug/release 모두 `https://43.203.42.36/`를 사용한다. auth-api.properties의 과거 baseUrl 값은 사용하지 않는다. Google Client ID·서명·백엔드 audience 설정은 여전히 필요하다.
 
 ## 백엔드·Google 프로젝트 담당자에게 보낼 내용
 

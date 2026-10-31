@@ -31,6 +31,25 @@ class ProfilePhotoEncoder @Inject constructor(@ApplicationContext private val co
         encodeBytes(output.toByteArray())
     }
 
+    suspend fun encode(source: Bitmap): ProfilePhoto = withContext(Dispatchers.IO) {
+        require(!source.isRecycled && source.width > 0 && source.height > 0)
+        val ratio = minOf(1f, 2048f / maxOf(source.width, source.height))
+        var bitmap = Bitmap.createScaledBitmap(source, maxOf(1, (source.width * ratio).toInt()),
+            maxOf(1, (source.height * ratio).toInt()), true)
+        try {
+            while (true) {
+                val output = ByteArrayOutputStream()
+                check(bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output))
+                if (output.size() <= ProfilePhoto.MAX_BYTES) return@withContext ProfilePhoto(output.toByteArray(), "image/jpeg")
+                val smaller = Bitmap.createScaledBitmap(bitmap, maxOf(1, bitmap.width / 2), maxOf(1, bitmap.height / 2), true)
+                require(smaller !== bitmap)
+                if (bitmap !== source) bitmap.recycle()
+                bitmap = smaller
+            }
+            @Suppress("UNREACHABLE_CODE") error("Unreachable")
+        } finally { if (bitmap !== source) bitmap.recycle() }
+    }
+
     internal fun encodeBytes(bytes: ByteArray): ProfilePhoto {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)

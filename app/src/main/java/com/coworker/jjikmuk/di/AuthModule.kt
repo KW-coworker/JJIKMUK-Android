@@ -4,7 +4,6 @@ import com.coworker.jjikmuk.feature.auth.session.*
 import com.coworker.jjikmuk.feature.auth.google.GoogleCredentialCleaner
 import com.coworker.jjikmuk.feature.auth.google.AndroidGoogleCredentialCleaner
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import com.coworker.jjikmuk.feature.auth.data.HttpAuthRepository
 import com.coworker.jjikmuk.feature.auth.domain.AuthRepository
 import dagger.Module
@@ -13,13 +12,20 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
-import java.util.Properties
 import javax.inject.Singleton
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AuthModule {
+    @Provides @Singleton
+    fun providePendingSignupPhotoStore(@ApplicationContext context: Context): com.coworker.jjikmuk.feature.auth.photo.PendingSignupPhotoStore =
+        com.coworker.jjikmuk.feature.auth.photo.FilePendingSignupPhotoStore(File(context.noBackupFilesDir, "signup-photos"))
+
+    @Provides
+    fun provideSignupPhotoPreparation(implementation: com.coworker.jjikmuk.feature.auth.photo.AndroidSignupPhotoPreparation):
+        com.coworker.jjikmuk.feature.auth.photo.SignupPhotoPreparation = implementation
+
     @Provides @Singleton
     fun provideGoogleCleaner(@ApplicationContext context: Context): GoogleCredentialCleaner = AndroidGoogleCredentialCleaner(context)
 
@@ -34,18 +40,6 @@ object AuthModule {
     fun provideAuthenticatedRequests(sessions: AuthSessionManager, repository: AuthRepository) = AuthenticatedRequests(sessions, repository)
 
     @Provides @Singleton
-    fun provideAuthRepository(@ApplicationContext context: Context): AuthRepository {
-        // Authentication's server address has not been confirmed. No fallback to OCR/product hosts.
-        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) {
-            return HttpAuthRepository.unconfigured()
-        }
-        return runCatching {
-            val config = Properties().apply {
-                File(context.noBackupFilesDir, "auth-api.properties").inputStream().use(::load)
-            }
-            val url = requireNotNull(config.getProperty("baseUrl")).trim().toHttpUrl()
-            require(url.isHttps) // Production credentials must never be sent over cleartext HTTP.
-            HttpAuthRepository.create(url)
-        }.getOrElse { HttpAuthRepository.unconfigured() }
-    }
+    fun provideAuthRepository(): AuthRepository =
+        HttpAuthRepository.create(com.coworker.jjikmuk.data.remote.BackendServer.BASE_URL.toHttpUrl())
 }

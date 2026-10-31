@@ -35,7 +35,7 @@ interface ScannerOcrService {
     suspend fun recognize(photo: PreparedScannerPhoto): OcrResult
 }
 
-/** Explicitly disabled until team access/token injection and the product flow are agreed. */
+/** Explicit unavailable service for previews/tests; production uses the signed-in session. */
 class UnavailableScannerOcrService : ScannerOcrService {
     override val available = false
     override suspend fun recognize(photo: PreparedScannerPhoto) = OcrResult.Failure(OcrFailure.NotConfigured)

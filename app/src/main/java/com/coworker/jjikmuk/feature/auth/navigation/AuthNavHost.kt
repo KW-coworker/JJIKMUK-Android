@@ -66,6 +66,7 @@ fun AuthNavHost(
     accountActionViewModel: AccountActionViewModel = hiltViewModel(),
     profileCompletionViewModel: ProfileCompletionViewModel = hiltViewModel(),
     googleLoginViewModel: GoogleLoginViewModel = hiltViewModel(),
+    pendingPhotoViewModel: com.coworker.jjikmuk.feature.auth.photo.PendingSignupPhotoViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -126,7 +127,6 @@ fun AuthNavHost(
             LaunchedEffect(session.generation) { loginViewModel.checkSession() }
             LaunchedEffect(entry, session) {
                 val destination = when {
-                    entry == SessionEntryState.Ready && session.canEnterHome && session.profile != null -> AuthRoute.Home
                     entry == SessionEntryState.SignedOut && session.credentials == null -> AuthRoute.AuthChoice
                     entry == SessionEntryState.ProfileRequired && session.credentials != null && session.profile?.profileCompleted == false -> AuthRoute.ProfileCompletion
                     else -> null
@@ -136,7 +136,15 @@ fun AuthNavHost(
                     launchSingleTop = true
                 }
             }
-            SessionEntryScreen(entry, loginViewModel::checkSession, loginViewModel::logout)
+            if (entry == SessionEntryState.Ready && session.canEnterHome && session.profile != null) {
+                com.coworker.jjikmuk.feature.auth.photo.PendingSignupPhotoRoute(pendingPhotoViewModel) {
+                    if (navController.currentDestination?.route == AuthRoute.SessionEntry && loginViewModel.sessionState.value.canEnterHome)
+                        navController.navigate(AuthRoute.Home) {
+                            popUpTo(navController.graph.id) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                }
+            } else SessionEntryScreen(entry, loginViewModel::checkSession, loginViewModel::logout)
         }
 
         composable(AuthRoute.ProfileCompletion) {

@@ -9,7 +9,9 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
+import com.coworker.jjikmuk.data.remote.BackendServer
+import okhttp3.RequestBody
+import okio.BufferedSink
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -21,28 +23,25 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
-
         return OkHttpClient.Builder()
             .connectTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .addInterceptor(loggingInterceptor)
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    @AiRetrofit
-    fun provideAiRetrofit(
-        okHttpClient: OkHttpClient,
-    ): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl(AI_SERVER_BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .retryOnConnectionFailure(false)
+            .followRedirects(false).followSslRedirects(false)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val body = request.body
+                // Paid POSTs must not be replayed by OkHttp for 408/503 follow-up responses.
+                val safeRequest = if (body == null || request.method in setOf("GET", "HEAD")) request else
+                    request.newBuilder().method(request.method, object : RequestBody() {
+                        override fun contentType() = body.contentType()
+                        override fun contentLength() = body.contentLength()
+                        override fun isOneShot() = true
+                        override fun writeTo(sink: BufferedSink) = body.writeTo(sink)
+                    }).build()
+                chain.proceed(safeRequest)
+            }
             .build()
     }
 
@@ -53,7 +52,7 @@ object NetworkModule {
         okHttpClient: OkHttpClient,
     ): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BACKEND_SERVER_BASE_URL)
+            .baseUrl(BackendServer.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -62,7 +61,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideChatApi(
-        @AiRetrofit
+        @BackendRetrofit
         retrofit: Retrofit,
     ): ChatApi {
         return retrofit.create(ChatApi::class.java)
@@ -77,15 +76,8 @@ object NetworkModule {
         return retrofit.create(ProductApi::class.java)
     }
 
-    private const val AI_SERVER_BASE_URL = "http://10.0.2.2:8000/"
-    private const val BACKEND_REMOTE_SERVER_BASE_URL = "https://jjikmuk-backend-dev.tail198441.ts.net/"
-    private const val BACKEND_SERVER_BASE_URL = BACKEND_REMOTE_SERVER_BASE_URL
     private const val NETWORK_TIMEOUT_SECONDS = 30L
 }
-
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class AiRetrofit
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)

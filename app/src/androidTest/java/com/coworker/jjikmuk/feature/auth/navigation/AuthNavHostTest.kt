@@ -1,6 +1,7 @@
 package com.coworker.jjikmuk.feature.auth.navigation
 
 import com.coworker.jjikmuk.feature.auth.presentation.profile.ProfileCompletionViewModel
+import com.coworker.jjikmuk.feature.auth.photo.*
 import com.coworker.jjikmuk.feature.auth.google.GoogleLoginViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.coworker.jjikmuk.feature.mypage.presentation.AccountActionViewModel
@@ -78,7 +79,13 @@ class AuthNavHostTest {
             JjikmukTheme {
                 AuthNavHost(navController = navController, signUpViewModel = signup, passwordResetViewModel = passwordReset, loginViewModel = login,
                     accountActionViewModel = account, profileCompletionViewModel = ProfileCompletionViewModel(repository, AuthProfiles(repository, sessions, AuthenticatedRequests(sessions, repository)), sessions),
-                    googleLoginViewModel = GoogleLoginViewModel(repository, sessions))
+                    googleLoginViewModel = GoogleLoginViewModel(repository, sessions),
+                    pendingPhotoViewModel = PendingSignupPhotoViewModel(object : PendingSignupPhotoStore {
+                        override suspend fun read(email: String): PendingSignupPhoto? = null
+                        override suspend fun stage(email: String, photo: ProfilePhoto): String = error("unused")
+                        override suspend fun update(email: String, record: PendingSignupPhoto) = Unit
+                        override suspend fun remove(email: String, id: String) = Unit
+                    }, AuthPhotos(repository, sessions, AuthenticatedRequests(sessions, repository)), sessions))
             }
         }
         // These tests isolate auth navigation from permission onboarding.

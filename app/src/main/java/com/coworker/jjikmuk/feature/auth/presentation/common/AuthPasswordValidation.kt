@@ -16,5 +16,5 @@ fun isAuthPasswordValid(password: String, passwordConfirm: String): Boolean =
 private fun meetsNewPasswordRequirements(password: String): Boolean = password.length >= 8 &&
     password.toByteArray(Charsets.UTF_8).size <= 72 &&
     password.any { it in 'a'..'z' || it in 'A'..'Z' } && password.any { it in '0'..'9' } &&
-    password.none { it.isWhitespace() || Character.UnicodeScript.of(it.code) == Character.UnicodeScript.HANGUL }
-// Special characters aren't required. A stricter allowlist awaits the backend agreement.
+    password.all { it in '!'..'~' }
+// Backend ASCII policy: letters/digits required, printable symbols optional, no spaces/Unicode.
