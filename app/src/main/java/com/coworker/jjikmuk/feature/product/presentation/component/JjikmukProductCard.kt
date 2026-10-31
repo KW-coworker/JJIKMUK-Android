@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.SubcomposeAsyncImage
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
@@ -38,9 +39,11 @@ data class JjikmukProductCardUiModel(
     val badge: String,
     @DrawableRes val imageResId: Int? = null,
     val imageUrl: String? = null,
+    val barcode: String? = null,
 )
 
 enum class JjikmukProductCardSize {
+    AlternativeCompact,
     Compact,
     Grid,
     Carousel,
@@ -52,6 +55,7 @@ fun JjikmukProductCard(
     product: JjikmukProductCardUiModel,
     modifier: Modifier = Modifier,
     size: JjikmukProductCardSize = JjikmukProductCardSize.Grid,
+    compactLabels: Boolean = false,
     showFavorite: Boolean = size == JjikmukProductCardSize.Grid || size == JjikmukProductCardSize.FlexibleGrid,
 ) {
     val spec = productCardSpec(size)
@@ -69,7 +73,7 @@ fun JjikmukProductCard(
             .height(spec.cardHeight),
         color = JjikmukTheme.colors.surface,
         shape = RoundedCornerShape(16.dp),
-        shadowElevation = spec.shadowElevation,
+        shadowElevation = if (compactLabels) 2.dp else spec.shadowElevation,
         border = BorderStroke(
             width = 1.dp,
             color = JjikmukTheme.colors.borderSubtle,
@@ -131,14 +135,15 @@ fun JjikmukProductCard(
                 Text(
                     text = product.brand,
                     color = JjikmukTheme.colors.textSecondary,
-                    style = JjikmukTheme.typography.caption.asEnglish(),
+                    style = JjikmukTheme.typography.caption.asEnglish().copy(fontSize = if (compactLabels || size == JjikmukProductCardSize.AlternativeCompact) 10.sp else 11.sp, lineHeight = 15.sp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = product.name,
                     color = JjikmukTheme.colors.textPrimary,
-                    style = when (size) {
+                    style = if (compactLabels) JjikmukTheme.typography.labelS.copy(fontSize=13.sp,lineHeight=17.875.sp) else when (size) {
+                        JjikmukProductCardSize.AlternativeCompact -> JjikmukTheme.typography.labelS.copy(fontSize=11.sp)
                         JjikmukProductCardSize.Compact -> JjikmukTheme.typography.labelM
                         JjikmukProductCardSize.Grid,
                         JjikmukProductCardSize.Carousel,
@@ -264,6 +269,10 @@ private data class ProductCardSpec(
 
 private fun productCardSpec(size: JjikmukProductCardSize): ProductCardSpec =
     when (size) {
+        JjikmukProductCardSize.AlternativeCompact -> ProductCardSpec(
+            cardWidth=100.dp,cardHeight=156.dp,contentPadding=0.dp,imageWidth=100.dp,imageHeight=100.dp,
+            imageCornerRadius=12.dp,textWidth=100.dp,textTopPadding=5.dp,textHorizontalPadding=0.dp,shadowElevation=0.dp,
+        )
         JjikmukProductCardSize.Compact -> ProductCardSpec(
             cardWidth = 150.dp,
             cardHeight = 238.dp,

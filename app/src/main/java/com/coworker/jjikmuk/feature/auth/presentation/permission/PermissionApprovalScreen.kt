@@ -59,6 +59,7 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 @Composable
 fun PermissionApprovalRoute(
     onContinue: () -> Unit,
+    onSkip: () -> Unit,
     modifier: Modifier = Modifier,
     logoModifier: Modifier = Modifier,
     titleModifier: Modifier = Modifier,
@@ -82,7 +83,7 @@ fun PermissionApprovalRoute(
                 permissionLauncher.launch(missingPermissions.toTypedArray())
             }
         },
-        onLaterClick = onContinue,
+        onLaterClick = onSkip,
         modifier = modifier,
         logoModifier = logoModifier,
         titleModifier = titleModifier,
@@ -115,7 +116,6 @@ fun PermissionApprovalScreen(
             PermissionReminderContent(
                 onAllowClick = {
                     showPermissionReminder = false
-                    onAllowClick(PermissionSelection(camera = true, photo = true, notification = true))
                 },
                 onLaterClick = {
                     showPermissionReminder = false
