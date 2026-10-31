@@ -9,4 +9,7 @@ data class ProductSearchUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val hasSearched: Boolean = false,
-)
+) {
+    val isEmptyResult: Boolean
+        get() = hasSearched && !isLoading && errorMessage == null && products.isEmpty()
+}

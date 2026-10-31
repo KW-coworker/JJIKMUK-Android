@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.feature.product.presentation.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -25,6 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -94,6 +100,7 @@ internal fun ProductSearchResultContent(
     onProductClick: (ProductSearchResult) -> Unit,
     modifier: Modifier = Modifier,
     decoratedImages: Boolean = true,
+    emptyBottomPadding: Dp = 80.dp,
 ) {
     Column(
         modifier = modifier
@@ -103,7 +110,9 @@ internal fun ProductSearchResultContent(
         ProductSearchResultHeader(
             query = searchUiState.submittedQuery,
             productCount = searchUiState.products.size,
-            onFilterClick = onFilterClick,
+            isLoading = searchUiState.isLoading,
+            hasError = searchUiState.errorMessage != null,
+            onFilterClick = onFilterClick.takeUnless { searchUiState.isEmptyResult },
         )
 
         when {
@@ -131,19 +140,10 @@ internal fun ProductSearchResultContent(
                 }
             }
 
-            searchUiState.products.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "검색 결과가 없어요.",
-                        color = JjikmukTheme.colors.textSecondary,
-                        style = JjikmukTheme.typography.bodyM,
-                    )
-                }
+            searchUiState.isEmptyResult -> {
+                ProductSearchEmptyState(
+                    modifier = Modifier.fillMaxSize().padding(bottom = emptyBottomPadding),
+                )
             }
 
             else -> {
@@ -172,7 +172,8 @@ internal fun ProductSearchResultContent(
 private fun ProductSearchResultHeader(
     query: String,
     productCount: Int,
-    onFilterClick: (() -> Unit)? = null,
+    isLoading: Boolean,
+    hasError: Boolean,    onFilterClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -196,10 +197,16 @@ private fun ProductSearchResultHeader(
                     append(query)
                     append("' ")
                 }
-                append("검색 결과 ")
-                withStyle(SpanStyle(color = JjikmukTheme.colors.brand)) {
-                    append(productCount.toString())
-                    append("건")
+                when {
+                    isLoading -> append("검색 중")
+                    hasError -> append("검색 실패")
+                    else -> {
+                        append("검색 결과 ")
+                        withStyle(SpanStyle(color = JjikmukTheme.colors.brand)) {
+                            append(productCount.toString())
+                            append("건")
+                        }
+                    }
                 }
             },
             color = JjikmukTheme.colors.textSecondary,
@@ -244,3 +251,47 @@ private fun ProductSearchResult.toProductListCardUiModel(): JjikmukProductListCa
         imageUrl = imageUrl,
         allergyLabels = allergyLabels,
     )
+
+/** Shared by normal scanner results and Product search; failures are handled separately. */
+@Composable
+private fun ProductSearchEmptyState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            modifier = Modifier.size(112.dp).background(Color(0xFFF3F4F9), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(84.dp).background(JjikmukTheme.colors.borderSubtle.copy(alpha = 0.6f), CircleShape))
+            Image(painterResource(R.drawable.ic_product_search_empty), contentDescription = null,
+                modifier = Modifier.size(52.dp))
+        }
+        Text(
+            text = "검색된 상품이 존재하지 않습니다",
+            style = JjikmukTheme.typography.h3,
+            color = JjikmukTheme.colors.textPrimary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 24.dp),
+        )
+        Text(
+            text = "검색어를 다시 확인하거나\n다른 키워드로 검색해 보세요.",
+            style = JjikmukTheme.typography.bodyM,
+            color = JjikmukTheme.colors.textSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+@Preview(name = "상품 검색 결과 없음", showBackground = true, widthDp = 375, heightDp = 600)
+@Composable
+private fun ProductSearchEmptyPreview() {
+    JjikmukTheme {
+        ProductSearchResultContent(
+            searchUiState = ProductSearchUiState(query = "포키", submittedQuery = "포키", hasSearched = true),
+            onProductClick = {},
+        )
+    }
+}

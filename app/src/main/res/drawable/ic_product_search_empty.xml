@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="52dp" android:height="52dp" android:viewportWidth="52" android:viewportHeight="52">
+    <!-- Figma 1537:25279 / 1539:25372: original SVG paths. -->
+    <path android:pathData="M37,23C37,30.732 30.732,37 23,37C15.268,37 9,30.732 9,23C9,15.268 15.268,9 23,9C30.732,9 37,15.268 37,23Z"
+        android:strokeWidth="3.5" android:strokeColor="#9BA2B3" />
+    <path android:pathData="M33.5,33.5L43,43" android:strokeWidth="3.5"
+        android:strokeLineCap="round" android:strokeColor="#9BA2B3" />
+    <path android:pathData="M18,18.5L23,23M23,23L28,27.5M23,23L28,18.5M23,23L18,27.5"
+        android:strokeWidth="3" android:strokeLineCap="round" android:strokeColor="#FF6B6B" />
+</vector>
