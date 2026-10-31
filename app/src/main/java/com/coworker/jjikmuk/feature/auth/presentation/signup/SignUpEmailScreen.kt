@@ -130,7 +130,7 @@ fun SignUpEmailScreen(
                     isError = uiState.emailError != null,
                     onImeAction = {
                         focusManager.clearFocus()
-                        if (uiState.isEmailNotEmpty && !uiState.isAuthRequestInFlight) onNextClick()
+                        if (uiState.isEmailNotEmpty && !uiState.isAuthRequestInFlight && uiState.resendSeconds == 0) onNextClick()
                     },
                 )
                 if (uiState.emailError != null) {
@@ -143,7 +143,9 @@ fun SignUpEmailScreen(
             }
 
             JjikmukPrimaryButton(
-                text = stringResource(R.string.sign_up_email_next),
+                text = if (uiState.resendSeconds > 0)
+                    stringResource(R.string.auth_email_retry_countdown, uiState.resendSeconds)
+                else stringResource(R.string.sign_up_email_next),
                 onClick = {
                     focusManager.clearFocus()
                     onNextClick()

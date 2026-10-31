@@ -98,8 +98,11 @@ class GoogleLoginViewModel(
                                     }
                                 }
                             }
-                            is AuthResult.Failure -> restart(if (response.error.outcomeUnknown)
-                                "로그인 결과를 확인하지 못했어요. Google 계정을 다시 선택해 로그인해 주세요." else response.error.userMessage())
+                            is AuthResult.Failure -> restart(when {
+                                response.error.code == "GOOGLE_LOGIN_UNAVAILABLE" -> response.error.userMessage()
+                                response.error.outcomeUnknown -> "로그인 결과를 확인하지 못했어요. Google 계정을 다시 선택해 로그인해 주세요."
+                                else -> response.error.userMessage()
+                            })
                         }
                     } catch (cancelled: CancellationException) {
                         if (revision == ticket) restart("로그인 결과를 확인하지 못했어요. Google 로그인을 다시 진행해 주세요.")

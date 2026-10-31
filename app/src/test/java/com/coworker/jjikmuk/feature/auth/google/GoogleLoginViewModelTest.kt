@@ -45,6 +45,15 @@ class GoogleLoginViewModelTest {
         receiveCredential(ticket, GoogleCredentialResult.Token("google-id-token"))
     }
 
+    @Test fun `unconfigured Google server reports unavailability without creating a session or retrying`() = runTest {
+        googleResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 503, "GOOGLE_LOGIN_UNAVAILABLE"))
+        val vm = model(); vm.choose(); runCurrent()
+        assertEquals(GooglePhase.Idle, vm.state.value.phase)
+        assertTrue(vm.state.value.message!!.contains("Google 로그인을 이용할 수 없어요"))
+        assertNull(sessions.state.value.credentials); assertNull(store.saved)
+        assertEquals(1, googleCalls); assertEquals(0, linkCalls)
+    }
+
     @Test fun `link required never creates service session and old password can explicitly link`() = runTest {
         val vm = model(); vm.choose(); runCurrent()
         assertEquals(GooglePhase.LinkRequired, vm.state.value.phase)

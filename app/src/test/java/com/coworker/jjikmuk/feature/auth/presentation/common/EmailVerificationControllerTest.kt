@@ -8,6 +8,29 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EmailVerificationControllerTest {
+    @Test fun `server failure preserves email blocks replay and recovers only after explicit resend`() = runTest {
+        val repo = TestAuthRepository()
+        repo.sendResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 500, "INTERNAL_SERVER_ERROR"))
+        val c = EmailVerificationController(repo, EmailPurpose.SignUp, backgroundScope) { testScheduler.currentTime }
+        c.reset("user@example.com")
+        assertFalse(c.send())
+        assertEquals("user@example.com", c.state.value.email)
+        assertTrue(c.state.value.outcomeUnknown)
+        assertTrue(c.state.value.error!!.contains("인증 서버"))
+        assertEquals(60, c.state.value.resendSeconds)
+        assertFalse(c.state.value.sent)
+        assertNull(c.currentProof())
+        assertFalse(c.send())
+        assertEquals(1, repo.sends)
+        advanceTimeBy(60_000); runCurrent()
+        assertEquals(1, repo.sends) // Timer expiration never dispatches another request.
+        repo.sendResult = null
+        assertTrue(c.send())
+        assertEquals(2, repo.sends)
+        assertFalse(c.state.value.outcomeUnknown)
+        assertTrue(c.state.value.sent)
+    }
+
     @Test fun `absolute proof expiry may shorten but never extend the relative lifetime`() = runTest {
         val repo = TestAuthRepository()
         val clock = { testScheduler.currentTime }

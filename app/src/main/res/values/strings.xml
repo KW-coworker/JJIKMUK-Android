@@ -138,4 +138,5 @@
     <string name="account_withdrawal_return_to_start">처음으로</string>
     <string name="auth_otp_resend_wait">%1$d초 후 재전송</string>
     <string name="auth_password_requirements">영문·숫자를 포함해 8~72자로 입력해 주세요. 특수문자는 선택이며 한글·공백·이모지·악센트 문자는 사용할 수 없어요.</string>
+    <string name="auth_email_retry_countdown">%1$d초 후 다시 요청</string>
 </resources>

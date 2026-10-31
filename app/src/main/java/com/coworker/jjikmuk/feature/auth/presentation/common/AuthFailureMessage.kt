@@ -28,6 +28,8 @@ fun AuthFailure.userMessage(): String = when (code) {
     "REFRESH_RETRY_UNCONFIRMED" -> "로그인 갱신을 완료하지 못했어요. 잠시 후 다시 로그인해 주세요"
     "SESSION_STORAGE_FAILED" -> "로그인 정보를 저장하지 못했어요. 다시 로그인해 주세요"
     "AUTH_REFRESHED_RETRY_REQUIRED" -> "로그인 정보를 갱신했어요. 작업 결과를 확인한 뒤 다시 시도해 주세요"
+    "GOOGLE_LOGIN_UNAVAILABLE" -> "지금은 Google 로그인을 이용할 수 없어요. 잠시 후 다시 시도해 주세요"
+    "GOOGLE_TOKEN_INVALID" -> "Google 로그인 정보를 확인하지 못했어요. 계정을 다시 선택해 주세요"
     "GOOGLE_LINK_PASSWORD_INVALID" -> "기존 계정의 비밀번호를 확인해 주세요"
     "GOOGLE_LINK_EXPIRED" -> "연결 시간이 만료됐어요. Google 로그인을 다시 진행해 주세요"
     "GOOGLE_ACCOUNT_ALREADY_LINKED" -> "이미 다른 Google 계정과 연결되어 있어요"

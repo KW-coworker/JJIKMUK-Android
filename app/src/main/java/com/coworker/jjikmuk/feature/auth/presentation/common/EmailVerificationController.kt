@@ -86,7 +86,7 @@ class EmailVerificationController(
                     true
                 }
                 is AuthResult.Failure -> {
-                    if (result.error.outcomeUnknown) markUnknown()
+                    if (result.error.outcomeUnknown) markUnknown(result.error)
                     else {
                         if (result.error.status == 429) {
                             // Optional server delay, not a guessed limit parsed from message text.
@@ -134,7 +134,7 @@ class EmailVerificationController(
                     currentProof() != null
                 }
                 is AuthResult.Failure -> {
-                    if (result.error.outcomeUnknown) markUnknown()
+                    if (result.error.outcomeUnknown) markUnknown(result.error)
                     else {
                         if (result.error.code in setOf("OTP_EXPIRED", "OTP_NOT_REQUESTED", "OTP_RATE_LIMITED") ||
                             (result.error.code == "OTP_INVALID" && result.error.remainingAttempts == 0)) {
@@ -161,12 +161,14 @@ class EmailVerificationController(
         mutableState.update { it.copy(verified = false) }
     }
 
-    private fun markUnknown() {
+    private fun markUnknown(error: AuthFailure? = null) {
         invalidateProof()
         otpDeadline = 0
         cooldowns[state.value.email] = nowMillis() + 60_000
         mutableState.update { it.copy(sent = false, remainingSeconds = 0, outcomeUnknown = true,
-            error = "처리 결과를 확인하지 못했어요. 잠시 후 인증번호를 다시 받아 주세요") }
+            error = if (error?.kind == AuthFailureKind.Server && (error.status ?: 0) >= 500)
+                "인증 서버에 문제가 있어 결과를 확인하지 못했어요. 잠시 후 인증번호를 다시 받아 주세요"
+            else "처리 결과를 확인하지 못했어요. 잠시 후 인증번호를 다시 받아 주세요") }
     }
 
     private fun fail(message: String): Boolean {

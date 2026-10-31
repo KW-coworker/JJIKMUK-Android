@@ -113,7 +113,7 @@ fun PasswordResetEmailScreen(
                     isError = uiState.emailError != null,
                     onImeAction = {
                         focusManager.clearFocus()
-                        if (uiState.isEmailNotEmpty && !uiState.isAuthRequestInFlight) onSendCodeClick()
+                        if (uiState.isEmailNotEmpty && !uiState.isAuthRequestInFlight && uiState.resendSeconds == 0) onSendCodeClick()
                     },
                 )
                 if (uiState.emailError != null) {
@@ -126,7 +126,9 @@ fun PasswordResetEmailScreen(
             }
 
             JjikmukPrimaryButton(
-                text = stringResource(R.string.password_reset_send_code),
+                text = if (uiState.resendSeconds > 0)
+                    stringResource(R.string.auth_email_retry_countdown, uiState.resendSeconds)
+                else stringResource(R.string.password_reset_send_code),
                 onClick = {
                     focusManager.clearFocus()
                     onSendCodeClick()
