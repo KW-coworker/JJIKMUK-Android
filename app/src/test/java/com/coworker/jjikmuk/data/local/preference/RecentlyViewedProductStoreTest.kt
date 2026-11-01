@@ -1,115 +1,128 @@
 package com.coworker.jjikmuk.data.local.preference
 
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
+import com.coworker.jjikmuk.data.remote.api.HistoryEntry
+import com.coworker.jjikmuk.data.remote.dto.ProductDto
+import com.coworker.jjikmuk.data.repository.HistoryRemote
 import com.coworker.jjikmuk.domain.model.*
-import com.coworker.jjikmuk.feature.auth.domain.AuthLogin
-import com.coworker.jjikmuk.feature.auth.session.AuthSessionManager
-import com.coworker.jjikmuk.feature.auth.session.MemorySessionStore
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.coworker.jjikmuk.feature.auth.domain.*
+import com.coworker.jjikmuk.feature.auth.session.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.*
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class RecentlyViewedProductStoreTest {
-    @get:Rule val temporary = TemporaryFolder()
     private val sessions = AuthSessionManager(MemorySessionStore()) { 1000L }
-    private suspend fun login(id: Long = 1) {
-        val attempt = sessions.beginLogin()
-        check(sessions.acceptLogin(attempt,
-            AuthLogin("test-access", id, "$id@example.com", "unused", 900, true), 1000))
+    private suspend fun login(manager: AuthSessionManager = sessions, id: Long = 1) {
+        val attempt = manager.beginLogin()
+        check(manager.acceptLogin(attempt, AuthLogin("access-$id", id, "$id@example.com", "unused", 900, true), 1000))
     }
-    private fun product(barcode: String, name: String = "상품$barcode") = ProductDetail(
-        barcode, name, "제조사", "https://example.com/$barcode.png", emptyList(), null, null, null,
+    private fun product(code: String) = ProductDetail(code, "상품$code", "제조사", null, emptyList(), null, null, null,
         ProductNutrition(null, null, null, null, null, null, null), ProductMacroPercents(null, null, null),
-        ProductSafetyStatus.Unknown, emptyList(), null, false,
-    )
-    private fun TestScope.storage() = PreferenceDataStoreFactory.create(scope = backgroundScope) {
-        temporary.newFolder().resolve("viewed.preferences_pb")
+        ProductSafetyStatus.Unknown, emptyList(), null, false)
+    private fun event(code: String, id: Long, type: String = "SCAN") = HistoryEntry(id, type,
+        "2026-11-02T01:00:00", ProductDto(barcode = code, productName = "상품$code", manufacturer = "제조사"))
+    private class Server : HistoryRemote {
+        val histories = mutableMapOf<Long, List<HistoryEntry?>>()
+        var writes = 0
+        var failure = false
+        var gate: CompletableDeferred<Unit>? = null
+        var started: CompletableDeferred<Unit>? = null
+        override suspend fun list(owner: ProductViewOwner): AuthResult<List<HistoryEntry?>> {
+            val captured = histories[owner.userId].orEmpty()
+            started?.complete(Unit)
+            gate?.await()
+            return if (failure) AuthResult.Failure(AuthFailure(AuthFailureKind.Network)) else AuthResult.Success(captured)
+        }
+        override suspend fun record(owner: ProductViewOwner, barcode: String): AuthResult<Unit> {
+            writes++
+            if (failure) return AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+            histories[owner.userId] = listOf(HistoryEntry(100, "DETAIL_VIEW", "2026-11-03T00:00:00",
+                ProductDto(barcode = barcode, productName = "상품$barcode"))) + histories[owner.userId].orEmpty()
+            return AuthResult.Success(Unit)
+        }
     }
 
-    @Test fun `empty history has no samples and repeat views move to front with fresh metadata`() = runTest {
+    @Test fun `fresh device reads same account server history without local preferences`() = runTest {
         login()
-        val store = RecentlyViewedProductStore(storage(), sessions)
-        assertTrue(store.products.first().isEmpty())
-        val owner = store.captureOwner()
-        store.record(product("A"), owner)
-        store.record(product("B"), owner)
-        store.record(product("A", "갱신된 상품명"), owner)
-        val items = store.products.first()
-        assertEquals(listOf("A", "B"), items.map { it.barcode })
-        assertEquals("갱신된 상품명", items.first().productName)
-        assertEquals("제조사", items.first().brandName)
-        assertEquals("https://example.com/A.png", items.first().imageUrl)
+        val server = Server().apply { histories[1] = listOf(event("A", 1)) }
+        val first = RecentlyViewedProductStore(server, sessions)
+        assertEquals("A", first.state.first { !it.isLoading }.products.single().barcode)
+        val otherDevice = AuthSessionManager(MemorySessionStore()) { 1000L }
+        login(otherDevice)
+        assertEquals("A", RecentlyViewedProductStore(server, otherDevice).state.first { !it.isLoading }.products.single().barcode)
+        server.histories[1] = listOf(event("B", 2), event("A", 1))
+        assertEquals(listOf("B", "A"), first.state.first { !it.isLoading }.products.map { it.barcode })
     }
 
-    @Test fun `records persist across a new history reader and returning to the same account`() = runTest {
+    @Test fun `latest ten distinct products exclude favorites missing products and invalid data`() = runTest {
         login()
-        val data = storage()
-        val store = RecentlyViewedProductStore(data, sessions)
+        val server = Server().apply {
+            histories[1] = (1L..15L).map { event(it.toString(), it) } + listOf(
+                event("15", 16), event("favorite", 20, "FAVORITE"), HistoryEntry(30, "SCAN"), null,
+                HistoryEntry(40, "SCAN", product = ProductDto(barcode = "", productName = "invalid")))
+        }
+        val items = RecentlyViewedProductStore(server, sessions).state.first { !it.isLoading }.products
+        assertEquals((15 downTo 6).map(Int::toString), items.map { it.barcode })
+    }
+
+    @Test fun `normal detail refresh does not duplicate server automatic scan event`() = runTest {
+        login()
+        val server = Server().apply { histories[1] = listOf(event("A", 1)) }
+        val store = RecentlyViewedProductStore(server, sessions)
         store.record(product("A"), store.captureOwner())
-        sessions.clear()
-        assertTrue(store.products.first().isEmpty())
-        login()
-        assertEquals("A", RecentlyViewedProductStore(data, sessions).products.first().single().barcode)
+        assertEquals(0, server.writes)
+        assertEquals("A", store.state.first { !it.isLoading }.products.single().barcode)
     }
 
-    @Test fun `account switch isolates history and ignores late results from old account`() = runTest {
-        login(1)
-        val store = RecentlyViewedProductStore(storage(), sessions)
+    @Test fun `capacity selection records event and failed mutation is not retried`() = runTest {
+        login()
+        val server = Server()
+        val store = RecentlyViewedProductStore(server, sessions)
+        store.record(product("A"), store.captureOwner(), alreadyRecorded = false)
+        assertEquals(1, server.writes)
+        assertEquals("A", store.state.first { !it.isLoading }.products.single().barcode)
+        server.failure = true
+        store.record(product("B"), store.captureOwner(), alreadyRecorded = false)
+        assertEquals(2, server.writes)
+        assertNotNull(store.state.first { !it.isLoading }.failure)
+    }
+
+    @Test fun `account switch and logout do not expose previous account history`() = runTest {
+        login()
+        val server = Server().apply { histories[1] = listOf(event("A", 1)); histories[2] = listOf(event("B", 2)) }
+        val store = RecentlyViewedProductStore(server, sessions)
         val oldOwner = store.captureOwner()
-        store.record(product("A"), oldOwner)
-        login(2)
-        assertTrue(store.products.first().isEmpty())
-        store.record(product("LATE"), oldOwner)
-        store.record(product("B"), store.captureOwner())
-        assertEquals(listOf("B"), store.products.first().map { it.barcode })
-        login(1)
-        assertEquals(listOf("A"), store.products.first().map { it.barcode })
-    }
-
-    @Test fun `same account relogin does not accept a previous session response`() = runTest {
-        login()
-        val store = RecentlyViewedProductStore(storage(), sessions)
-        val previous = store.captureOwner()
-        login()
-        store.record(product("LATE"), previous)
-        assertTrue(store.products.first().isEmpty())
-    }
-
-    @Test fun `only newest fifty are retained`() = runTest {
-        login()
-        val store = RecentlyViewedProductStore(storage(), sessions)
-        val owner = store.captureOwner()
-        repeat(55) { store.record(product(it.toString()), owner) }
-        val items = store.products.first()
-        assertEquals(50, items.size)
-        assertEquals("54", items.first().barcode)
-        assertEquals("5", items.last().barcode)
-    }
-
-    @Test fun `signed out and invalid products are not recorded`() = runTest {
-        val store = RecentlyViewedProductStore(storage(), sessions)
+        assertEquals("A", store.state.first { !it.isLoading }.products.single().barcode)
+        login(id = 2)
+        store.record(product("OLD"), oldOwner, alreadyRecorded = false)
+        assertEquals(0, server.writes)
+        assertEquals("B", store.state.first { !it.isLoading }.products.single().barcode)
+        sessions.clear()
+        assertTrue(store.state.first().products.isEmpty())
         assertNull(store.captureOwner())
-        store.record(product("A"), null)
-        login()
-        store.record(product(""), store.captureOwner())
-        store.record(product("A", ""), store.captureOwner())
-        assertTrue(store.products.first().isEmpty())
     }
 
-    @Test fun `corrupted history recovers on next view`() = runTest {
+    @Test fun `in flight old account read is discarded when account switches`() = runTest {
         login()
-        val data = storage()
-        data.edit { it[stringPreferencesKey("account_1")] = "broken-json" }
-        val store = RecentlyViewedProductStore(data, sessions)
-        assertTrue(store.products.first().isEmpty())
-        store.record(product("A"), store.captureOwner())
-        assertEquals("A", store.products.first().single().barcode)
+        val server = Server().apply { histories[1] = listOf(event("A", 1)); gate = CompletableDeferred(); started = CompletableDeferred() }
+        val store = RecentlyViewedProductStore(server, sessions)
+        val pending = launch { store.refresh() }
+        server.started!!.await()
+        login(id = 2)
+        server.gate!!.complete(Unit)
+        pending.join()
+        server.gate = null
+        assertTrue(store.state.first { !it.isLoading }.products.isEmpty())
+    }
+
+    @Test fun `network failure is distinguished from an empty successful history`() = runTest {
+        login()
+        val server = Server().apply { failure = true }
+        val store = RecentlyViewedProductStore(server, sessions)
+        assertNotNull(store.state.first { !it.isLoading }.failure)
+        server.failure = false
+        assertNull(store.state.first { !it.isLoading }.failure)
     }
 }

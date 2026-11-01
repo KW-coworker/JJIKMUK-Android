@@ -1,80 +1,91 @@
 package com.coworker.jjikmuk.data.local.preference
 
-import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import com.coworker.jjikmuk.data.remote.api.HistoryEntry
+import com.coworker.jjikmuk.data.repository.HistoryRemote
+import com.coworker.jjikmuk.data.repository.HttpHistoryRemote
 import com.coworker.jjikmuk.domain.model.ProductDetail
+import com.coworker.jjikmuk.feature.auth.domain.*
 import com.coworker.jjikmuk.feature.auth.session.AuthSessionManager
-import com.google.gson.Gson
-import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
-private val Context.viewedProductsDataStore by preferencesDataStore(name = "recently_viewed_products")
-
-data class RecentlyViewedProduct(
-    val barcode: String,
-    val productName: String,
-    val brandName: String,
-    val imageUrl: String?,
-)
-
-/** Captured when the detail request starts; a late result cannot become another account's history. */
+data class RecentlyViewedProduct(val barcode: String, val productName: String, val brandName: String, val imageUrl: String?)
+/** Captured at request start; late responses cannot write into another account/session. */
 data class ProductViewOwner(val userId: Long, val generation: Long)
+data class RecentProductsState(val owner: ProductViewOwner? = null,
+    val products: List<RecentlyViewedProduct> = emptyList(), val isLoading: Boolean = false,
+    val failure: AuthFailure? = null)
 
+/** Server history is the source of truth. Old local preferences are neither uploaded nor displayed. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class RecentlyViewedProductStore internal constructor(
-    private val dataStore: DataStore<Preferences>,
+    private val remote: HistoryRemote,
     private val sessions: AuthSessionManager,
 ) {
-    @Inject constructor(@ApplicationContext context: Context, sessions: AuthSessionManager) :
-        this(context.viewedProductsDataStore, sessions)
+    @Inject constructor(remote: HttpHistoryRemote, sessions: AuthSessionManager) : this(remote as HistoryRemote, sessions)
+    private val mutableState = MutableStateFlow(RecentProductsState())
+    private val mutex = Mutex()
 
-    private val gson = Gson()
-
-    val products: Flow<List<RecentlyViewedProduct>> = sessions.state
-        .map { it.credentials?.userId?.takeIf { _ -> it.canEnterHome } }
-        .distinctUntilChanged()
+    val state: Flow<RecentProductsState> = sessions.state.map { captureOwner() }.distinctUntilChanged()
         .flatMapLatest { owner ->
-            if (owner == null) flowOf(emptyList()) else dataStore.data
-                .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
-                .map { decode(it[key(owner)]) }
+            if (owner == null) flowOf(RecentProductsState()) else flow {
+                emit(RecentProductsState(owner, isLoading = true))
+                refresh(owner)
+                emitAll(mutableState.filter { it.owner == owner })
+            }
         }
+    val products: Flow<List<RecentlyViewedProduct>> = state.map { it.products }
 
     fun captureOwner(): ProductViewOwner? = sessions.state.value.let { state ->
         state.credentials?.takeIf { state.canEnterHome }?.let { ProductViewOwner(it.userId, state.generation) }
     }
 
-    suspend fun record(product: ProductDetail, owner: ProductViewOwner?) {
-        if (owner == null || product.barcode.isBlank() || product.productName.isBlank()) return
-        dataStore.edit { preferences ->
-            if (captureOwner() != owner) return@edit
-            val viewed = RecentlyViewedProduct(product.barcode, product.productName, product.brandName, product.imageUrl)
-            val history = listOf(viewed) + decode(preferences[key(owner.userId)]).filterNot { it.barcode == viewed.barcode }
-            preferences[key(owner.userId)] = gson.toJson(history.take(MAX_PRODUCTS))
+    suspend fun refresh(owner: ProductViewOwner? = captureOwner()) = mutex.withLock {
+        if (owner == null || captureOwner() != owner) return@withLock
+        val previous = mutableState.value.takeIf { it.owner == owner } ?: RecentProductsState(owner)
+        mutableState.value = previous.copy(isLoading = true, failure = null)
+        val result = remote.list(owner)
+        if (captureOwner() != owner) return@withLock
+        mutableState.value = when (result) {
+            is AuthResult.Success -> RecentProductsState(owner, mapHistory(result.value))
+            is AuthResult.Failure -> previous.copy(isLoading = false, failure = result.error)
         }
     }
 
-    private fun key(owner: Long) = stringPreferencesKey("account_$owner")
+    /** Product detail already creates SCAN on the server; capacity choices need an explicit event. */
+    suspend fun record(product: ProductDetail, owner: ProductViewOwner?, alreadyRecorded: Boolean = true) {
+        if (owner == null || captureOwner() != owner || product.barcode.isBlank() || product.productName.isBlank()) return
+        if (!alreadyRecorded) {
+            val result = remote.record(owner, product.barcode)
+            if (captureOwner() != owner) return
+            if (result is AuthResult.Failure) {
+                mutex.withLock {
+                    if (captureOwner() == owner) {
+                        val previous = mutableState.value.takeIf { it.owner == owner } ?: RecentProductsState(owner)
+                        mutableState.value = previous.copy(isLoading = false, failure = result.error)
+                    }
+                }
+                return // Never retry an ambiguous mutation automatically.
+            }
+        }
+        refresh(owner)
+    }
 
-    private fun decode(raw: String?): List<RecentlyViewedProduct> = runCatching {
-        if (raw.isNullOrBlank()) return@runCatching emptyList()
-        // Gson can populate null into Kotlin fields; validate persisted entries before UI access.
-        gson.fromJson(raw, Array<StoredProduct>::class.java).orEmpty().mapNotNull { value ->
-            val barcode = value?.barcode?.takeIf(String::isNotBlank) ?: return@mapNotNull null
-            val name = value.productName?.takeIf(String::isNotBlank) ?: return@mapNotNull null
-            RecentlyViewedProduct(barcode, name, value.brandName.orEmpty(), value.imageUrl)
+    internal fun mapHistory(entries: List<HistoryEntry?>): List<RecentlyViewedProduct> = entries.filterNotNull()
+        .filter { it.actionType in setOf("SCAN", "DETAIL_VIEW", "SEARCH_CLICK") }
+        .sortedWith(compareByDescending<HistoryEntry> { it.scannedAt.orEmpty() }.thenByDescending { it.id })
+        .mapNotNull { entry ->
+            val product = entry.product ?: return@mapNotNull null
+            val barcode = product.barcode?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+            val name = product.productName?.takeIf(String::isNotBlank)
+                ?: product.cleanProductName?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+            RecentlyViewedProduct(barcode, name, product.manufacturer.orEmpty(), product.imageUrl)
         }.distinctBy { it.barcode }.take(MAX_PRODUCTS)
-    }.getOrDefault(emptyList())
 
-    private data class StoredProduct(val barcode: String?, val productName: String?, val brandName: String?, val imageUrl: String?)
-    companion object { const val MAX_PRODUCTS = 50 }
+    companion object { const val MAX_PRODUCTS = 10 }
 }

@@ -9,18 +9,21 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
     likedProductRepository: LikedProductRepository,
-    recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
+    private val recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
 ) : ViewModel() {
 
-    val recentProducts = recentlyViewedProducts.products.stateIn(
+    val recentState = recentlyViewedProducts.state.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = emptyList(),
+        started = SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0),
+        initialValue = com.coworker.jjikmuk.data.local.preference.RecentProductsState(),
     )
+
+    fun refreshRecentProducts() { viewModelScope.launch { recentlyViewedProducts.refresh() } }
 
     val likedProducts: StateFlow<List<LikedProduct>> =
         likedProductRepository.observeLikedProducts()

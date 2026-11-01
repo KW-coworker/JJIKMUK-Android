@@ -80,7 +80,16 @@ fun MyPageScreen(
     LaunchedEffect(photoState.generation) { photoViewModel.load() }
     val photoModel = com.coworker.jjikmuk.feature.auth.photo.rememberPrivatePhotoModel(photoState.photo)
     val likedProducts by myPageViewModel.likedProducts.collectAsStateWithLifecycle()
-    val viewedProducts by myPageViewModel.recentProducts.collectAsStateWithLifecycle()
+    val recentState by myPageViewModel.recentState.collectAsStateWithLifecycle()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        myPageViewModel.refreshRecentProducts()
+    }
+    val viewedProducts = recentState.products
+    val recentMessage = when {
+        recentState.failure != null -> "최근 본 상품을 불러오지 못했어요. 눌러서 다시 시도해 주세요."
+        recentState.isLoading -> "최근 본 상품을 불러오는 중이에요."
+        else -> null
+    }
     val recentProducts = viewedProducts.map { product ->
         MyPageProductUiModel(barcode = product.barcode, brand = product.brandName.ifBlank { "알수없음" },
             name = product.productName, imageUrl = product.imageUrl)
@@ -101,6 +110,8 @@ fun MyPageScreen(
             selectedListType = productListType,
             likedProducts = likedProductUiModels,
             recentProducts = recentProducts,
+            recentMessage = recentMessage,
+            onRetryRecent = myPageViewModel::refreshRecentProducts,
             onListTypeChange = { selectedProductList = it },
             onBackClick = { selectedProductList = null },
             onTabClick = onTabClick,
@@ -151,6 +162,8 @@ fun MyPageScreen(
             MyPageProductSection(
                 title = "최근 본 상품",
                 products = recentProducts,
+                statusMessage = recentMessage,
+                onRetry = myPageViewModel::refreshRecentProducts,
                 onProductClick = { product -> product.barcode?.let { onHistoryProductClick(it, MyPageProductListType.Recent) } },
                 onMoreClick = { selectedProductList = MyPageProductListType.Recent },
             )
@@ -415,6 +428,8 @@ private fun MyPageProductSection(
     products: List<MyPageProductUiModel>,
     onProductClick: ((MyPageProductUiModel) -> Unit)? = null,
     onMoreClick: () -> Unit = {},
+    statusMessage: String? = null,
+    onRetry: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -447,12 +462,12 @@ private fun MyPageProductSection(
                 ),
             )
         }
-        if (products.isEmpty()) {
+        if (products.isEmpty() || statusMessage != null) {
             Text(
-                text = "${title}이 아직 없어요.",
+                text = statusMessage ?: "${title}이 아직 없어요.",
                 color = JjikmukTheme.colors.textSecondary,
                 style = JjikmukTheme.typography.bodyM,
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier = Modifier.padding(horizontal = 20.dp).clickable(onClick = onRetry),
             )
         }
         Row(
@@ -477,6 +492,8 @@ private fun MyPageProductListScreen(
     selectedListType: MyPageProductListType,
     likedProducts: List<MyPageProductUiModel>,
     recentProducts: List<MyPageProductUiModel>,
+    recentMessage: String?,
+    onRetryRecent: () -> Unit,
     onListTypeChange: (MyPageProductListType) -> Unit,
     onBackClick: () -> Unit,
     onTabClick: (MainTab) -> Unit,
@@ -550,7 +567,8 @@ private fun MyPageProductListScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "${selectedListType.title}이 아직 없어요.",
+                            text = if (selectedListType == MyPageProductListType.Recent) recentMessage ?: "최근 본 상품이 아직 없어요." else "${selectedListType.title}이 아직 없어요.",
+                            modifier = Modifier.clickable { if (selectedListType == MyPageProductListType.Recent) onRetryRecent() },
                             color = JjikmukTheme.colors.textSecondary,
                             style = JjikmukTheme.typography.bodyM,
                         )

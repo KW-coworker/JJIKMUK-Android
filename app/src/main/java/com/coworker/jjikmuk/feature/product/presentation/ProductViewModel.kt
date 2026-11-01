@@ -42,6 +42,7 @@ class ProductViewModel @Inject constructor(
     private val productOptions: com.coworker.jjikmuk.data.repository.ProductOptionsRepository,
 ) : ViewModel() {
 
+    private var detailOwner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner? = null
     private var detailJob: Job? = null
     private var alternativeJob: Job? = null
     private val selectedProfileIds = MutableStateFlow<Set<String>?>(null)
@@ -208,6 +209,7 @@ class ProductViewModel @Inject constructor(
     fun loadProductDetail(barcode: String?) {
         val code = barcode?.takeIf(String::isNotBlank) ?: return
         val viewOwner = recentlyViewedProducts.captureOwner()
+        detailOwner = viewOwner
         detailJob?.cancel()
         alternativeJob?.cancel()
         _detailUiState.value = ProductDetailUiState(isLoading = true, referenceBarcode = code)
@@ -225,7 +227,7 @@ class ProductViewModel @Inject constructor(
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { _detailUiState.update { it.copy(capacitiesLoading = false, capacityError = "중량 옵션을 불러오지 못했어요.") } }
                 _detailUiState.value.product?.takeIf { it.barcode != product.barcode }?.let {
-                    recordViewedProduct(it, viewOwner)
+                    recordViewedProduct(it, viewOwner, alreadyRecorded = false)
                 }
                 refreshAlternatives()
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -235,19 +237,21 @@ class ProductViewModel @Inject constructor(
     }
 
     fun selectProductCapacity(key: String) {
+        if (detailOwner != recentlyViewedProducts.captureOwner() || key == _detailUiState.value.selectedCapacityKey) return
         val option = _detailUiState.value.capacities.firstOrNull { it.key == key } ?: return
         _detailUiState.update { it.copy(product = option.product, selectedCapacityKey = key,
             alternatives = emptyList(), alternativesError = null) }
-        recordViewedProduct(option.product, recentlyViewedProducts.captureOwner())
+        recordViewedProduct(option.product, detailOwner, alreadyRecorded = false)
         refreshAlternatives()
     }
 
     private fun recordViewedProduct(
         product: ProductDetail,
         owner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner?,
+        alreadyRecorded: Boolean = true,
     ) {
         viewModelScope.launch {
-            try { recentlyViewedProducts.record(product, owner) }
+            try { recentlyViewedProducts.record(product, owner, alreadyRecorded) }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: java.io.IOException) { /* History storage failure must not hide a valid product detail. */ }
         }
