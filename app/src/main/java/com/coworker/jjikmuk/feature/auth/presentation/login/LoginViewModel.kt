@@ -26,6 +26,7 @@ class LoginViewModel @Inject constructor(
     private val sessions: AuthSessionManager,
     private val profiles: AuthProfiles = AuthProfiles(repository, sessions, AuthenticatedRequests(sessions, repository)),
     private val googleCleaner: GoogleCredentialCleaner = GoogleCredentialCleaner.None,
+    private val retryGate: LoginRetryGate = LoginRetryGate(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState = _uiState.asStateFlow()
@@ -37,12 +38,14 @@ class LoginViewModel @Inject constructor(
     val entryState = _entryState.asStateFlow()
     private var request: Job? = null
     private var revision = 0L
+    private var cooldownJob: Job? = null
     private var logoutRequest: Job? = null
     private var logoutSourceGeneration: Long? = null
     private val _notices = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val notices = _notices.asSharedFlow()
 
     init {
+        startCooldownTicker()
         viewModelScope.launch { sessions.restore() }
         viewModelScope.launch {
             sessions.state.collectLatest { state ->
@@ -98,16 +101,17 @@ class LoginViewModel @Inject constructor(
 
     fun updateEmail(email: String) {
         cancelRequest()
-        _uiState.update { it.copy(email = email, loginError = null) }
+        _uiState.update { it.copy(email = email, loginError = cooldownMessage()) }
     }
     fun updatePassword(password: String) {
         cancelRequest()
-        _uiState.update { it.copy(password = password, loginError = null) }
+        _uiState.update { it.copy(password = password, loginError = cooldownMessage()) }
     }
     fun clearPassword() = updatePassword("")
 
     suspend fun login(): Boolean {
-        if (_uiState.value.isLoading) return false
+        updateCooldown()
+        if (_uiState.value.isLoading || _uiState.value.retrySeconds > 0) return false
         val input = _uiState.value
         if (input.email.isBlank() || input.password.isEmpty()) {
             _uiState.update { it.copy(loginError = "이메일과 비밀번호를 입력해 주세요") }
@@ -119,8 +123,9 @@ class LoginViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, loginError = null) }
         var attempt: Long? = null
         try {
-            val activeAttempt = sessions.beginLogin()
-            attempt = activeAttempt
+            val observed = sessions.state.value
+            val activeAttempt = if (observed.credentials == null) sessions.beginLogin() else observed.generation
+            if (observed.credentials == null) attempt = activeAttempt
             val startedAt = System.currentTimeMillis()
             currentCoroutineContext().ensureActive()
             val result = repository.login(input.email, input.password)
@@ -128,14 +133,21 @@ class LoginViewModel @Inject constructor(
             if (requestRevision != revision) return false
             return when (result) {
                 is AuthResult.Failure -> {
-                    _uiState.update { it.copy(loginError = result.error.userMessage()) }
+                    if (result.error.status == 429 && result.error.code == "LOGIN_RATE_LIMITED") {
+                        retryGate.limit(result.error)
+                        _uiState.update { it.copy(loginError = cooldownMessage() ?: result.error.userMessage()) }
+                        startCooldownTicker()
+                    } else _uiState.update { it.copy(loginError = result.error.userMessage()) }
                     false
                 }
                 is AuthResult.Success -> {
-                    val accepted = sessions.acceptLogin(activeAttempt, result.value, startedAt)
+                    val acceptedAttempt = if (observed.credentials != null)
+                        sessions.beginLoginIfCurrent(activeAttempt) ?: return false else activeAttempt
+                    attempt = acceptedAttempt
+                    val accepted = sessions.acceptLogin(acceptedAttempt, result.value, startedAt)
                     currentCoroutineContext().ensureActive()
                     if (requestRevision != revision) {
-                        sessions.clearIfCurrent(activeAttempt)
+                        sessions.clearIfCurrent(acceptedAttempt)
                         false
                     } else if (!accepted) {
                         _uiState.update { it.copy(loginError = "로그인 정보를 저장하지 못했어요. 다시 시도해 주세요") }
@@ -183,7 +195,27 @@ class LoginViewModel @Inject constructor(
 
     fun reset() {
         cancelRequest()
-        _uiState.value = LoginUiState()
+        _uiState.value = LoginUiState(retrySeconds = retryGate.remainingSeconds(), loginError = cooldownMessage())
+    }
+
+    private fun cooldownMessage(): String? = retryGate.remainingSeconds().takeIf { it > 0 }?.let {
+        "로그인 시도가 많아 잠시 제한됐어요. ${it}초 후 다시 시도해 주세요"
+    }
+
+    private fun updateCooldown() {
+        val seconds = retryGate.remainingSeconds()
+        _uiState.update { it.copy(retrySeconds = seconds,
+            loginError = if (seconds > 0) cooldownMessage() else if (it.retrySeconds > 0) null else it.loginError) }
+    }
+
+    private fun startCooldownTicker() {
+        cooldownJob?.cancel()
+        updateCooldown()
+        if (retryGate.remainingSeconds() == 0) return
+        cooldownJob = viewModelScope.launch {
+            while (retryGate.remainingSeconds() > 0) { updateCooldown(); delay(250) }
+            updateCooldown() // No automatic login when the deadline expires.
+        }
     }
 
     private fun cancelRequest() {

@@ -12,6 +12,15 @@ class BackendAuthInterceptor @Inject constructor(private val tokens: AccessToken
             !chain.request().url.encodedPath.startsWith("/api/auth/")) {
             tokens.currentToken()?.let { request.header("Authorization", "Bearer $it") }
         }
-        return chain.proceed(request.build())
+        val sent = request.build()
+        val response = chain.proceed(sent)
+        if (response.code == 403) {
+            val code = runCatching { com.coworker.jjikmuk.feature.auth.data.AuthErrorMapper.decode(
+                403, response.peekBody(4096).string(), null, System.currentTimeMillis()).code }.getOrNull()
+            val access = sent.header("Authorization")?.takeIf { it.startsWith("Bearer ") }?.removePrefix("Bearer ")
+            if (code == "PROFILE_INCOMPLETE" && access != null)
+                kotlinx.coroutines.runBlocking { tokens.profileIncomplete(access) }
+        }
+        return response
     }
 }

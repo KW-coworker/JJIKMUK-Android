@@ -62,4 +62,21 @@ class BackendSessionIntegrationTest {
             }
         }
     }
+    @Test fun `backend incomplete response remains readable while tokens are retained`() = runBlocking {
+        val store = MemorySessionStore()
+        val sessions = AuthSessionManager(store)
+        sessions.acceptLogin(sessions.beginLogin(), AuthLogin("access", 1, "user@example.com", "unused", 900, true), System.currentTimeMillis())
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse.Builder().code(403).body("""{"code":"PROFILE_INCOMPLETE"}""").build())
+            val client = OkHttpClient.Builder().addInterceptor(BackendAuthInterceptor(AccessTokenStore(sessions))).build()
+            client.newCall(Request.Builder().url(server.url("/api/products/search")).build()).execute().use {
+                assertEquals(403, it.code)
+                assertTrue(it.body.string().contains("PROFILE_INCOMPLETE"))
+            }
+            assertNotNull(store.saved)
+            assertFalse(sessions.state.value.canEnterHome)
+            assertEquals(1, server.requestCount)
+        }
+    }
 }

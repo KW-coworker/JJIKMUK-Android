@@ -15,6 +15,8 @@ internal interface AuthApi {
     @GET("api/users/me") suspend fun me(@Header("Authorization") authorization: String): Response<Envelope<ProfileBody>>
     @PATCH("api/users/me") suspend fun patchProfile(@Header("Authorization") authorization: String,
         @Body patch: com.coworker.jjikmuk.feature.auth.domain.ProfilePatch): Response<Envelope<ProfileBody>>
+    @POST("api/auth/logout/refresh") suspend fun logoutWithRefresh(@Body body: RefreshBody): Response<Envelope<LogoutBody>>
+    @GET("api/auth/nicknames/availability") suspend fun ownNickname(@Header("Authorization") authorization: String, @Query("nickname") nickname: String): Response<Envelope<NicknameBody>>
     @POST("api/auth/logout") suspend fun logout(@Header("Authorization") authorization: String): Response<Envelope<LogoutBody>>
     @POST("api/users/me/profile/complete") suspend fun complete(@Header("Authorization") authorization: String,
         @Body body: com.coworker.jjikmuk.feature.auth.domain.ProfileSubmission): Response<Envelope<ProfileBody>>

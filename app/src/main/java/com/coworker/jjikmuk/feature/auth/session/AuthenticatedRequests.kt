@@ -18,6 +18,10 @@ class AuthenticatedRequests(private val sessions: AuthSessionManager, private va
         val result = request(snapshot.credentials!!.accessToken)
         currentCoroutineContext().ensureActive()
         if (!sessions.isSameSession(snapshot)) return rejected("SESSION_CHANGED")
+        if (result is AuthResult.Failure && result.error.status == 403 && result.error.code == "PROFILE_INCOMPLETE") {
+            sessions.requireProfileCompletion(snapshot)
+            return result
+        }
         if (result !is AuthResult.Failure || result.error.status != 401) return result
         if (result.error.code == "AUTH_TOKEN_INVALID") {
             sessions.rejectAccess(snapshot)

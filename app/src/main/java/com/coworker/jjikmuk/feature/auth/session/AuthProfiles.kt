@@ -19,6 +19,10 @@ class AuthProfiles @Inject constructor(
         requests.execute(retrySafeRead = true, requireCompletedProfile = false, request = repository::me)
     }
 
+    suspend fun nicknameAvailable(nickname: String) = requests.execute(retrySafeRead = true, requireCompletedProfile = false) {
+        repository.ownNicknameAvailable(it, nickname)
+    }
+
     suspend fun patch(patch: ProfilePatch, generation: Long = sessions.state.value.generation): AuthResult<AuthProfile> {
         return perform {
             if (sessions.state.value.generation != generation) return@perform changed()

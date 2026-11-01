@@ -1,25 +1,64 @@
 {
   "repository": "KW-coworker/JJIKMUK-Backend",
   "branch": "main",
-  "commit": "7dd4273ee456329593a82b2b60934ef1b8c20240",
-  "checkedAt": "2026-10-31",
-  "userProvidedCommit": "f49478ea2b51ca25bdffd82ad08e112ce8b44e68",
-  "comparison": "main is one merge commit ahead; no file differences",
+  "commit": "eae67ecfde34f3ba1a8296c7ae2dd7b74e94d38a",
+  "checkedAt": "2026-11-01",
+  "comparison": "Pinned docs snapshot for auth contract follow-up; source documentation is not deployment proof. frontend-auth-integration-v2 and chat-analysis-contract-v2 take priority over legacy auxiliary descriptions.",
   "files": [
+    {
+      "localPath": "account-auth-profile-contract.md",
+      "sourcePath": "docs/account-auth-profile-contract.md",
+      "sha256": "c7b85997a3f332c9bc8e9219e729078445b6ccdd163cdd2ae0132df495f62c64"
+    },
+    {
+      "localPath": "allergy-id-safety-contract.md",
+      "sourcePath": "docs/allergy-id-safety-contract.md",
+      "sha256": "ae65b3da292a4da8ff09a4842124849d4470a51db0d8c020a01a5192d114d83c"
+    },
     {
       "localPath": "api-spec/API_REFERENCE.md",
       "sourcePath": "docs/api-spec/API_REFERENCE.md",
-      "sha256": "e4ba88faec7060a95d48d5ddeda13a03e0b96aa623b52f3542baa4ac944c37a6"
+      "sha256": "bef3ced2805439c2f6c87eb7d1e21860adfcc8d6f7aab17aa4a5dc05e361fbeb"
     },
     {
-      "localPath": "api-spec/frontend-auth-integration-v2.md",
-      "sourcePath": "docs/api-spec/frontend-auth-integration-v2.md",
-      "sha256": "686b44dfa77a12d68530153d1af7a6aed12b195bafd5aa33f8023d8767cbf86f"
+      "localPath": "api-spec/README.md",
+      "sourcePath": "docs/api-spec/README.md",
+      "sha256": "1c6228984eda49ba9141e6498e39284b85f0c3e66eda1fdd4e42a3a11314205e"
+    },
+    {
+      "localPath": "api-spec/auth-users.md",
+      "sourcePath": "docs/api-spec/auth-users.md",
+      "sha256": "7255192935155ae675a6a48f56e5237a7288ea9840776fa2aa0a60ea6f7ca548"
     },
     {
       "localPath": "api-spec/chat-analysis-contract-v1.md",
       "sourcePath": "docs/api-spec/chat-analysis-contract-v1.md",
-      "sha256": "6f12fb893abc021dca9789c10c18a52cc8e8ff154dee37e1368929907a9df5e4"
+      "sha256": "2ac1df0fb93a504b2b42a53303402b76c21fed4b0084caa8585e6062d972f330"
+    },
+    {
+      "localPath": "api-spec/chat-analysis-contract-v2.md",
+      "sourcePath": "docs/api-spec/chat-analysis-contract-v2.md",
+      "sha256": "370846fd154cbb5d18eca5d9b5dfc322beab3830a7e733c51ab6fa1e44f110b6"
+    },
+    {
+      "localPath": "api-spec/frontend-auth-integration-v2.md",
+      "sourcePath": "docs/api-spec/frontend-auth-integration-v2.md",
+      "sha256": "0e23e2de4761b8a80075a4b8c4e829ae040599b598c616cc4229f625e9cc17ce"
+    },
+    {
+      "localPath": "api-spec/products.md",
+      "sourcePath": "docs/api-spec/products.md",
+      "sha256": "d852463bb71f5ce54fb848c63fc82f5825ea43c93cab44085b382a027966af2c"
+    },
+    {
+      "localPath": "api-spec/recommendations-history.md",
+      "sourcePath": "docs/api-spec/recommendations-history.md",
+      "sha256": "2cc765888614a7c131ef3410d63eaf33ad0b87ebd26975d0728d19bd52e807e1"
+    },
+    {
+      "localPath": "auth-login-release-20261101.md",
+      "sourcePath": "docs/auth-login-release-20261101.md",
+      "sha256": "c115e11c310ccab260c0fc071733015ba604e4bdf468edf200ea1d63bbedb98a"
     },
     {
       "localPath": "catalog-evolution-stage1-3.md",
@@ -27,9 +66,29 @@
       "sha256": "89be0799e43f55c94f1217aa05b75c2bba6c422cf8eff60c694268f77b0c0f92"
     },
     {
+      "localPath": "chat-active-profiles-release-20261101.md",
+      "sourcePath": "docs/chat-active-profiles-release-20261101.md",
+      "sha256": "3d7e7eaa9b19ed6c548b17948c67e7d9dddf3adcc9f34423c7764e65d4799e7c"
+    },
+    {
+      "localPath": "email-verification-api.md",
+      "sourcePath": "docs/email-verification-api.md",
+      "sha256": "6083bdc64905de1f83cebb6c327d3897be9c8aa64d63c54d875b9e78fd718da4"
+    },
+    {
+      "localPath": "product-classification-api.md",
+      "sourcePath": "docs/product-classification-api.md",
+      "sha256": "00cac01763f39b3cdee0f0a50c6a04315a5adba88f1935ce802c1597add6217e"
+    },
+    {
       "localPath": "staging-integration-20261028.md",
       "sourcePath": "docs/staging-integration-20261028.md",
       "sha256": "43e0c389a2430ea7d4879285fb62f92f05929cb0499bbe92e84fcc0a134147a0"
+    },
+    {
+      "localPath": "user-preference-contract.md",
+      "sourcePath": "docs/user-preference-contract.md",
+      "sha256": "db0b64897ca7d58bc6f7d77f8ddbf376ecb5971a881f0d050a5af4fe15ab2422"
     }
   ]
 }

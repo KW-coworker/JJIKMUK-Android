@@ -170,7 +170,7 @@ fun LoginScreen(
 
                 JjikmukPrimaryButton(
                     text = stringResource(R.string.auth_login),
-                    enabled = !uiState.isLoading && uiState.email.isNotBlank() && uiState.password.isNotEmpty(),
+                    enabled = !uiState.isLoading && uiState.retrySeconds == 0 && uiState.email.isNotBlank() && uiState.password.isNotEmpty(),
                     onClick = {
                         focusManager.clearFocus()
                         onLoginClick()

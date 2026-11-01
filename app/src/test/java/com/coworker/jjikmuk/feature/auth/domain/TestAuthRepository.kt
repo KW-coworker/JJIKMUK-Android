@@ -19,6 +19,7 @@ open class TestAuthRepository : AuthRepository by com.coworker.jjikmuk.feature.a
         return verifyResult ?: AuthResult.Success(EmailProof("test-proof", email, purpose, purpose.proofLifetimeSeconds))
     }
     override suspend fun nicknameAvailable(nickname: String) = nicknameResult
+    override suspend fun ownNicknameAvailable(accessToken: String, nickname: String) = nicknameAvailable(nickname)
     override suspend fun signUp(input: SignUpSubmission): AuthResult<Long> = error("Not used by this test")
     override suspend fun login(email: String, password: String): AuthResult<AuthLogin> = error("Not used by this test")
     override suspend fun refresh(refreshToken: String): AuthResult<AuthLogin> =

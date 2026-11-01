@@ -91,7 +91,7 @@ class ProfileCompletionViewModel @Inject constructor(
             try {
                 // Public availability excludes even the owner's current nickname. Final complete still checks uniqueness.
                 val sameName = nickname.equals(normalizeAuthNickname(original?.nickname.orEmpty()), ignoreCase = true)
-                val result = if (sameName) AuthResult.Success(true) else repository.nicknameAvailable(nickname)
+                val result = if (sameName) AuthResult.Success(true) else profiles.nicknameAvailable(nickname)
                 if (!current(generation) || revision != version) return@launch
                 when (result) {
                     is AuthResult.Success -> mutable.update { it.copy(
