@@ -23,8 +23,8 @@ class SessionLogoutTest {
         for (receipt in listOf(LogoutReceipt(1, true), LogoutReceipt(2, true), LogoutReceipt(1, false))) {
             signIn()
             val result = sessions.logout(object : TestAuthRepository() {
-                override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
-                    assertEquals("old", accessToken)
+                override suspend fun logoutWithRefresh(refreshToken: String): AuthResult<LogoutReceipt> {
+                    assertEquals("refresh-old", refreshToken)
                     assertNull(store.saved); assertNull(sessions.state.value.credentials)
                     return AuthResult.Success(receipt)
                 }
@@ -43,7 +43,7 @@ class SessionLogoutTest {
             var calls = 0
             val result = sessions.logout(object : TestAuthRepository() {
                 override suspend fun refresh(refreshToken: String): AuthResult<AuthLogin> = error("Logout must not refresh")
-                override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
+                override suspend fun logoutWithRefresh(refreshToken: String): AuthResult<LogoutReceipt> {
                     calls++; return AuthResult.Failure(failure)
                 }
             })
@@ -60,7 +60,7 @@ class SessionLogoutTest {
         var calls = 0
         val gate = CompletableDeferred<Unit>()
         val repo = object : TestAuthRepository() {
-            override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
+            override suspend fun logoutWithRefresh(refreshToken: String): AuthResult<LogoutReceipt> {
                 calls++; gate.await(); return AuthResult.Success(LogoutReceipt(1, true))
             }
         }
@@ -78,7 +78,7 @@ class SessionLogoutTest {
             signIn()
             val gate = CompletableDeferred<Unit>()
             val request = async { sessions.logout(object : TestAuthRepository() {
-                override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
+                override suspend fun logoutWithRefresh(refreshToken: String): AuthResult<LogoutReceipt> {
                     gate.await(); return AuthResult.Success(LogoutReceipt(1, true))
                 }
             }) }
@@ -99,8 +99,8 @@ class SessionLogoutTest {
             override suspend fun refresh(refreshToken: String): AuthResult<AuthLogin> {
                 gate.await(); return AuthResult.Success(login("rotated"))
             }
-            override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
-                logoutCalls++; assertEquals("old", accessToken)
+            override suspend fun logoutWithRefresh(refreshToken: String): AuthResult<LogoutReceipt> {
+                logoutCalls++; assertEquals("refresh-old", refreshToken)
                 return AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 401, "AUTH_TOKEN_EXPIRED"))
             }
         }
@@ -119,7 +119,7 @@ class SessionLogoutTest {
         val gate = CompletableDeferred<Unit>()
         var completed = false
         val request = async { sessions.logout(object : TestAuthRepository() {
-            override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
+            override suspend fun logoutWithRefresh(refreshToken: String): AuthResult<LogoutReceipt> {
                 gate.await(); completed = true; return AuthResult.Success(LogoutReceipt(1, true))
             }
         }) }
@@ -140,7 +140,7 @@ class SessionLogoutTest {
         manager.acceptLogin(manager.beginLogin(), login(), now)
         failClear = true
         val result = manager.logout(object : TestAuthRepository() {
-            override suspend fun logout(accessToken: String) = AuthResult.Success(LogoutReceipt(1, true))
+            override suspend fun logoutWithRefresh(refreshToken: String) = AuthResult.Success(LogoutReceipt(1, true))
         })
         assertEquals(ServerLogoutStatus.Confirmed, result.serverStatus)
         assertFalse(result.localStorageCleared)

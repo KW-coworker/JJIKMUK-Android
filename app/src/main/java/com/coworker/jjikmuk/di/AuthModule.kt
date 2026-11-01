@@ -19,6 +19,15 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 @InstallIn(SingletonComponent::class)
 object AuthModule {
     @Provides @Singleton
+    fun provideLoginRetryGate(@ApplicationContext context: Context): com.coworker.jjikmuk.feature.auth.presentation.login.LoginRetryGate {
+        val prefs = context.getSharedPreferences("auth-login-retry", Context.MODE_PRIVATE)
+        return com.coworker.jjikmuk.feature.auth.presentation.login.LoginRetryGate(
+            readDeadline = { prefs.getLong("deadline", 0L) },
+            writeDeadline = { prefs.edit().putLong("deadline", it).apply() },
+        )
+    }
+
+    @Provides @Singleton
     fun providePendingSignupPhotoStore(@ApplicationContext context: Context): com.coworker.jjikmuk.feature.auth.photo.PendingSignupPhotoStore =
         com.coworker.jjikmuk.feature.auth.photo.FilePendingSignupPhotoStore(File(context.noBackupFilesDir, "signup-photos"))
 

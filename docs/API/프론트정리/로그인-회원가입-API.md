@@ -1,5 +1,8 @@
 # 찍먹 인증 API 명세 — 로그인·회원가입
 
+> 2026-11-01 계약 보완: 로그인 429 LOGIN_RATE_LIMITED는 서버 retryAfterSeconds(우선)/Retry-After로 대기하며 자동 재요청하지 않는다. 닉네임 사전 확인은 가입에서는 공개 조회, 인증된 추가 프로필에서는 Bearer로 본인 제외 조회를 사용한다. 403 PROFILE_INCOMPLETE는 세션을 보존하고 본인 정보를 다시 읽어 추가 입력으로 이동한다. 상세 우선 계약은 ../backend/api-spec/frontend-auth-integration-v2.md.
+
+
 > 요청·응답 계약을 찾는 프론트 참고 문서다. 구현은 [개발 현황](../../개발/로그인-회원가입/구현현황.md), 정책/요청은 [통합 협의안](../../협의/로그인-회원가입-백엔드-협의안.md), 실제 배포 응답은 [검증 기록](../../검증/2026-10-31-인증-실서버-점검.md)에서 관리한다.
 
 > 최종 검토: **2026-10-31**. 백엔드 main `7dd4273`의 공식 원문·관련 컨트롤러와 대조했다. [명세 시작하기/출처와 우선순위](../README.md), [전체 원문](../backend/api-spec/API_REFERENCE.md), [우선 적용 인증 v2](../backend/api-spec/frontend-auth-integration-v2.md)를 함께 읽는다.

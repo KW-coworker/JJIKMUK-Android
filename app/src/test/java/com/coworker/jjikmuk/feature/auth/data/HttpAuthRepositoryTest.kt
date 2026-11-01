@@ -273,4 +273,27 @@ class HttpAuthRepositoryTest {
         assertTrue(request.url.query == null)
         assertTrue(request.body == null || request.body!!.size == 0)
     }
+    @Test fun `refresh logout uses only refresh proof and never replays on transient failure`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        enqueue("""{"data":{"userId":7,"serverTokenRevoked":true}}""")
+        assertEquals(AuthResult.Success(LogoutReceipt(7, true)), repo.logoutWithRefresh("revoke-proof"))
+        val request = server.takeRequest()
+        assertEquals("/api/auth/logout/refresh", request.url.encodedPath)
+        assertNull(request.headers["Authorization"])
+        assertEquals("""{"refreshToken":"revoke-proof"}""", request.body!!.utf8())
+        server.enqueue(MockResponse.Builder().code(503).addHeader("Retry-After", "0").body("{}").build())
+        assertTrue(repo.logoutWithRefresh("revoke-proof") is AuthResult.Failure)
+        assertEquals(2, server.requestCount)
+    }
+    @Test fun `own nickname availability is authenticated while signup availability remains public`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        enqueue("""{"data":{"available":true}}""")
+        assertEquals(AuthResult.Success(true), repo.ownNicknameAvailable("access", " Name "))
+        val own = server.takeRequest()
+        assertEquals("Bearer access", own.headers["Authorization"])
+        assertEquals("Name", own.url.queryParameter("nickname"))
+        enqueue("""{"data":{"available":false}}""")
+        assertEquals(AuthResult.Success(false), repo.nicknameAvailable("Name"))
+        assertNull(server.takeRequest().headers["Authorization"])
+    }
 }

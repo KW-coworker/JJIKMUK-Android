@@ -20,6 +20,8 @@ fun AuthFailure.userMessage(): String = when (code) {
     "OTP_EXPIRED", "OTP_NOT_REQUESTED" -> "인증번호를 다시 받아 주세요"
     "OTP_RATE_LIMITED" -> "인증 요청이 제한됐어요. 잠시 후 다시 시도해 주세요"
     "VERIFICATION_EXPIRED", "VERIFICATION_REQUIRED", "VERIFICATION_TOKEN_INVALID" -> "이메일 인증을 다시 진행해 주세요"
+    "LOGIN_RATE_LIMITED" -> "로그인 시도가 많아 잠시 제한됐어요. 잠시 후 다시 시도해 주세요"
+    "PROFILE_INCOMPLETE" -> "추가 프로필 입력을 완료해 주세요"
     "LOGIN_FAILED" -> "이메일 또는 비밀번호를 다시 확인해 주세요"
     "AUTH_TOKEN_EXPIRED", "AUTH_TOKEN_INVALID", "AUTHENTICATION_REQUIRED" -> "다시 로그인해 주세요"
     "AUTH_SERVICE_UNAVAILABLE" -> "인증 서비스를 잠시 이용할 수 없어요. 잠시 후 다시 시도해 주세요"

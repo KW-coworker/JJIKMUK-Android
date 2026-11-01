@@ -64,7 +64,7 @@ class AndroidGoogleCredentialSource : GoogleCredentialSource {
             Properties().apply { File(context.noBackupFilesDir, "auth-api.properties").inputStream().use(::load) }
                 .getProperty("googleWebClientId")?.trim()
         }.getOrNull() else null
-        return (local ?: configured).takeIf { it.endsWith(".apps.googleusercontent.com") && it.none(Char::isWhitespace) }
+        return (local?.takeIf { it.isNotBlank() } ?: configured).takeIf { it.endsWith(".apps.googleusercontent.com") && it.none(Char::isWhitespace) }
     }
 }
 

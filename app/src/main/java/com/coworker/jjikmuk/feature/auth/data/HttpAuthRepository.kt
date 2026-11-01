@@ -44,6 +44,17 @@ class HttpAuthRepository private constructor(
     override suspend fun nicknameAvailable(nickname: String) = request(200,
         { it.nickname(normalizeAuthNickname(nickname)) }) { requireNotNull(it.data?.available) }
 
+    override suspend fun ownNicknameAvailable(accessToken: String, nickname: String) = request(200,
+        { it.ownNickname("Bearer $accessToken", normalizeAuthNickname(nickname)) }) { requireNotNull(it.data?.available) }
+
+    override suspend fun logoutWithRefresh(refreshToken: String) = request(200,
+        { it.logoutWithRefresh(RefreshBody(refreshToken)) }) {
+        val data = requireNotNull(it.data)
+        val id = requireNotNull(data.userId).also { require(it > 0) }
+        require(data.serverTokenRevoked == true)
+        LogoutReceipt(id, true)
+    }
+
     override suspend fun signUp(input: SignUpSubmission) = request(201, {
         it.signUp(SignupBody(normalizeAuthEmail(input.email), input.password, normalizeAuthNickname(input.nickname),
             input.verificationToken, input.allergies, input.specialDiet))

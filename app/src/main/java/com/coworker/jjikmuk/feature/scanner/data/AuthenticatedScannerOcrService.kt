@@ -15,8 +15,8 @@ class AuthenticatedScannerOcrService(
     override suspend fun recognize(photo: PreparedScannerPhoto): OcrResult =
         when (val result = operations.execute { token ->
             val ocr = transport.recognize(photo, token)
-            if (ocr is OcrResult.Failure && ocr.httpStatus == 401)
-                AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 401, ocr.code))
+            if (ocr is OcrResult.Failure && (ocr.httpStatus == 401 || (ocr.httpStatus == 403 && ocr.code == "PROFILE_INCOMPLETE")))
+                AuthResult.Failure(AuthFailure(AuthFailureKind.Server, ocr.httpStatus, ocr.code))
             else AuthResult.Success(ocr)
         }) {
             is AuthResult.Success -> result.value

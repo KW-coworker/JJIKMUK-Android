@@ -126,9 +126,12 @@ class AuthSessionManager(
         }
         if (previous == null) return@withContext LogoutOutcome(cleared.generation,
             !cleared.storageFailed, ServerLogoutStatus.NoSession)
-        // Also make one best-effort request for expired Access; acceptance is a pending BE contract.
+        // Refresh proof revokes this device without rotating tokens, even when Access has expired.
         // Finish this bounded HTTP operation despite screen cancellation; never mutate session afterwards.
-        val response = try { repository.logout(previous.accessToken) }
+        val response = try {
+            if (previous.refresh != null) repository.logoutWithRefresh(previous.refresh.token)
+            else repository.logout(previous.accessToken)
+        }
             catch (_: Exception) { AuthResult.Failure(AuthFailure(AuthFailureKind.Network)) }
         val failure = when (response) {
             is AuthResult.Success -> if (response.value.userId == previous.userId && response.value.serverTokenRevoked)
@@ -251,6 +254,16 @@ class AuthSessionManager(
 
     fun isCurrent(snapshot: SessionSnapshot): Boolean = mutableState.value.generation == snapshot.generation &&
         mutableState.value.canEnterHome && (snapshot.credentials?.expiresAtMillis ?: 0) > nowMillis()
+
+    /** A valid token with an incomplete profile is retained; the entry gate reloads me. */
+    suspend fun requireProfileCompletion(observed: SessionSnapshot) = mutex.withLock {
+        val current = state.value
+        if (isSameSession(observed) && current.credentials?.hasSameTokens(observed.credentials) == true) {
+            mutableState.value = SessionSnapshot(current.generation, current.credentials,
+                validatedThisRun = false, storageFailed = current.storageFailed, refreshing = current.refreshing,
+                failure = AuthFailure(AuthFailureKind.Server, 403, "PROFILE_INCOMPLETE"))
+        }
+    }
 
     /** An invalid OLD Access token must not clear an already rotated pair. */
     suspend fun rejectAccess(observed: SessionSnapshot) = withContext(NonCancellable) {

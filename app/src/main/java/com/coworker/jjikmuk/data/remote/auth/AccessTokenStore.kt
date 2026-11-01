@@ -11,6 +11,11 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 class AccessTokenStore @Inject constructor(private val sessions: AuthSessionManager) {
     val token = sessions.state.map { currentToken() }.distinctUntilChanged()
 
+    suspend fun profileIncomplete(accessToken: String) {
+        val snapshot = sessions.state.value
+        if (snapshot.credentials?.accessToken == accessToken) sessions.requireProfileCompletion(snapshot)
+    }
+
     fun currentToken(): String? {
         val snapshot = sessions.state.value
         return snapshot.credentials?.accessToken?.takeIf { sessions.isCurrent(snapshot) }

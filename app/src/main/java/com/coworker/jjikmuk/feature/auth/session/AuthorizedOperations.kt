@@ -19,6 +19,10 @@ class AuthorizedOperations @Inject constructor(
         val result = request(snapshot.credentials!!.accessToken)
         currentCoroutineContext().ensureActive()
         if (!sessions.isSameSession(snapshot)) return changed()
+        if (result is AuthResult.Failure && result.error.status == 403 && result.error.code == "PROFILE_INCOMPLETE") {
+            sessions.requireProfileCompletion(snapshot)
+            return result
+        }
         if (result is AuthResult.Failure && result.error.status == 401) {
             // A late old-token 401 must not revoke a new account or an already rotated token pair.
             sessions.rejectAccess(snapshot)
