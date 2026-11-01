@@ -25,7 +25,11 @@ import com.coworker.jjikmuk.ui.component.JjikmukSecondaryButton
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
-fun SelfDietConditionRoute(onBackClick: () -> Unit, viewModel: SelfDietConditionViewModel = hiltViewModel()) {
+fun SelfDietConditionRoute(
+    onBackClick: () -> Unit,
+    viewModel: SelfDietConditionViewModel = hiltViewModel(),
+    topContent: @Composable () -> Unit = {},
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var confirmLeave by remember { mutableStateOf(false) }
     LaunchedEffect(viewModel) { viewModel.open() }
@@ -39,7 +43,12 @@ fun SelfDietConditionRoute(onBackClick: () -> Unit, viewModel: SelfDietCondition
     val allergyLabels = FoodAllergy.entries.associate { stringResource(it.labelRes) to it.id }
     val nutritionLabels = nutritionCatalog.entries.associate { stringResource(it.value.labelRes) to it.key }
     Scaffold(
-        topBar = { DietConditionTopBar(onBackClick = back) },
+        topBar = {
+            Column {
+                DietConditionTopBar(onBackClick = back)
+                topContent()
+            }
+        },
         bottomBar = {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(22.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.message?.let { Text(it, style = JjikmukTheme.typography.bodyM) }

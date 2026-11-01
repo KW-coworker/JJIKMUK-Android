@@ -79,9 +79,16 @@ fun JjikmukAppContent(
                 if (profile != null) ProfileEditRoute(onBackClick = { showProfileEdit = false })
                 else ProfileEditScreen(onBackClick = { showProfileEdit = false })
             } else if (showDietConditionManagement) {
-                if (profile != null) SelfDietConditionRoute(onBackClick = { showDietConditionManagement = false })
-                else DietConditionManagementScreen(
+                val selfEditor: (@Composable (com.coworker.jjikmuk.feature.mypage.presentation.FamilySelectorContent) -> Unit)? =
+                    if (profile != null) { selector ->
+                        SelfDietConditionRoute(
+                            onBackClick = { showDietConditionManagement = false },
+                            topContent = selector,
+                        )
+                    } else null
+                DietConditionManagementScreen(
                     onBackClick = { showDietConditionManagement = false },
+                    selfEditor = selfEditor,
                 )
             } else when (selectedTab) {
                 MainTab.Product -> {
