@@ -3,7 +3,9 @@ package com.coworker.jjikmuk.data.repository
 import com.coworker.jjikmuk.data.remote.api.SafeRecommendationApi
 import com.coworker.jjikmuk.data.remote.auth.AccessTokenStore
 import com.coworker.jjikmuk.data.remote.auth.BackendAuthInterceptor
-import com.google.gson.JsonParser
+import com.coworker.jjikmuk.feature.auth.session.AuthSessionManager
+import com.coworker.jjikmuk.feature.auth.session.MemorySessionStore
+import com.coworker.jjikmuk.feature.auth.domain.AuthLogin
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -18,7 +20,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 class SafeRecommendationRepositoryTest {
     private val server = MockWebServer()
-    private val tokens = AccessTokenStore()
+    private val sessions = AuthSessionManager(MemorySessionStore())
+    private val tokens = AccessTokenStore(sessions)
     private lateinit var repo: SafeRecommendationRepository
     @Before fun setup() {
         server.start()
@@ -31,24 +34,17 @@ class SafeRecommendationRepositoryTest {
     private fun reply(body: String, code: Int = 200) {
         server.enqueue(MockResponse.Builder().code(code).body(body).addHeader("Content-Type", "application/json").build())
     }
-    @Test fun `my diet is sent without family or user ID and other account fields survive`() = runBlocking {
-        val profile = """{"data":{"id":7,"nickname":"내닉네임","diseases":"고혈압","dislikedIngredients":"고수"}}"""
-        reply(profile); reply(profile)
-        assertEquals("내닉네임", repo.syncMyDiet(listOf("우유", "땅콩"), listOf("비건", "저염")).userName)
+    @Test fun `opening recommendations reads the server profile without overwriting saved conditions`() = runBlocking {
+        reply("""{"data":{"id":7,"nickname":"내닉네임","allergies":"peanut","specialDiet":"lowSugar"}}""")
+        assertEquals("내닉네임", repo.owner().userName)
         val get = server.takeRequest()
         assertEquals("/api/users/me", get.url.encodedPath)
-        assertNull(get.headers["Authorization"])
-        val put = server.takeRequest()
-        val body = JsonParser.parseString(put.body!!.utf8()).asJsonObject
-        assertEquals("PUT", put.method)
-        assertEquals("우유,땅콩", body["allergies"].asString)
-        assertEquals("비건,저염", body["specialDiet"].asString)
-        assertEquals("고혈압", body["diseases"].asString)
-        assertEquals("고수", body["dislikedIngredients"].asString)
-        assertFalse(body.has("userId")); assertFalse(body.has("family"))
+        assertEquals("GET", get.method)
+        assertEquals(1, server.requestCount)
     }
     @Test fun `same endpoint gains bearer token and respects server cursor and ordering`() = runBlocking {
-        tokens.setAccessToken("test-access-token")
+        assertTrue(sessions.acceptLogin(sessions.beginLogin(),
+            AuthLogin("test-access-token", 7, "test@example.com", "unused", 3600, true), System.currentTimeMillis()))
         reply("""{"data":{"userId":7,"returnedBarcodes":["b","a"],"hasNext":true,"nextCursor":"next+cursor","categories":[{"items":[{"product":{"barcode":"a","productName":"상품A"}},{"product":{"barcode":"b","productName":"상품B"}}]},{"items":[{"product":{"barcode":"a","productName":"상품A"}}]}]}}""")
         val page = repo.page("previous", listOf("seen"))
         assertEquals(listOf("b", "a"), page.products.map { it.barcode })
@@ -59,7 +55,7 @@ class SafeRecommendationRepositoryTest {
         assertEquals("previous", request.url.queryParameter("cursor"))
         assertEquals("seen", request.url.queryParameter("excludeBarcodes"))
         assertNull(request.url.queryParameter("userId"))
-        tokens.clear()
+        sessions.clear()
         reply("""{"data":{"userId":7,"hasNext":false}}""")
         assertNull(repo.page().nextCursor)
         assertNull(server.takeRequest().headers["Authorization"])

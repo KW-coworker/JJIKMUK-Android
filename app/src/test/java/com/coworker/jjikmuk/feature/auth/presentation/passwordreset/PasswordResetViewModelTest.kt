@@ -1,65 +1,65 @@
 package com.coworker.jjikmuk.feature.auth.presentation.passwordreset
 
+import com.coworker.jjikmuk.feature.auth.session.*
 import com.coworker.jjikmuk.MainDispatcherRule
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import com.coworker.jjikmuk.feature.auth.domain.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.*
+import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PasswordResetViewModelTest {
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    @get:Rule val mainDispatcherRule = MainDispatcherRule()
+    private val repository = TestAuthRepository()
+    private val viewModel by lazy { PasswordResetViewModel(repository, AuthSessionManager(MemorySessionStore())) }
 
-    private val viewModel by lazy { PasswordResetViewModel() }
-
-    @Test
-    fun `등록된 이메일에는 재설정 코드를 전송한다`() {
-        viewModel.updateEmail("coworker@kw.ac.kr")
-
-        assertTrue(viewModel.sendResetCode())
-        assertEquals(300, viewModel.uiState.value.remainingOtpSeconds)
-        assertNull(viewModel.uiState.value.emailError)
-    }
-
-    @Test
-    fun `등록되지 않은 이메일에는 오류를 표시한다`() {
+    @Test fun `server rejection preserves email and never navigates to OTP`() = runTest {
+        repository.sendResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 404, "USER_NOT_FOUND"))
         viewModel.updateEmail("unknown@example.com")
-
         assertFalse(viewModel.sendResetCode())
-        assertEquals("이메일 주소를 다시 확인해 주세요", viewModel.uiState.value.emailError)
+        runCurrent()
+        assertNotNull(viewModel.uiState.value.emailError)
+        assertEquals("unknown@example.com", viewModel.uiState.value.email)
+        viewModel.reset()
     }
-
-    @Test
-    fun `최초 OTP와 재전송 OTP를 각각 검증한다`() {
-        viewModel.updateEmail("coworker@kw.ac.kr")
-        viewModel.sendResetCode()
-        viewModel.updateOtp("1133")
+    @Test fun `server proof is required before resetting and cannot be reused after success`() = runTest {
+        viewModel.updateEmail("user@example.com")
+        assertTrue(viewModel.sendResetCode())
+        viewModel.updateOtp("0427")
         assertTrue(viewModel.verifyOtp())
-
-        viewModel.resendOtp()
-        viewModel.updateOtp("1133")
-        assertFalse(viewModel.verifyOtp())
-        viewModel.updateOtp("2468")
-        assertTrue(viewModel.verifyOtp())
-    }
-
-    @Test
-    fun `이메일 단계로 돌아가면 OTP와 새 비밀번호를 초기화한다`() {
-        viewModel.updateEmail("coworker@kw.ac.kr")
-        viewModel.sendResetCode()
-        viewModel.updateOtp("1133")
+        assertEquals(EmailPurpose.PasswordReset, repository.lastPurpose)
         viewModel.updateNewPassword("password123")
         viewModel.updateNewPasswordConfirm("password123")
-
+        assertTrue(viewModel.submitPassword())
+        assertFalse(viewModel.submitPassword())
+        assertEquals(1, repository.resets)
+        assertEquals("", viewModel.uiState.value.newPassword)
+        viewModel.reset()
+    }
+    @Test fun `known failure keeps proof and input while unknown result requires reauthentication`() = runTest {
+        viewModel.updateEmail("user@example.com"); viewModel.sendResetCode()
+        viewModel.updateOtp("0427"); viewModel.verifyOtp()
+        viewModel.updateNewPassword("password123"); viewModel.updateNewPasswordConfirm("password123")
+        repository.resetResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 400, "PASSWORD_INVALID"))
+        assertFalse(viewModel.submitPassword())
+        assertEquals("password123", viewModel.uiState.value.newPassword)
+        repository.resetResult = AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+        assertFalse(viewModel.submitPassword())
+        assertFalse(viewModel.submitPassword())
+        assertEquals(2, repository.resets)
+        viewModel.reset()
+    }
+    @Test fun `back to email clears proof code and new passwords`() = runTest {
+        viewModel.updateEmail("user@example.com"); viewModel.sendResetCode()
+        viewModel.updateOtp("0427"); viewModel.verifyOtp()
+        viewModel.updateNewPassword("password123")
         viewModel.restartFromEmail()
-
-        val state = viewModel.uiState.value
-        assertEquals("", state.otp)
-        assertFalse(state.isOtpVerified)
-        assertEquals(0, state.remainingOtpSeconds)
-        assertEquals("", state.newPassword)
-        assertEquals("", state.newPasswordConfirm)
+        runCurrent()
+        assertFalse(viewModel.uiState.value.isOtpVerified)
+        assertEquals("", viewModel.uiState.value.newPassword)
+        assertFalse(viewModel.submitPassword())
+        viewModel.reset()
     }
 }

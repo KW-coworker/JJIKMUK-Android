@@ -115,10 +115,14 @@ class ScannerSearchResultsTest {
         compose.runOnIdle { assertEquals(1, filters); state.value = state.value.copy(isLoading = true) }
         compose.onAllNodesWithText("해태 포키 블루베리").fetchSemanticsNodes().let { assertTrue(it.isEmpty()) }
         compose.runOnIdle { state.value = state.value.copy(products = emptyList(), isLoading = false) }
-        compose.onNodeWithText("검색 결과가 없어요.").assertIsDisplayed()
+        compose.onNodeWithText("검색된 상품이 존재하지 않습니다").assertIsDisplayed()
+        compose.onNodeWithText("상세필터").assertDoesNotExist()
+        saveFrame("product-search-empty.png")
         compose.runOnIdle { state.value = state.value.copy(errorMessage = "검색에 실패했어요.") }
         compose.onNodeWithText("검색에 실패했어요.").assertIsDisplayed()
-        compose.onNodeWithText("검색 결과가 없어요.").assertDoesNotExist()
+        compose.onNodeWithText("‘포키' 검색 실패").assertIsDisplayed()
+        compose.onNodeWithText("‘포키' 검색 결과 0건").assertDoesNotExist()
+        compose.onNodeWithText("검색된 상품이 존재하지 않습니다").assertDoesNotExist()
     }
 
     private fun resultsState() = ProductSearchUiState(
@@ -135,10 +139,10 @@ class ScannerSearchResultsTest {
         },
     )
 
-    private fun saveFrame() {
+    private fun saveFrame(name: String = "scanner-search-results.png") {
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        File(context.filesDir, "scanner-search-results.png").outputStream().use {
+        File(context.filesDir, name).outputStream().use {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
         }
         bitmap.recycle()

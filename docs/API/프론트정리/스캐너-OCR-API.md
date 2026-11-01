@@ -1,9 +1,10 @@
 # 찍먹 스캐너 API 명세 — 상품 사진 OCR 및 상품명 정보 추출
 
+> 기관 서버/인증 변경: 2026-10-29 TEAM_DELIVERY 반영. 나머지 OCR 응답·제한은 기존 명세이며 새 배포의 실제 성공 응답 검증은 후속.
 > 문서 정리일: 2026-10-08\
 > 원문 명세 기준: 2026-10-01 배포된 팀 테스트용 API\
 > 출처: 사용자가 제공한 백엔드 Notion API 명세\
-> 권장 저장 경로: `docs/API/scanner-ocr-api.md`
+> 권장 저장 경로: `docs/API/프론트정리/스캐너-OCR-API.md`
 
 상품 사진 1장을 업로드하면 이미지의 글자를 인식하고, 상품명·브랜드·맛·용량·검색어를 구조화된 JSON으로 반환한다.
 
@@ -27,8 +28,8 @@
 아래는 원문에 명시된 연동 규칙의 요약이다. 세부 계약과 예시는 각 절을 따른다.
 
 1. **`POST /api/ocr`로 실제 이미지 파일 1개를 전송한다.** multipart 파일 필드명은 정확히 `image`다. Query Parameter와 추가 폼 필드는 보내지 않는다.
-2. **인증은 `X-OCR-Test-Token` 헤더 하나로 처리한다.** `Bearer`를 붙이지 않으며 회원 로그인·JWT는 필요하지 않다. `Authorization`으로 대체하거나 같은 헤더를 중복 전송하지 않는다.
-3. **요청 기기에서 팀 Tailscale 연결 및 서버 접근 권한이 필요하다.** 내부 OCR 서버를 직접 호출하지 않는다.
+2. **로그인 JWT를 `Authorization: Bearer <Access Token>`으로 전송한다.** 이전 팀 토큰 헤더는 제거한다.
+3. **일반 Wi-Fi·모바일 데이터로 기관 HTTPS 서버에 접속한다.** 내부 OCR 서버를 직접 호출하지 않는다.
 4. **JPEG 또는 PNG만 허용한다.** 파일 10MiB, 이미지 20,000,000픽셀, 전체 요청 10MiB + 64KiB 제한을 각각 지킨다. HEIC·WebP는 실제 파일 형식을 변환한다.
 5. **사진 선택과 스캔 실행을 분리한다.** 사용자 실행 동작에 따라 요청하고 연속 클릭·화면 회전·재진입으로 중복 호출하지 않는다.
 6. **자동 재시도·자동 재전송을 사용하지 않는다.** 타임아웃·연결 종료 이후에도 서버에서 이미 처리했을 수 있다. `Retry-After: 3`도 자동 재시도 지시가 아니다.
@@ -45,12 +46,12 @@
 | 기능 | 상품 사진의 텍스트 인식 및 상품명 정보 추출 |
 | Method | `POST` |
 | URL | `/api/ocr` |
-| Base URL | `https://jjikmuk-backend-dev.tail198441.ts.net` |
-| 전체 요청 URL | `https://jjikmuk-backend-dev.tail198441.ts.net/api/ocr` |
-| 인증 | 팀 테스트 토큰 필수. 회원 로그인 및 JWT 불필요 |
+| Base URL | `https://43.203.42.36` |
+| 전체 요청 URL | `https://43.203.42.36/api/ocr` |
+| 인증 | 로그인 JWT 필수 |
 | Request Body | `multipart/form-data` 이미지 파일 1개 |
 | Response | `application/json` |
-| 접속 조건 | 요청하는 기기에서 팀 Tailscale 연결 및 서버 접근 권한 필요 |
+| 접속 조건 | 일반 인터넷 접속, Tailscale 불필요 |
 | 명세 기준 | 2026-10-01 배포된 팀 테스트용 API |
 
 <a id="request"></a>
@@ -60,16 +61,15 @@
 
 | 필드명 | 타입 | 필수 여부 | 설명 |
 | --- | --- | --- | --- |
-| `X-OCR-Test-Token` | String | O | 담당자에게 전달받은 팀 테스트 토큰. `Bearer`를 붙이지 않고 값 자체를 전달 |
+| `Authorization` | String | O | `Bearer <로그인 Access Token>` |
 | `Content-Type` | String | O | `multipart/form-data; boundary=...`. boundary는 HTTP 라이브러리가 자동 생성하도록 설정 |
 
-#### 보안 규칙 — 원문 명시
+#### 보안 규칙
 
-- 팀 토큰은 요청 헤더에만 전달한다. URL, Query Parameter, 사진 폼 필드에 넣지 않는다.
-- `Authorization: Bearer ...`는 팀 토큰 헤더를 대체할 수 없다. 회원 JWT는 이 API에 필요하지 않다.
-- `X-OCR-Test-Token` 헤더를 중복으로 보내지 않는다.
-- OpenAI API 키나 내부 OCR 서비스 토큰을 앱에 넣지 않는다.
-- 실제 팀 토큰을 노션 문서·소스·Git·로그·공개 배포용 APK에 기록하지 않는다. 공용 토큰은 팀 내부 테스트용이며 공개 운영용 사용자 인증을 대신하지 않는다.
+- 로그인 JWT는 Authorization 헤더로만 전달한다. URL·사진 폼 필드·로그에 넣지 않는다.
+- 이전 X-OCR-Test-Token과 공용 토큰 설정은 사용하지 않는다.
+- HTTPS 검증을 끄지 않는다. OpenAI 키·DB 암호·내부 OCR 토큰은 앱에 넣지 않는다.
+- 전송 후 401이면 재로그인을 안내하고 OCR 요청을 자동 재전송하지 않는다.
 
 ### 3.2 Query Parameter
 
@@ -104,8 +104,8 @@
 
 ```http
 POST /api/ocr HTTP/1.1
-Host: jjikmuk-backend-dev.tail198441.ts.net
-X-OCR-Test-Token: <팀 테스트 토큰>
+Host: 43.203.42.36
+Authorization: Bearer <로그인 Access Token>
 Content-Type: multipart/form-data; boundary=example-boundary
 
 --example-boundary
@@ -323,9 +323,9 @@ OCR 서버가 요청을 처리할 수 없을 때의 예시다. 유료 호출 예
 <a id="frontend-notes"></a>
 ## 7. 프론트엔드 연동 시 주의사항
 
-### 7.1 팀 테스트용 접속 경로
+### 7.1 기관 서버 접속 경로
 
-팀 테스트용 경로다. 요청 기기에서 Tailscale을 연결해야 한다. 내부 OCR 서버를 직접 호출하거나 OpenAI 키를 앱에 넣지 않는다.
+기관 HTTPS 경로이며 로그인 JWT가 필요하다. Tailscale은 필요하지 않다. 내부 OCR 서버를 직접 호출하거나 OpenAI 키를 앱에 넣지 않는다.
 
 ### 7.2 사진 선택과 스캔 실행 분리
 

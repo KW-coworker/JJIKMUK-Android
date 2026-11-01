@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.Text
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,13 +40,14 @@ fun SignUpNicknameRoute(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     SignUpNicknameScreen(
         uiState = uiState,
         onNicknameChange = viewModel::updateNickname,
         onBackClick = onBackClick,
         onNextClick = {
-            if (viewModel.validateNickname()) onNicknameCreated()
+            scope.launch { if (viewModel.validateNickname()) onNicknameCreated() }
         },
         modifier = modifier,
     )
@@ -132,7 +135,7 @@ fun SignUpNicknameScreen(
                     focusManager.clearFocus()
                     onNextClick()
                 },
-                enabled = uiState.isNicknameNotBlank,
+                enabled = uiState.isNicknameNotBlank && !uiState.isNicknameChecking,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(horizontal = 20.dp)

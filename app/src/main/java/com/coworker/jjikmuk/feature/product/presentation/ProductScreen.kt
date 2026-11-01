@@ -286,7 +286,8 @@ private fun ProductScreenContent(
             }
         },
         bottomBar = {
-            if (!showProductFilterSheet && currentDestination !in listOf(ProductDestination.Search, ProductDestination.AlternativeList)) {
+            if (!showProductFilterSheet && currentDestination != ProductDestination.AlternativeList &&
+                (currentDestination != ProductDestination.Search || searchUiState.isEmptyResult)) {
                 JjikmukBottomNavigationBar(
                     selectedTab = selectedTab,
                     onTabClick = onTabClick,
@@ -364,6 +365,13 @@ private fun ProductScreenContent(
                             currentDestination = ProductDestination.Detail
                         },
                     )
+                    if (searchUiState.isEmptyResult) {
+                        JjikmukDraggableScannerFab(
+                            onClick = onScannerClick,
+                            modifier = Modifier.align(Alignment.BottomEnd)
+                                .padding(end = 21.dp, bottom = 16.dp),
+                        )
+                    }
                 }
 
                 ProductDestination.AlternativeList -> {
@@ -531,6 +539,7 @@ private fun ProductSearchContent(
         ProductSearchResultContent(
             searchUiState = searchUiState,
             onFilterClick = onFilterClick,
+            emptyBottomPadding = 0.dp,
             onProductClick = onProductClick,
             modifier = modifier,
         )

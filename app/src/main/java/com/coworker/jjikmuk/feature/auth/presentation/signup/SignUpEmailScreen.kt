@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.Text
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -40,13 +42,14 @@ fun SignUpEmailRoute(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     SignUpEmailScreen(
         uiState = uiState,
         onEmailChange = viewModel::updateEmail,
         onBackClick = onBackClick,
         onNextClick = {
-            if (viewModel.validateEmail()) onCodeSent()
+            scope.launch { if (viewModel.validateEmail()) onCodeSent() }
         },
         modifier = modifier,
     )
@@ -127,7 +130,7 @@ fun SignUpEmailScreen(
                     isError = uiState.emailError != null,
                     onImeAction = {
                         focusManager.clearFocus()
-                        if (uiState.isEmailNotEmpty) onNextClick()
+                        if (uiState.isEmailNotEmpty && !uiState.isAuthRequestInFlight && uiState.resendSeconds == 0) onNextClick()
                     },
                 )
                 if (uiState.emailError != null) {
@@ -140,12 +143,14 @@ fun SignUpEmailScreen(
             }
 
             JjikmukPrimaryButton(
-                text = stringResource(R.string.sign_up_email_next),
+                text = if (uiState.resendSeconds > 0)
+                    stringResource(R.string.auth_email_retry_countdown, uiState.resendSeconds)
+                else stringResource(R.string.sign_up_email_next),
                 onClick = {
                     focusManager.clearFocus()
                     onNextClick()
                 },
-                enabled = uiState.isEmailNotEmpty,
+                enabled = uiState.isEmailNotEmpty && !uiState.isAuthRequestInFlight && uiState.resendSeconds == 0,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(horizontal = 20.dp)

@@ -1,0 +1,84 @@
+package com.coworker.jjikmuk.feature.auth.domain
+
+/** OTP proof, Google ID token and service access token are deliberately different types. */
+enum class EmailPurpose(val wireValue: String, val proofLifetimeSeconds: Int) {
+    SignUp("signup", 1800), PasswordReset("password_reset", 300),
+}
+
+sealed interface AuthResult<out T> {
+    data class Success<T>(val value: T) : AuthResult<T>
+    data class Failure(val error: AuthFailure) : AuthResult<Nothing>
+}
+
+enum class AuthFailureKind { NotConfigured, Network, InvalidResponse, Server }
+data class AuthFailure(
+    val kind: AuthFailureKind,
+    val status: Int? = null,
+    val code: String? = null,
+    val field: String? = null,
+    val retryAfterSeconds: Long? = null,
+    val remainingAttempts: Int? = null,
+    val retryAfterHeaderSeconds: Long? = null,
+) {
+    // Keep both sources; conservatively avoid retrying before either supplied deadline.
+    val retryDelaySeconds: Long? get() = listOfNotNull(retryAfterSeconds, retryAfterHeaderSeconds).maxOrNull()
+
+    // A lost response may have followed a successful mutation. Never replay automatically.
+    val outcomeUnknown: Boolean get() = kind == AuthFailureKind.Network ||
+        kind == AuthFailureKind.InvalidResponse || (status ?: 0) >= 500
+}
+
+data class EmailDispatch(val email: String, val purpose: EmailPurpose, val expiresInSeconds: Int,
+    val expiresAtMillis: Long? = null, val resendAvailableAtMillis: Long? = null)
+// No generated toString: proofs and passwords must not enter logs through state/DTO logging.
+class EmailProof(val token: String, val email: String, val purpose: EmailPurpose, val expiresInSeconds: Int,
+    val expiresAtMillis: Long? = null)
+class AuthLogin(val token: String, val userId: Long, val email: String, val expiresAt: String,
+    val expiresInSeconds: Long, val profileCompleted: Boolean,
+    val refresh: RefreshCredentials? = null,
+    val authProvider: AuthProvider? = null,
+    val hasPassword: Boolean? = null,
+    val isNewUser: Boolean? = null,
+    val expiresAtMillis: Long? = null)
+
+// Credentials/proofs intentionally have no generated toString/copy/componentN.
+class RefreshCredentials(val token: String, val expiresAtMillis: Long)
+data class LogoutReceipt(val userId: Long, val serverTokenRevoked: Boolean)
+enum class AuthProvider { LOCAL, GOOGLE, LOCAL_AND_GOOGLE }
+sealed interface GoogleAuthResult {
+    class SignedIn(val login: AuthLogin) : GoogleAuthResult
+    class LinkRequired(val linkToken: String, val expiresAtMillis: Long, val expiresInSeconds: Long) : GoogleAuthResult
+}
+class SignUpSubmission(val email: String, val password: String, val nickname: String,
+    val verificationToken: String, val allergies: String? = null, val specialDiet: String? = null)
+
+interface AuthRepository {
+    suspend fun sendEmail(email: String, purpose: EmailPurpose): AuthResult<EmailDispatch>
+    suspend fun verifyEmail(email: String, purpose: EmailPurpose, code: String): AuthResult<EmailProof>
+    suspend fun nicknameAvailable(nickname: String): AuthResult<Boolean>
+    suspend fun signUp(input: SignUpSubmission): AuthResult<Long>
+    suspend fun login(email: String, password: String): AuthResult<AuthLogin>
+    suspend fun refresh(refreshToken: String): AuthResult<AuthLogin>
+    suspend fun resetPassword(email: String, proof: String, newPassword: String): AuthResult<Unit>
+    suspend fun logout(accessToken: String): AuthResult<LogoutReceipt>
+    suspend fun me(accessToken: String): AuthResult<AuthProfile>
+    suspend fun patchProfile(accessToken: String, patch: ProfilePatch): AuthResult<AuthProfile>
+    suspend fun completeProfile(accessToken: String, input: ProfileSubmission): AuthResult<AuthProfile>
+    suspend fun google(idToken: String): AuthResult<GoogleAuthResult>
+    suspend fun linkGoogle(linkToken: String, currentPassword: String): AuthResult<AuthLogin>
+    suspend fun cancelGoogleLink(linkToken: String): AuthResult<Unit>
+    suspend fun photo(accessToken: String): AuthResult<ProfilePhoto>
+    suspend fun uploadPhoto(accessToken: String, photo: ProfilePhoto): AuthResult<PhotoUploadReceipt>
+    suspend fun deletePhoto(accessToken: String): AuthResult<Unit>
+    suspend fun families(accessToken: String): AuthResult<List<FamilyProfile>>
+    suspend fun family(accessToken: String, id: Long): AuthResult<FamilyProfile>
+    suspend fun createFamily(accessToken: String, input: ProfileSubmission): AuthResult<FamilyProfile>
+    suspend fun patchFamily(accessToken: String, id: Long, version: Long, patch: ProfilePatch): AuthResult<FamilyProfile>
+    suspend fun deleteFamily(accessToken: String, id: Long, version: Long): AuthResult<Unit>
+    suspend fun changePassword(accessToken: String, userId: Long, currentPassword: String, newPassword: String): AuthResult<Unit>
+    suspend fun deleteAccount(accessToken: String, userId: Long): AuthResult<Unit>
+}
+
+fun normalizeAuthEmail(email: String): String = normalizeAuthNickname(email).lowercase(java.util.Locale.ROOT)
+fun normalizeAuthNickname(nickname: String): String =
+    java.text.Normalizer.normalize(nickname, java.text.Normalizer.Form.NFKC).trim()

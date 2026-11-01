@@ -9,13 +9,6 @@ data class MyProfileDto(
     val specialDiet: String? = null,
     val dislikedIngredients: String? = null,
 )
-data class MyDietUpdate(
-    val nickname: String,
-    val allergies: String,
-    val diseases: String?,
-    val specialDiet: String,
-    val dislikedIngredients: String?,
-)
 data class SafeRecommendationResponse(val data: SafeRecommendationData? = null)
 data class SafeRecommendationData(
     val userId: Long = 0,

@@ -38,6 +38,7 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     onAccountSecurityClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onLogoutClick: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -86,7 +87,7 @@ fun SettingsScreen(
             )
             Spacer(modifier = Modifier.weight(1f))
             SettingsLogoutButton(
-                onClick = {},
+                onClick = onLogoutClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 67.dp),

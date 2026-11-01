@@ -14,18 +14,23 @@ import com.coworker.jjikmuk.feature.chat.presentation.ChatHistoryScreen
 import com.coworker.jjikmuk.feature.chat.presentation.ChatRoute
 import com.coworker.jjikmuk.feature.home.presentation.HomeScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.AccountSecurityScreen
-import com.coworker.jjikmuk.feature.mypage.presentation.AccountWithdrawalRoute
+import com.coworker.jjikmuk.feature.mypage.presentation.SelfDietConditionRoute
 import com.coworker.jjikmuk.feature.mypage.presentation.DietConditionManagementScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageProductListType
 import com.coworker.jjikmuk.feature.mypage.presentation.MyPageScreen
 import com.coworker.jjikmuk.feature.mypage.presentation.ProfileEditScreen
+import com.coworker.jjikmuk.feature.mypage.presentation.ProfileEditRoute
+import com.coworker.jjikmuk.feature.auth.domain.AuthProfile
 import com.coworker.jjikmuk.feature.mypage.presentation.SettingsScreen
 import com.coworker.jjikmuk.feature.product.presentation.ProductScreen
 import com.coworker.jjikmuk.feature.scanner.navigation.ScannerNavHost
 import com.coworker.jjikmuk.ui.component.MainTab
 
 @Composable
-fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
+fun JjikmukAppContent(
+    onReturnToAuthChoice: () -> Unit, profile: AuthProfile? = null,
+    onPasswordChangeClick: (() -> Unit)? = null, onWithdrawalClick: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     var chatMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var chatConversationId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -35,7 +40,6 @@ fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
     var showProfileEdit by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showAccountSecurity by rememberSaveable { mutableStateOf(false) }
-    var showAccountWithdrawal by rememberSaveable { mutableStateOf(false) }
     var productBarcodeToOpen by rememberSaveable { mutableStateOf<String?>(null) }
     var productDetailReturnListType by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
     var myProductListTypeToOpen by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
@@ -51,15 +55,14 @@ fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (chatMessage == null) {
-            if (showAccountWithdrawal) {
-                AccountWithdrawalRoute(
-                    onBackClick = { showAccountWithdrawal = false },
-                    onReturnToAuthChoice = onReturnToAuthChoice,
-                )
-            } else if (showAccountSecurity) {
+            if (showAccountSecurity) {
                 AccountSecurityScreen(
                     onBackClick = { showAccountSecurity = false },
-                    onWithdrawalClick = { showAccountWithdrawal = true },
+                    onWithdrawalClick = { if (onWithdrawalClick != null) onWithdrawalClick()
+                        else Toast.makeText(context, "실제 로그인 후 이용할 수 있습니다", Toast.LENGTH_SHORT).show() },
+                    hasPassword = profile?.hasPassword != false,
+                    onPasswordChangeClick = { if (onPasswordChangeClick != null) onPasswordChangeClick()
+                        else Toast.makeText(context, "실제 로그인 후 이용할 수 있습니다", Toast.LENGTH_SHORT).show() },
                 )
             } else if (showSettings) {
                 SettingsScreen(
@@ -70,13 +73,14 @@ fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
                     onAccountSecurityClick = {
                         showAccountSecurity = true
                     },
+                    onLogoutClick = onReturnToAuthChoice,
                 )
             } else if (showProfileEdit) {
-                ProfileEditScreen(
-                    onBackClick = { showProfileEdit = false },
-                )
+                if (profile != null) ProfileEditRoute(onBackClick = { showProfileEdit = false })
+                else ProfileEditScreen(onBackClick = { showProfileEdit = false })
             } else if (showDietConditionManagement) {
-                DietConditionManagementScreen(
+                if (profile != null) SelfDietConditionRoute(onBackClick = { showDietConditionManagement = false })
+                else DietConditionManagementScreen(
                     onBackClick = { showDietConditionManagement = false },
                 )
             } else when (selectedTab) {
@@ -118,6 +122,8 @@ fun JjikmukAppContent(onReturnToAuthChoice: () -> Unit) {
 
                 MainTab.My -> {
                     MyPageScreen(
+                        nickname = profile?.nickname.orEmpty(),
+                        email = profile?.email.orEmpty(),
                         selectedTab = selectedTab,
                         onTabClick = ::handleMainTabClick,
                         onBackClick = { selectedTab = MainTab.Home },

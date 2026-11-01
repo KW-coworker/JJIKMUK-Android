@@ -1,38 +1,165 @@
 package com.coworker.jjikmuk.feature.auth.presentation.login
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import com.coworker.jjikmuk.MainDispatcherRule
+import com.coworker.jjikmuk.feature.auth.domain.*
+import com.coworker.jjikmuk.feature.auth.session.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.test.*
+import org.junit.Assert.*
+import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelTest {
-    private val viewModel = LoginViewModel()
-
-    @Test
-    fun `mock 계정으로 로그인하면 성공한다`() {
-        viewModel.updateEmail("email@example.com")
-        viewModel.updatePassword("password123")
-
-        assertTrue(viewModel.login())
-        assertNull(viewModel.uiState.value.loginError)
+    @get:Rule val mainDispatcherRule = MainDispatcherRule()
+    private val store = MemorySessionStore()
+    private val sessions = AuthSessionManager(store)
+    private var result: AuthResult<AuthLogin> = AuthResult.Success(
+        AuthLogin("token", 1, "user@example.com", "unused", 3600, true))
+    private var calls = 0
+    private val repository = object : TestAuthRepository() {
+        override suspend fun login(email: String, password: String): AuthResult<AuthLogin> {
+            calls++
+            assertEquals("old", password) // Existing login must not apply new password restrictions.
+            return result
+        }
+    }
+    private fun model(repo: AuthRepository = repository) = LoginViewModel(repo, sessions).apply {
+        updateEmail("user@example.com"); updatePassword("old")
     }
 
-    @Test
-    fun `잘못된 계정으로 로그인하면 통합 오류를 표시한다`() {
-        viewModel.updateEmail("wrong@example.com")
-        viewModel.updatePassword("wrong-password")
-
-        assertFalse(viewModel.login())
-        assertEquals("이메일 또는 비밀번호를 다시 확인해 주세요", viewModel.uiState.value.loginError)
+    @Test fun `real response saves session before Home and clears password`() = runTest {
+        val vm = model()
+        assertTrue(vm.login())
+        assertTrue(sessions.state.value.canEnterHome); assertNotNull(store.saved)
+        assertEquals("", vm.uiState.value.password)
+        sessions.clear()
+    }
+    @Test fun `failure keeps input and three failed logins never bypass authentication`() = runTest {
+        result = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 401, "LOGIN_FAILED"))
+        val vm = model()
+        repeat(3) { assertFalse(vm.login()) }
+        assertEquals(3, calls); assertNull(store.saved)
+        assertEquals("old", vm.uiState.value.password); assertNotNull(vm.uiState.value.loginError)
+        vm.updateEmail("new@example.com"); assertNull(vm.uiState.value.loginError)
+    }
+    @Test fun `profile incomplete cannot enter Home`() = runTest {
+        result = AuthResult.Success(AuthLogin("token", 1, "user@example.com", "unused", 3600, false))
+        val vm = model()
+        assertTrue(vm.login()); assertFalse(sessions.state.value.canEnterHome)
+        assertNull(vm.uiState.value.loginError)
+        sessions.clear()
+    }
+    @Test fun `double tap is suppressed and editing input cancels stale success`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val repo = object : TestAuthRepository() {
+            override suspend fun login(email: String, password: String): AuthResult<AuthLogin> {
+                calls++
+                withContext(NonCancellable) { gate.await() }
+                return result
+            }
+        }
+        val vm = model(repo)
+        val request = async { vm.login() }; runCurrent()
+        assertFalse(vm.login()); assertEquals(1, calls)
+        vm.updateEmail("other@example.com"); gate.complete(Unit)
+        request.join()
+        assertTrue(request.isCancelled); assertNull(store.saved)
+        assertFalse(sessions.state.value.canEnterHome)
+    }
+    @Test fun `storage failure does not navigate to Home`() = runTest {
+        store.failWrite = true
+        val vm = model()
+        assertFalse(vm.login()); assertFalse(sessions.state.value.canEnterHome)
+        assertNotNull(vm.uiState.value.loginError)
     }
 
-    @Test
-    fun `입력값을 수정하면 로그인 오류가 사라진다`() {
-        viewModel.login()
+    @Test fun `foreground expiry refreshes without navigating out of Home`() = runTest {
+        val storage = MemorySessionStore()
+        val manager = AuthSessionManager(storage) { testScheduler.currentTime }
+        var refreshes = 0
+        val repo = object : TestAuthRepository() {
+            override suspend fun login(email: String, password: String) = AuthResult.Success(
+                AuthLogin("old", 1, "user@example.com", "unused", 1, true,
+                    RefreshCredentials("refresh-old", 100_000), AuthProvider.LOCAL, true, false, 1_000))
+            override suspend fun refresh(refreshToken: String): AuthResult<AuthLogin> {
+                refreshes++
+                assertEquals("refresh-old", refreshToken)
+                delay(1_000)
+                return AuthResult.Success(AuthLogin("new", 1, "user@example.com", "unused", 15, true,
+                    RefreshCredentials("refresh-new", 100_000), AuthProvider.LOCAL, true, false, 17_000))
+            }
+        }
+        val vm = LoginViewModel(repo, manager)
+        vm.updateEmail("user@example.com"); vm.updatePassword("old")
+        assertTrue(vm.login()); runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        assertTrue(manager.state.value.refreshing)
+        assertTrue(manager.state.value.canEnterHome)
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(1, refreshes)
+        assertEquals("refresh-new", storage.saved!!.refresh!!.token)
+        assertTrue(manager.state.value.canEnterHome)
+        assertFalse(manager.state.value.refreshing)
+        manager.clear(); runCurrent()
+    }
 
-        viewModel.updateEmail("email@example.com")
+    @Test fun `lost refresh response exposes relogin message through existing login UI`() = runTest {
+        val manager = AuthSessionManager(MemorySessionStore()) { testScheduler.currentTime }
+        val repo = object : TestAuthRepository() {
+            override suspend fun login(email: String, password: String) = AuthResult.Success(
+                AuthLogin("old", 1, "user@example.com", "unused", 1, true,
+                    RefreshCredentials("refresh-old", 100_000), AuthProvider.LOCAL, true, false, 1_000))
+            override suspend fun refresh(refreshToken: String): AuthResult<AuthLogin> =
+                AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+        }
+        val vm = LoginViewModel(repo, manager)
+        vm.updateEmail("user@example.com"); vm.updatePassword("old")
+        assertTrue(vm.login()); runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        assertNull(manager.state.value.credentials)
+        assertFalse(manager.state.value.canEnterHome)
+        assertTrue(vm.uiState.value.loginError!!.contains("다시 로그인"))
+    }
 
-        assertNull(viewModel.uiState.value.loginError)
+    @Test fun `logout double tap is suppressed and new account can log out while old request waits`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        var logoutCalls = 0
+        val repo = object : TestAuthRepository() {
+            override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> {
+                logoutCalls++
+                if (accessToken == "old") { gate.await(); return AuthResult.Failure(AuthFailure(AuthFailureKind.Network)) }
+                return AuthResult.Success(LogoutReceipt(2, true))
+            }
+        }
+        val vm = LoginViewModel(repo, sessions)
+        val notices = mutableListOf<String>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.notices.collect { notices.add(it) } }
+        sessions.acceptLogin(sessions.beginLogin(), AuthLogin("old", 1, "1@example.com", "unused", 3600, true), System.currentTimeMillis())
+        vm.logout(); vm.logout(); runCurrent()
+        assertEquals(1, logoutCalls); assertNull(store.saved)
+        sessions.acceptLogin(sessions.beginLogin(), AuthLogin("new", 2, "2@example.com", "unused", 3600, true), System.currentTimeMillis())
+        vm.logout(); runCurrent()
+        assertEquals(2, logoutCalls); assertNull(store.saved)
+        assertEquals(listOf("로그아웃했어요"), notices)
+        gate.complete(Unit); runCurrent()
+        assertEquals(listOf("로그아웃했어요"), notices) // Old failure does not overwrite the new outcome.
+    }
+
+    @Test fun `logout network failure reports only local exit and clears form input`() = runTest {
+        val repo = object : TestAuthRepository() {
+            override suspend fun logout(accessToken: String): AuthResult<LogoutReceipt> =
+                AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+        }
+        val vm = model(repo)
+        val notices = mutableListOf<String>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.notices.collect { notices.add(it) } }
+        sessions.acceptLogin(sessions.beginLogin(), AuthLogin("old", 1, "1@example.com", "unused", 3600, true), System.currentTimeMillis())
+        vm.logout(); runCurrent()
+        assertNull(store.saved); assertFalse(sessions.state.value.canEnterHome)
+        assertEquals("", vm.uiState.value.email); assertEquals("", vm.uiState.value.password)
+        assertEquals(1, notices.size)
+        assertTrue(notices.single().contains("서버 로그아웃 완료는 확인하지 못했어요"))
     }
 }

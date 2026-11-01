@@ -19,6 +19,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        resValue("string", "google_web_client_id", providers.gradleProperty("jjikmuk.googleWebClientId").orElse("").get())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -38,10 +39,14 @@ android {
     }
     buildFeatures {
         compose = true
+        resValues = true
     }
 }
 
 dependencies {
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
     implementation(libs.androidx.exifinterface)
     implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.camera.camera2)

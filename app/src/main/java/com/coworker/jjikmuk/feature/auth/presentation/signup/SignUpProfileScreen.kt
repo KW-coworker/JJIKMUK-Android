@@ -33,6 +33,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import com.coworker.jjikmuk.ui.component.JjikmukSecondaryButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +50,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.component.JjikmukAuthTopBar
@@ -63,9 +67,13 @@ fun SignUpProfileRoute(
     viewModel: SignUpViewModel,
     onBackClick: () -> Unit,
     onEditConditionsClick: () -> Unit,
-    onNextClick: () -> Unit,
+    onRegistrationComplete: () -> Unit,
+    onReverifyEmail: () -> Unit,
+    onLoginClick: () -> Unit,
+    onEditPassword: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showPhotoOptions by remember { mutableStateOf(false) }
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -82,10 +90,13 @@ fun SignUpProfileRoute(
     SignUpProfileScreen(
         uiState = uiState,
         onNicknameChange = viewModel::updateNickname,
-        onPhotoClick = { showPhotoOptions = true },
+        onPhotoClick = { if (!uiState.isSubmitting) showPhotoOptions = true },
         onEditConditionsClick = onEditConditionsClick,
         onBackClick = onBackClick,
-        onNextClick = onNextClick,
+        onNextClick = { scope.launch { if (viewModel.submit()) onRegistrationComplete() } },
+        onReverifyEmail = { viewModel.prepareReverification(); onReverifyEmail() },
+        onLoginClick = onLoginClick,
+        onEditPassword = onEditPassword,
         modifier = modifier,
     )
 
@@ -111,6 +122,12 @@ fun SignUpProfileRoute(
                     galleryLauncher.launch("image/*")
                 },
             )
+            if (uiState.profilePhotoUri != null || uiState.profilePhotoBitmap != null) {
+                PhotoOption(text = "사진 선택 해제", onClick = {
+                    showPhotoOptions = false
+                    viewModel.updateProfilePhoto(uri = null, bitmap = null)
+                })
+            }
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -141,16 +158,24 @@ fun SignUpProfileScreen(
     onEditConditionsClick: () -> Unit,
     onBackClick: () -> Unit,
     onNextClick: () -> Unit,
+    onReverifyEmail: () -> Unit = {},
+    onLoginClick: () -> Unit = {},
+    onEditPassword: () -> Unit = {},
     modifier: Modifier = Modifier,
+    photoContent: (@Composable () -> Unit)? = null,
+    actionContent: (@Composable () -> Unit)? = null,
+    description: String? = null,
 ) {
     val colors = JjikmukTheme.colors
     val selectedItems = profileSelectedItems(uiState)
-    BackHandler(onBack = onBackClick)
+    val safeBack = { if (!uiState.isSubmitting) onBackClick() }
+    BackHandler(onBack = safeBack)
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.surface),
+            .background(colors.surface)
+            .imePadding(),
     ) {
         Spacer(
             modifier = Modifier
@@ -158,144 +183,159 @@ fun SignUpProfileScreen(
                 .windowInsetsTopHeight(WindowInsets.statusBars)
                 .background(AUTH_STATUS_BAR_COLOR),
         )
-        JjikmukAuthTopBar(onBackClick = onBackClick)
+        JjikmukAuthTopBar(onBackClick = safeBack)
 
-        Box(modifier = Modifier.weight(1f)) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(horizontal = 22.dp)
-                    .offset(y = 6.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.sign_up_profile_title),
-                    color = colors.textPrimary,
-                    style = JjikmukTheme.typography.h1,
-                )
-                Text(
-                    text = stringResource(R.string.sign_up_profile_description),
-                    color = colors.textSecondary,
-                    style = JjikmukTheme.typography.bodyL,
-                    modifier = Modifier.padding(top = 18.dp),
-                )
-            }
-
-            JjikmukProfileImagePicker(
-                imageModel = uiState.profilePhotoBitmap ?: uiState.profilePhotoUri,
-                onClick = onPhotoClick,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = 134.dp),
-            )
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(27.dp),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = 271.dp)
-                    .padding(horizontal = 22.dp),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding()) {
+            Box(modifier = Modifier.fillMaxWidth().height(569.dp)) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(horizontal = 22.dp)
+                        .offset(y = 6.dp),
+                ) {
                     Text(
-                        text = stringResource(R.string.sign_up_profile_nickname_label),
+                        text = stringResource(R.string.sign_up_profile_title),
                         color = colors.textPrimary,
-                        style = JjikmukTheme.typography.labelM,
-                        modifier = Modifier.padding(start = 4.dp),
+                        style = JjikmukTheme.typography.h1,
                     )
-                    JjikmukNicknameTextField(
-                        value = uiState.nickname,
-                        onValueChange = onNicknameChange,
-                        placeholder = stringResource(R.string.sign_up_nickname_placeholder),
+                    Text(
+                        text = description ?: stringResource(R.string.sign_up_profile_description),
+                        color = colors.textSecondary,
+                        style = JjikmukTheme.typography.bodyL,
+                        modifier = Modifier.padding(top = 18.dp),
                     )
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
-                    ) {
+                if (photoContent != null) Box(Modifier.align(Alignment.TopCenter).offset(y = 134.dp)) {
+                    photoContent()
+                } else JjikmukProfileImagePicker(
+                    imageModel = uiState.profilePhotoBitmap ?: uiState.profilePhotoUri,
+                    onClick = onPhotoClick,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = 134.dp),
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(27.dp),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = 271.dp)
+                        .padding(horizontal = 22.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = stringResource(R.string.sign_up_profile_selected_label),
+                            text = stringResource(R.string.sign_up_profile_nickname_label),
                             color = colors.textPrimary,
                             style = JjikmukTheme.typography.labelM,
+                            modifier = Modifier.padding(start = 4.dp),
                         )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onEditConditionsClick,
-                                )
-                                .padding(4.dp),
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_profile_edit),
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                text = stringResource(R.string.sign_up_profile_edit),
-                                color = colors.textSecondary,
-                                style = JjikmukTheme.typography.labelS,
-                            )
-                        }
+                        JjikmukNicknameTextField(
+                            value = uiState.nickname,
+                            onValueChange = { if (!uiState.isSubmitting) onNicknameChange(it) },
+                            placeholder = stringResource(R.string.sign_up_nickname_placeholder),
+                        )
                     }
 
-                    if (selectedItems.isEmpty()) {
-                        Box(
-                            contentAlignment = Alignment.CenterStart,
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp)
-                                .background(colors.surfaceSecondary, RoundedCornerShape(8.dp))
-                                .border(1.dp, colors.borderSubtle, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 18.dp),
+                                .padding(horizontal = 4.dp),
                         ) {
                             Text(
-                                text = stringResource(R.string.sign_up_profile_no_selected_items),
-                                color = colors.textSecondary,
-                                style = JjikmukTheme.typography.bodyM,
+                                text = stringResource(R.string.sign_up_profile_selected_label),
+                                color = colors.textPrimary,
+                                style = JjikmukTheme.typography.labelM,
                             )
-                        }
-                    } else {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 73.dp, max = 140.dp)
-                                .verticalScroll(rememberScrollState())
-                                .background(colors.surfaceSecondary, RoundedCornerShape(16.dp))
-                                .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp))
-                                .padding(17.dp),
-                        ) {
-                            selectedItems.forEach { item ->
-                                JjikmukSelectedItemChip(
-                                    emoji = item.emoji,
-                                    label = item.label,
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        enabled = !uiState.isSubmitting,
+                                        onClick = onEditConditionsClick,
+                                    )
+                                    .padding(4.dp),
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_profile_edit),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
                                 )
+                                Text(
+                                    text = stringResource(R.string.sign_up_profile_edit),
+                                    color = colors.textSecondary,
+                                    style = JjikmukTheme.typography.labelS,
+                                )
+                            }
+                        }
+
+                        if (selectedItems.isEmpty()) {
+                            Box(
+                                contentAlignment = Alignment.CenterStart,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp)
+                                    .background(colors.surfaceSecondary, RoundedCornerShape(8.dp))
+                                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 18.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.sign_up_profile_no_selected_items),
+                                    color = colors.textSecondary,
+                                    style = JjikmukTheme.typography.bodyM,
+                                )
+                            }
+                        } else {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 73.dp, max = 140.dp)
+                                    .verticalScroll(rememberScrollState())
+                                    .background(colors.surfaceSecondary, RoundedCornerShape(16.dp))
+                                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp))
+                                    .padding(17.dp),
+                            ) {
+                                selectedItems.forEach { item ->
+                                    JjikmukSelectedItemChip(
+                                        emoji = item.emoji,
+                                        label = item.label,
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            JjikmukPrimaryButton(
-                text = stringResource(R.string.sign_up_email_next),
-                onClick = onNextClick,
-                enabled = uiState.nickname.isNotBlank(),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(horizontal = 22.dp)
-                    .offset(y = 569.dp)
-                    .zIndex(1f),
-            )
+            }
+            Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                (uiState.submitError ?: uiState.nicknameError)?.let {
+                    Text(it, color = colors.textSecondary, style = JjikmukTheme.typography.bodyM)
+                }
+                if (actionContent != null) actionContent() else when (uiState.recovery) {
+                    SignUpRecovery.None -> JjikmukPrimaryButton(
+                        text = if (uiState.isSubmitting) "가입 중…" else stringResource(R.string.sign_up_email_next),
+                        onClick = onNextClick,
+                        enabled = uiState.nickname.isNotBlank() && !uiState.isSubmitting && !uiState.registrationCompleted,
+                    )
+                    SignUpRecovery.ReverifyEmail -> JjikmukPrimaryButton("이메일 다시 인증", onReverifyEmail)
+                    SignUpRecovery.Login -> JjikmukPrimaryButton("로그인으로 이동", onLoginClick)
+                    SignUpRecovery.EditPassword -> JjikmukPrimaryButton("비밀번호 수정", onEditPassword)
+                    SignUpRecovery.CheckOutcome -> {
+                        JjikmukPrimaryButton("로그인으로 확인", onLoginClick)
+                        JjikmukSecondaryButton("이메일 다시 인증", onReverifyEmail)
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 }

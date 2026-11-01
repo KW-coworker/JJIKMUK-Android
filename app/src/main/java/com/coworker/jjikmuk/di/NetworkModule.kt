@@ -16,7 +16,9 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
+import com.coworker.jjikmuk.data.remote.BackendServer
+import okhttp3.RequestBody
+import okio.BufferedSink
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -28,29 +30,26 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
-            redactHeader("Authorization")
-        }
 
         return OkHttpClient.Builder()
             .connectTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .addInterceptor(loggingInterceptor)
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    @AiRetrofit
-    fun provideAiRetrofit(
-        okHttpClient: OkHttpClient,
-    ): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl(AI_SERVER_BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .retryOnConnectionFailure(false)
+            .followRedirects(false).followSslRedirects(false)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val body = request.body
+                // Paid POSTs must not be replayed by OkHttp for 408/503 follow-up responses.
+                val safeRequest = if (body == null || request.method in setOf("GET", "HEAD")) request else
+                    request.newBuilder().method(request.method, object : RequestBody() {
+                        override fun contentType() = body.contentType()
+                        override fun contentLength() = body.contentLength()
+                        override fun isOneShot() = true
+                        override fun writeTo(sink: BufferedSink) = body.writeTo(sink)
+                    }).build()
+                chain.proceed(safeRequest)
+            }
             .build()
     }
 
@@ -64,7 +63,7 @@ object NetworkModule {
     ): Retrofit {
         return Retrofit.Builder()
             .baseUrl(backendBaseUrl(context))
-            .client(okHttpClient.newBuilder().addInterceptor(auth).followRedirects(false).followSslRedirects(false).build())
+            .client(okHttpClient.newBuilder().addInterceptor(auth).build())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
@@ -72,7 +71,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideChatApi(
-        @AiRetrofit
+        @BackendRetrofit
         retrofit: Retrofit,
     ): ChatApi {
         return retrofit.create(ChatApi::class.java)
@@ -98,26 +97,19 @@ object NetworkModule {
         retrofit.create(com.coworker.jjikmuk.data.remote.api.ProductOptionsApi::class.java)
 
     private fun backendBaseUrl(context: Context): String {
-        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return BACKEND_SERVER_BASE_URL
+        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return BackendServer.BASE_URL
         val file = File(context.noBackupFilesDir, "backend.properties")
-        if (!file.exists()) return BACKEND_SERVER_BASE_URL
+        if (!file.exists()) return BackendServer.BASE_URL
         val properties = Properties().apply { file.inputStream().use(::load) }
-        val url = properties.getProperty("baseUrl")?.trim() ?: return BACKEND_SERVER_BASE_URL
+        val url = properties.getProperty("baseUrl")?.trim() ?: return BackendServer.BASE_URL
         require(url == "http://127.0.0.1:8080/" || url == "http://10.0.2.2:8080/") {
             "Debug backend override must point to the local test server."
         }
         return url
     }
 
-    private const val AI_SERVER_BASE_URL = "http://10.0.2.2:8000/"
-    private const val BACKEND_REMOTE_SERVER_BASE_URL = "https://jjikmuk-backend-dev.tail198441.ts.net/"
-    private const val BACKEND_SERVER_BASE_URL = BACKEND_REMOTE_SERVER_BASE_URL
     private const val NETWORK_TIMEOUT_SECONDS = 30L
 }
-
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class AiRetrofit
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)

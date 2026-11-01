@@ -18,6 +18,7 @@ import com.coworker.jjikmuk.feature.scanner.data.ScannerImagePreparer
 import com.coworker.jjikmuk.feature.scanner.domain.*
 import com.coworker.jjikmuk.feature.scanner.presentation.ScannerCaptureViewModel
 import com.coworker.jjikmuk.feature.scanner.presentation.ScannerGalleryConfirmation
+import com.coworker.jjikmuk.feature.scanner.presentation.ScannerSearchResultsScreen
 import com.coworker.jjikmuk.feature.scanner.presentation.ScannerPhase
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import java.io.File
@@ -56,8 +57,15 @@ class ScannerGalleryTest {
         try {
             compose.setContent {
                 val state by model.state.collectAsState()
+                val analysis by model.analysisState.collectAsState()
                 JjikmukTheme {
-                    Text("촬영 화면")
+                    if (analysis.phase == ScannerPhase.Results) {
+                        ScannerSearchResultsScreen(
+                            searchUiState = analysis.search,
+                            onQueryChange = {}, onSearchSubmit = {}, onProductClick = {},
+                            onBackClick = model::cancelScan,
+                        )
+                    } else Text("촬영 화면")
                     if (state.galleryConfirmation) ScannerGalleryConfirmation(
                         checkNotNull(state.photo).file, model::confirmGalleryScan, model::cancelScan)
                 }
@@ -80,6 +88,8 @@ class ScannerGalleryTest {
             compose.onNodeWithText("이 사진으로 스캔").performClick()
             compose.runOnIdle { model.confirmGalleryScan() }
             compose.waitUntil(5_000) { model.analysisState.value.phase == ScannerPhase.Results }
+            compose.onNodeWithText("검색된 상품이 존재하지 않습니다").assertIsDisplayed()
+            compose.onNodeWithText("‘포키' 검색 결과 0건").assertIsDisplayed()
             compose.runOnIdle {
                 assertEquals(1, ocrCalls)
                 assertEquals(1, searches)

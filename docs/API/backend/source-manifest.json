@@ -1,0 +1,35 @@
+{
+  "repository": "KW-coworker/JJIKMUK-Backend",
+  "branch": "main",
+  "commit": "7dd4273ee456329593a82b2b60934ef1b8c20240",
+  "checkedAt": "2026-10-31",
+  "userProvidedCommit": "f49478ea2b51ca25bdffd82ad08e112ce8b44e68",
+  "comparison": "main is one merge commit ahead; no file differences",
+  "files": [
+    {
+      "localPath": "api-spec/API_REFERENCE.md",
+      "sourcePath": "docs/api-spec/API_REFERENCE.md",
+      "sha256": "e4ba88faec7060a95d48d5ddeda13a03e0b96aa623b52f3542baa4ac944c37a6"
+    },
+    {
+      "localPath": "api-spec/frontend-auth-integration-v2.md",
+      "sourcePath": "docs/api-spec/frontend-auth-integration-v2.md",
+      "sha256": "686b44dfa77a12d68530153d1af7a6aed12b195bafd5aa33f8023d8767cbf86f"
+    },
+    {
+      "localPath": "api-spec/chat-analysis-contract-v1.md",
+      "sourcePath": "docs/api-spec/chat-analysis-contract-v1.md",
+      "sha256": "6f12fb893abc021dca9789c10c18a52cc8e8ff154dee37e1368929907a9df5e4"
+    },
+    {
+      "localPath": "catalog-evolution-stage1-3.md",
+      "sourcePath": "docs/catalog-evolution-stage1-3.md",
+      "sha256": "89be0799e43f55c94f1217aa05b75c2bba6c422cf8eff60c694268f77b0c0f92"
+    },
+    {
+      "localPath": "staging-integration-20261028.md",
+      "sourcePath": "docs/staging-integration-20261028.md",
+      "sha256": "43e0c389a2430ea7d4879285fb62f92f05929cb0499bbe92e84fcc0a134147a0"
+    }
+  ]
+}

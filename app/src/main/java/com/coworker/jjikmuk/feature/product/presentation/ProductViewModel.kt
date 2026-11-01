@@ -104,15 +104,17 @@ class ProductViewModel @Inject constructor(
                     profiles.firstOrNull { profile -> profile.isMe }?.toRecommendationConditionKey() to token
                 }
                 .distinctUntilChanged()
-                .collectLatest { (conditionKey, _) ->
+                .collectLatest { (conditionKey, token) ->
                     recommendationGeneration++
                     recommendationPageJob?.cancel()
                     nextRecommendationCursor = null
-                    if (conditionKey == null) {
+                    if (token == null) {
+                        _recommendationUiState.value = ProductRecommendationUiState(errorMessage = "로그인 상태를 확인해 주세요.")
+                    } else if (conditionKey == null) {
                         _recommendationUiState.value = ProductRecommendationUiState(
                             errorMessage = "마이페이지에서 나의 식이 조건을 설정해 주세요.")
                     } else {
-                        loadSafeRecommendations(conditionKey)
+                        loadSafeRecommendations()
                     }
                 }
         }
@@ -209,10 +211,7 @@ class ProductViewModel @Inject constructor(
         _detailUiState.value = ProductDetailUiState(isLoading = true, referenceBarcode = code)
         detailJob = viewModelScope.launch {
             try {
-                val me = familyProfileRepository.observeProfiles().first().firstOrNull { it.isMe }
-                    ?: error("나의 식이 조건을 설정해 주세요.")
-                val conditions = me.toRecommendationConditionKey()
-                safeRecommendations.syncMyDiet(conditions.toAllergyKeys(), conditions.toProductFilters())
+                // Read server-owned conditions via the authenticated product API; no implicit profile writes.
                 val product = productRepository.getProductDetail(code).getOrThrow()
                 _detailUiState.value = ProductDetailUiState(product = product, referenceBarcode = code, capacitiesLoading = true)
                 try {
@@ -311,14 +310,14 @@ class ProductViewModel @Inject constructor(
             if (me == null) {
                 _recommendationUiState.value = ProductRecommendationUiState(
                     errorMessage = "마이페이지에서 나의 식이 조건을 설정해 주세요.")
-            } else loadSafeRecommendations(me.toRecommendationConditionKey())
+            } else loadSafeRecommendations()
         }
     }
 
-    private suspend fun loadSafeRecommendations(conditionKey: RecommendationConditionKey) {
+    private suspend fun loadSafeRecommendations() {
         _recommendationUiState.value = ProductRecommendationUiState(isLoading = true)
         try {
-            val owner = safeRecommendations.syncMyDiet(conditionKey.toAllergyKeys(), conditionKey.toProductFilters())
+            val owner = safeRecommendations.owner()
             val page = safeRecommendations.page()
             check(page.userId == owner.userId) { "추천 사용자가 변경되었어요." }
             nextRecommendationCursor = page.nextCursor
@@ -383,18 +382,7 @@ private data class RecommendationConditionKey(
     val vegetarian: String,
     val allergies: List<String>,
     val preferences: List<String>,
-) {
-    fun toProductFilters(): List<String> {
-        return listOfNotNull(vegetarian)
-            .plus(preferences)
-            .filter { it.isNotBlank() && it != "해당 없음" }
-            .distinct()
-    }
-
-    fun toAllergyKeys(): List<String> {
-        return allergies.filter(String::isNotBlank).distinct()
-    }
-}
+)
 
 private fun String.toAllergyKey(): String? {
     return when (trim()) {

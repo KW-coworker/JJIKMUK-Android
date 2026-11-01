@@ -17,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.coworker.jjikmuk.R
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
@@ -46,6 +48,7 @@ fun AuthPasswordCreationScreen(
     onBackClick: () -> Unit,
     onConfirmClick: () -> Unit,
     modifier: Modifier = Modifier,
+    submissionError: String? = null,
 ) {
     val focusManager = LocalFocusManager.current
     val confirmFocusRequester = remember { FocusRequester() }
@@ -100,7 +103,7 @@ fun AuthPasswordCreationScreen(
                     value = password,
                     onValueChange = onPasswordChange,
                     placeholder = passwordPlaceholder,
-                    isError = validationError == AuthPasswordValidationError.TooShort,
+                    isError = validationError == AuthPasswordValidationError.TooShort || validationError == AuthPasswordValidationError.Requirements,
                     showVisibilityToggle = false,
                     imeAction = ImeAction.Next,
                     onImeAction = confirmFocusRequester::requestFocus,
@@ -118,11 +121,16 @@ fun AuthPasswordCreationScreen(
                     },
                     modifier = Modifier.focusRequester(confirmFocusRequester),
                 )
+                if (submissionError != null) {
+                    Text(text = submissionError, color = colors.error,
+                        style = JjikmukTheme.typography.bodyM, modifier = Modifier.padding(top = 11.dp))
+                }
                 if (validationError != null) {
                     Spacer(modifier = Modifier.padding(top = 11.dp))
                     Text(
                         text = when (validationError) {
                             AuthPasswordValidationError.TooShort -> passwordTooShortMessage
+                            AuthPasswordValidationError.Requirements -> stringResource(R.string.auth_password_requirements)
                             AuthPasswordValidationError.Mismatch -> passwordMismatchMessage
                         },
                         color = colors.error,
@@ -155,14 +163,14 @@ private fun AuthPasswordCreationScreenPreview() {
     JjikmukTheme {
         AuthPasswordCreationScreen(
             title = "비밀번호 생성",
-            description = "비밀번호를 설정해 주세요\n비밀번호는 6자리 이상이어야 합니다",
+            description = "비밀번호를 설정해 주세요\n영문·숫자 포함 8~72자 (특수문자 선택)",
             passwordPlaceholder = "비밀번호 설정",
             passwordConfirmPlaceholder = "비밀번호 확인",
             password = "",
             passwordConfirm = "",
             validationError = null,
             isPasswordValid = false,
-            passwordTooShortMessage = "비밀번호는 6자리 이상이어야 합니다.",
+            passwordTooShortMessage = "영문·숫자 포함 8~72자 (특수문자 선택).",
             passwordMismatchMessage = "비밀번호가 일치하지 않습니다.",
             confirmButtonText = "확인",
             onPasswordChange = {},
@@ -179,14 +187,14 @@ private fun AuthPasswordTooShortPreview() {
     JjikmukTheme {
         AuthPasswordCreationScreen(
             title = "비밀번호 생성",
-            description = "비밀번호를 설정해 주세요\n비밀번호는 6자리 이상이어야 합니다",
+            description = "비밀번호를 설정해 주세요\n영문·숫자 포함 8~72자 (특수문자 선택)",
             passwordPlaceholder = "비밀번호 설정",
             passwordConfirmPlaceholder = "비밀번호 확인",
             password = "123",
             passwordConfirm = "123",
             validationError = AuthPasswordValidationError.TooShort,
             isPasswordValid = false,
-            passwordTooShortMessage = "비밀번호는 6자리 이상이어야 합니다.",
+            passwordTooShortMessage = "영문·숫자 포함 8~72자 (특수문자 선택).",
             passwordMismatchMessage = "비밀번호가 일치하지 않습니다.",
             confirmButtonText = "확인",
             onPasswordChange = {},
@@ -203,14 +211,14 @@ private fun AuthPasswordMismatchPreview() {
     JjikmukTheme {
         AuthPasswordCreationScreen(
             title = "비밀번호 생성",
-            description = "비밀번호를 설정해 주세요\n비밀번호는 6자리 이상이어야 합니다",
+            description = "비밀번호를 설정해 주세요\n영문·숫자 포함 8~72자 (특수문자 선택)",
             passwordPlaceholder = "비밀번호 설정",
             passwordConfirmPlaceholder = "비밀번호 확인",
             password = "password123",
             passwordConfirm = "different123",
             validationError = AuthPasswordValidationError.Mismatch,
             isPasswordValid = false,
-            passwordTooShortMessage = "비밀번호는 6자리 이상이어야 합니다.",
+            passwordTooShortMessage = "영문·숫자 포함 8~72자 (특수문자 선택).",
             passwordMismatchMessage = "비밀번호가 일치하지 않습니다.",
             confirmButtonText = "확인",
             onPasswordChange = {},

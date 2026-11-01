@@ -59,6 +59,8 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
 fun MyPageScreen(
+    nickname: String = "",
+    email: String = "",
     selectedTab: MainTab = MainTab.My,
     onTabClick: (MainTab) -> Unit = {},
     onBackClick: () -> Unit = {},
@@ -72,7 +74,11 @@ fun MyPageScreen(
     onScannerClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     myPageViewModel: MyPageViewModel = hiltViewModel(),
+    photoViewModel: com.coworker.jjikmuk.feature.auth.photo.ProfilePhotoViewModel = hiltViewModel(),
 ) {
+    val photoState by photoViewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(photoState.generation) { photoViewModel.load() }
+    val photoModel = com.coworker.jjikmuk.feature.auth.photo.rememberPrivatePhotoModel(photoState.photo)
     val likedProducts by myPageViewModel.likedProducts.collectAsStateWithLifecycle()
     val likedProductUiModels = likedProducts.map { product -> product.toMyPageProductUiModel() }
     var selectedProductList by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
@@ -124,6 +130,9 @@ fun MyPageScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             MyPageProfileSection(
+                photoModel = photoModel,
+                nickname = nickname,
+                email = email,
                 onProfileEditClick = onProfileEditClick,
             )
             MyPageFamilyShareSection(
@@ -180,6 +189,9 @@ private fun MyPageTopBar(
 
 @Composable
 private fun MyPageProfileSection(
+    photoModel: Any? = null,
+    nickname: String,
+    email: String,
     onProfileEditClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -205,7 +217,10 @@ private fun MyPageProfileSection(
                         color = JjikmukTheme.colors.surface,
                         shape = CircleShape,
                     ),
-            )
+            ) {
+                if (photoModel != null) AsyncImage(model = photoModel, contentDescription = "프로필 사진",
+                    contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -236,12 +251,12 @@ private fun MyPageProfileSection(
         }
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "코워커",
+            text = nickname,
             color = JjikmukTheme.colors.textPrimary,
             style = JjikmukTheme.typography.h1,
         )
         Text(
-            text = "coworker@example.com",
+            text = email,
             color = JjikmukTheme.colors.textTertiary,
             style = JjikmukTheme.typography.bodyL,
         )

@@ -1,5 +1,11 @@
 package com.coworker.jjikmuk.feature.auth.navigation
 
+import com.coworker.jjikmuk.feature.auth.presentation.profile.ProfileCompletionRoute
+import com.coworker.jjikmuk.feature.auth.presentation.profile.ProfileCompletionViewModel
+import com.coworker.jjikmuk.feature.auth.google.GoogleLoginRoute
+import com.coworker.jjikmuk.feature.auth.google.GoogleLoginViewModel
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -9,15 +15,26 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountAction
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountActionRoute
+import com.coworker.jjikmuk.feature.mypage.presentation.AccountActionViewModel
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.coworker.jjikmuk.feature.auth.development.developerHomeGraph
+import com.coworker.jjikmuk.feature.auth.development.openDeveloperHome
 import com.coworker.jjikmuk.JjikmukAppContent
 import com.coworker.jjikmuk.feature.auth.presentation.choice.AuthChoiceScreen
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.login.LoginRoute
+import com.coworker.jjikmuk.feature.auth.presentation.login.SessionEntryState
+import com.coworker.jjikmuk.feature.auth.presentation.login.SessionEntryScreen
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetViewModel
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetCompleteScreen
 import com.coworker.jjikmuk.feature.auth.presentation.passwordreset.PasswordResetEmailRoute
@@ -43,10 +60,19 @@ import kotlinx.coroutines.delay
 fun AuthNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    loginViewModel: LoginViewModel = viewModel(),
-    passwordResetViewModel: PasswordResetViewModel = viewModel(),
-    signUpViewModel: SignUpViewModel = viewModel(),
+    loginViewModel: LoginViewModel = hiltViewModel(),
+    passwordResetViewModel: PasswordResetViewModel = hiltViewModel(),
+    signUpViewModel: SignUpViewModel = hiltViewModel(),
+    accountActionViewModel: AccountActionViewModel = hiltViewModel(),
+    profileCompletionViewModel: ProfileCompletionViewModel = hiltViewModel(),
+    googleLoginViewModel: GoogleLoginViewModel = hiltViewModel(),
+    pendingPhotoViewModel: com.coworker.jjikmuk.feature.auth.photo.PendingSignupPhotoViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
+    val currentEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(loginViewModel, context) {
+        loginViewModel.notices.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
     SharedTransitionLayout {
     NavHost(
         navController = navController,
@@ -61,7 +87,8 @@ fun AuthNavHost(
         ) {
             LaunchedEffect(Unit) {
                 delay(SPLASH_DURATION_MILLIS)
-                navController.navigate(AuthRoute.PermissionApproval) {
+                val destination = if (loginViewModel.hasRestoredSession()) AuthRoute.SessionEntry else AuthRoute.PermissionApproval
+                navController.navigate(destination) {
                     popUpTo(AuthRoute.Splash) { inclusive = true }
                 }
             }
@@ -87,7 +114,7 @@ fun AuthNavHost(
                     boundsTransform = { _, _ -> tween(SPLASH_TRANSITION_MILLIS, easing = LaunchEasing) },
                 ),
                 onContinue = {
-                    navController.navigate(AuthRoute.AuthChoice) {
+                    navController.navigate(AuthRoute.SessionEntry) {
                         popUpTo(AuthRoute.PermissionApproval) { inclusive = true }
                     }
                 },
@@ -98,6 +125,44 @@ fun AuthNavHost(
                     }
                 },
             )
+        }
+
+        composable(AuthRoute.SessionEntry) {
+            val session by loginViewModel.sessionState.collectAsStateWithLifecycle()
+            val entry by loginViewModel.entryState.collectAsStateWithLifecycle()
+            LaunchedEffect(session.generation) { loginViewModel.checkSession() }
+            LaunchedEffect(entry, session) {
+                val destination = when {
+                    entry == SessionEntryState.SignedOut && session.credentials == null -> AuthRoute.AuthChoice
+                    entry == SessionEntryState.ProfileRequired && session.credentials != null && session.profile?.profileCompleted == false -> AuthRoute.ProfileCompletion
+                    else -> null
+                }
+                if (destination != null) navController.navigate(destination) {
+                    popUpTo(navController.graph.id) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            if (entry == SessionEntryState.Ready && session.canEnterHome && session.profile != null) {
+                com.coworker.jjikmuk.feature.auth.photo.PendingSignupPhotoRoute(pendingPhotoViewModel) {
+                    if (navController.currentDestination?.route == AuthRoute.SessionEntry && loginViewModel.sessionState.value.canEnterHome)
+                        navController.navigate(AuthRoute.Home) {
+                            popUpTo(navController.graph.id) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                }
+            } else SessionEntryScreen(entry, loginViewModel::checkSession, loginViewModel::logout)
+        }
+
+        composable(AuthRoute.ProfileCompletion) {
+            fun returnToEntry() {
+                if (navController.currentDestination?.route != AuthRoute.ProfileCompletion) return
+                navController.navigate(AuthRoute.SessionEntry) {
+                    popUpTo(navController.graph.id) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            ProfileCompletionRoute(profileCompletionViewModel, onFinished = ::returnToEntry,
+                onSessionLost = ::returnToEntry, onLogout = loginViewModel::logout)
         }
 
         composable(AuthRoute.AuthChoice) {
@@ -116,7 +181,9 @@ fun AuthNavHost(
                 onBackClick = navController::popBackStack,
                 onLoginSuccess = {
                         loginViewModel.reset()
-                        navigateToHome(navController)
+                        navController.navigate(AuthRoute.SessionEntry) {
+                            popUpTo(AuthRoute.AuthChoice) { inclusive = true }
+                        }
                 },
                 onForgotPasswordClick = {
                     passwordResetViewModel.reset()
@@ -127,10 +194,32 @@ fun AuthNavHost(
                     navController.navigate(AuthRoute.SignUpEmail)
                 },
                 onGoogleLoginClick = {
+                    googleLoginViewModel.prepareEntry()
                     loginViewModel.reset()
-                    navigateToHome(navController)
+                    navController.navigate(AuthRoute.GoogleLogin) { launchSingleTop = true }
+                },
+                onDeveloperHomeClick = {
+                    loginViewModel.reset()
+                    navController.openDeveloperHome()
                 },
             )
+        }
+
+        composable(AuthRoute.GoogleLogin) {
+            GoogleLoginRoute(googleLoginViewModel,
+                onSignedIn = {
+                    navController.navigate(AuthRoute.SessionEntry) {
+                        popUpTo(navController.graph.id) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onBack = { navController.popBackStack() },
+                onPasswordReset = {
+                    passwordResetViewModel.reset()
+                    navController.navigate(AuthRoute.PasswordResetEmail) {
+                        popUpTo(AuthRoute.GoogleLogin) { inclusive = true }
+                    }
+                })
         }
 
         passwordResetGraph(
@@ -142,18 +231,44 @@ fun AuthNavHost(
             viewModel = signUpViewModel,
         )
 
-        composable(AuthRoute.Home) {
-            JjikmukAppContent(
-                onReturnToAuthChoice = {
+        developerHomeGraph(navController)
+
+        for ((route, action) in listOf(AuthRoute.AccountPassword to AccountAction.Password,
+            AuthRoute.AccountWithdrawal to AccountAction.Withdrawal)) {
+            composable(route) {
+                fun exitTo(destination: String) {
                     loginViewModel.reset()
-                    signUpViewModel.reset()
-                    passwordResetViewModel.reset()
-                    navController.navigate(AuthRoute.AuthChoice) {
+                    navController.navigate(destination) {
                         popUpTo(navController.graph.id) { inclusive = false }
                         launchSingleTop = true
                     }
-                },
-            )
+                }
+                AccountActionRoute(action, accountActionViewModel,
+                    onBack = { navController.popBackStack() },
+                    onAuthRequired = { exitTo(AuthRoute.SessionEntry) },
+                    onComplete = { exitTo(if (action == AccountAction.Withdrawal) AuthRoute.AuthChoice else AuthRoute.Login) })
+            }
+        }
+
+        composable(AuthRoute.Home) {
+            val session by loginViewModel.sessionState.collectAsStateWithLifecycle()
+            if (!session.canEnterHome || session.profile == null) {
+                LaunchedEffect(session.generation, currentEntry?.destination?.route) {
+                    if (currentEntry?.destination?.route != AuthRoute.Home) return@LaunchedEffect
+                    signUpViewModel.reset()
+                    passwordResetViewModel.reset()
+                    navController.navigate(AuthRoute.SessionEntry) {
+                        popUpTo(navController.graph.id) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            } else {
+                key(session.generation) {
+                    JjikmukAppContent(onReturnToAuthChoice = loginViewModel::logout, profile = session.profile,
+                        onPasswordChangeClick = { navController.navigate(AuthRoute.AccountPassword) { launchSingleTop = true } },
+                        onWithdrawalClick = { navController.navigate(AuthRoute.AccountWithdrawal) { launchSingleTop = true } })
+                }
+            }
         }
     }
     }
@@ -293,9 +408,27 @@ private fun androidx.navigation.NavGraphBuilder.signUpGraph(
             viewModel = viewModel,
             onEditConditionsClick = { navController.navigate(AuthRoute.SignUpConditions) },
             onBackClick = navController::popBackStack,
-            onNextClick = {
+            onRegistrationComplete = {
                 navController.navigate(AuthRoute.SignUpComplete) {
                     popUpTo(AuthRoute.SignUpEmail) { inclusive = true }
+                    launchSingleTop = true
+                }
+            },
+            onReverifyEmail = {
+                navController.navigate(AuthRoute.SignUpEmail) {
+                    popUpTo(AuthRoute.SignUpEmail) { inclusive = true }
+                }
+            },
+            onLoginClick = {
+                viewModel.reset()
+                navController.navigate(AuthRoute.Login) {
+                    popUpTo(AuthRoute.AuthChoice) { inclusive = false }
+                    launchSingleTop = true
+                }
+            },
+            onEditPassword = {
+                navController.navigate(AuthRoute.SignUpPassword) {
+                    popUpTo(AuthRoute.SignUpPassword) { inclusive = true }
                 }
             },
         )
@@ -319,13 +452,6 @@ internal fun nextRouteAfterConditions(
     state.hasAllergyCondition -> AuthRoute.SignUpAllergies
     state.hasVegetarianCondition -> AuthRoute.SignUpVegetarian
     else -> AuthRoute.SignUpProfile
-}
-
-private fun navigateToHome(navController: NavHostController) {
-    navController.navigate(AuthRoute.Home) {
-        popUpTo(AuthRoute.AuthChoice) { inclusive = true }
-        launchSingleTop = true
-    }
 }
 
 private const val SPLASH_DURATION_MILLIS = 1_800L

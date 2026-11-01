@@ -26,10 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,42 +46,19 @@ import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 @Composable
-fun AccountWithdrawalRoute(
-    onBackClick: () -> Unit,
-    onReturnToAuthChoice: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var hasConsented by rememberSaveable { mutableStateOf(false) }
-    var isComplete by rememberSaveable { mutableStateOf(false) }
-
-    if (isComplete) {
-        AccountWithdrawalCompleteScreen(
-            onReturnToAuthChoice = onReturnToAuthChoice,
-            modifier = modifier,
-        )
-    } else {
-        AccountWithdrawalScreen(
-            hasConsented = hasConsented,
-            onConsentChange = { hasConsented = it },
-            onBackClick = onBackClick,
-            onWithdrawClick = {
-                // UI preview flow only. Replace with confirmed API success when integrated.
-                if (hasConsented) isComplete = true
-            },
-            modifier = modifier,
-        )
-    }
-}
-
-@Composable
 fun AccountWithdrawalScreen(
     hasConsented: Boolean,
     onConsentChange: (Boolean) -> Unit,
     onBackClick: () -> Unit,
     onWithdrawClick: () -> Unit,
     modifier: Modifier = Modifier,
+    busy: Boolean = false,
+    submissionEnabled: Boolean = true,
+    message: String? = null,
+    recoveryAction: (@Composable () -> Unit)? = null,
 ) {
-    BackHandler(onBack = onBackClick)
+    val back = { if (!busy) onBackClick() }
+    BackHandler(onBack = back)
 
     Column(
         modifier = modifier
@@ -93,7 +66,7 @@ fun AccountWithdrawalScreen(
             .background(JjikmukTheme.colors.surface),
     ) {
         JjikmukTopAppBar(
-            leading = JjikmukTopAppBarLeading.Back(onClick = onBackClick),
+            leading = JjikmukTopAppBarLeading.Back(onClick = back),
             showBottomDivider = true,
             modifier = Modifier.background(WithdrawalStatusBarColor),
             centerContent = {
@@ -133,7 +106,7 @@ fun AccountWithdrawalScreen(
             Spacer(modifier = Modifier.height(20.dp))
             WithdrawalConsentRow(
                 checked = hasConsented,
-                onCheckedChange = onConsentChange,
+                onCheckedChange = { if (!busy) onConsentChange(it) },
             )
         }
 
@@ -144,14 +117,17 @@ fun AccountWithdrawalScreen(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 40.dp),
         ) {
+            if (message != null) Text(message, color = JjikmukTheme.colors.error, style = JjikmukTheme.typography.bodyM)
+            recoveryAction?.invoke()
             JjikmukPrimaryButton(
-                text = stringResource(R.string.account_withdrawal_action),
+                text = if (busy) "탈퇴 처리 중…" else stringResource(R.string.account_withdrawal_action),
                 onClick = onWithdrawClick,
-                enabled = hasConsented,
+                enabled = hasConsented && !busy && submissionEnabled,
             )
             JjikmukSecondaryButton(
                 text = stringResource(R.string.account_withdrawal_cancel),
-                onClick = onBackClick,
+                onClick = back,
+                enabled = !busy,
             )
         }
         Spacer(

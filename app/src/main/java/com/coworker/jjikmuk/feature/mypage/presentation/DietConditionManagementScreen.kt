@@ -203,7 +203,7 @@ fun DietConditionManagementScreen(
 }
 
 @Composable
-private fun DietConditionTopBar(
+internal fun DietConditionTopBar(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -339,7 +339,7 @@ private fun AddMemberTab(
 }
 
 @Composable
-private fun DietConditionHeader(
+internal fun DietConditionHeader(
     member: FamilyProfile,
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -388,7 +388,7 @@ private fun DietConditionHeader(
 }
 
 @Composable
-private fun DietSectionTitle(
+internal fun DietSectionTitle(
     text: String,
     description: String? = null,
     modifier: Modifier = Modifier,
@@ -414,10 +414,11 @@ private fun DietSectionTitle(
 }
 
 @Composable
-private fun VegetarianGrid(
+internal fun VegetarianGrid(
     selectedTitle: String,
     onOptionClick: (VegetarianOptionUiModel) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -434,6 +435,7 @@ private fun VegetarianGrid(
                         selected = option.title == selectedTitle,
                         onClick = { onOptionClick(option) },
                         modifier = Modifier.weight(1f),
+                        enabled = enabled,
                     )
                 }
                 repeat(3 - rowItems.size) {
@@ -450,6 +452,7 @@ private fun VegetarianOptionCard(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val shape = RoundedCornerShape(16.dp)
 
@@ -466,6 +469,7 @@ private fun VegetarianOptionCard(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                enabled = enabled,
                 onClick = onClick,
             )
             .padding(vertical = 10.dp, horizontal = 6.dp),
@@ -489,13 +493,14 @@ private fun VegetarianOptionCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DietChipFlow(
+internal fun DietChipFlow(
     values: List<String>,
     selectedValues: Set<String>,
     selectedColor: Color,
     selectedBackground: Color,
     onValueClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     FlowRow(
         modifier = modifier.fillMaxWidth(),
@@ -509,6 +514,7 @@ private fun DietChipFlow(
                 selectedColor = selectedColor,
                 selectedBackground = selectedBackground,
                 onClick = { onValueClick(value) },
+                enabled = enabled,
             )
         }
     }
@@ -522,6 +528,7 @@ private fun DietConditionChip(
     selectedBackground: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val shape = RoundedCornerShape(14.dp)
 
@@ -531,6 +538,7 @@ private fun DietConditionChip(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                enabled = enabled,
                 onClick = onClick,
             ),
         color = if (selected) selectedBackground else JjikmukTheme.colors.surface,
@@ -899,7 +907,7 @@ private fun BottomSheetActionButton(
     }
 }
 
-private data class VegetarianOptionUiModel(
+internal data class VegetarianOptionUiModel(
     val title: String,
     val description: String,
     val emoji: String,

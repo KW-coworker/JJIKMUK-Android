@@ -1,5 +1,7 @@
 package com.coworker.jjikmuk.feature.mypage.presentation
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -16,10 +18,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.coworker.jjikmuk.ui.component.JjikmukPrimaryButton
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,11 +39,27 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import com.coworker.jjikmuk.ui.theme.asEnglish
 
 @Composable
+fun ProfileEditRoute(onBackClick: () -> Unit, viewModel: ProfileEditViewModel = hiltViewModel()) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    DisposableEffect(viewModel) {
+        viewModel.open()
+        onDispose { viewModel.close() }
+    }
+    ProfileEditScreen(onBackClick = onBackClick, state = state,
+        onNicknameChange = viewModel::updateNickname, onSave = viewModel::save, onReload = viewModel::reload,
+        photoEditor = { com.coworker.jjikmuk.feature.auth.photo.AccountPhotoEditor() })
+}
+
+@Composable
 fun ProfileEditScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    state: ProfileEditState = ProfileEditState(),
+    onNicknameChange: (String) -> Unit = {},
+    onSave: () -> Unit = {},
+    onReload: () -> Unit = {},
+    photoEditor: (@Composable () -> Unit)? = null,
 ) {
-    var nickname by rememberSaveable { mutableStateOf("코워커") }
 
     Scaffold(
         topBar = {
@@ -64,10 +83,11 @@ fun ProfileEditScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState()),
         ) {
             Spacer(modifier = Modifier.height(42.dp))
-            JjikmukProfileImagePicker(
+            if (photoEditor != null) photoEditor() else JjikmukProfileImagePicker(
                 imageModel = null,
                 onClick = {},
                 containerSize = 108.dp,
@@ -84,21 +104,37 @@ fun ProfileEditScreen(
             ) {
                 ProfileEditFieldGroup(
                     label = "이름(닉네임)",
-                    value = nickname,
-                    onValueChange = { nickname = it },
+                    value = state.nickname,
+                    onValueChange = onNicknameChange,
+                    enabled = state.loaded && !state.busy,
                     textStyle = JjikmukTheme.typography.labelM,
                     textColor = JjikmukTheme.colors.textPrimary,
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 ProfileEditFieldGroup(
                     label = "이메일 계정",
-                    value = "coworker@example.com",
+                    value = state.email,
                     onValueChange = {},
                     textStyle = JjikmukTheme.typography.labelM.asEnglish(),
                     textColor = JjikmukTheme.colors.textSecondary,
                     enabled = false,
                     helperText = "이메일 주소는 변경할 수 없습니다.",
                 )
+                Spacer(modifier = Modifier.height(24.dp))
+                state.message?.let {
+                    Text(it, color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyM)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                JjikmukPrimaryButton(
+                    text = when {
+                        state.busy -> "확인 중…"
+                        state.mustReload || !state.loaded -> "최신 정보 확인"
+                        else -> "저장"
+                    },
+                    onClick = if (state.mustReload || !state.loaded) onReload else onSave,
+                    enabled = !state.busy,
+                )
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -191,6 +227,6 @@ private fun ProfileEditTextField(
 @Composable
 private fun ProfileEditScreenPreview() {
     JjikmukTheme {
-        ProfileEditScreen(onBackClick = {})
+        ProfileEditScreen(onBackClick = {}, state = ProfileEditState(nickname = "코워커", email = "coworker@example.com", loaded = true))
     }
 }

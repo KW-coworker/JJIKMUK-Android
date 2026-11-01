@@ -32,17 +32,17 @@ class HttpScannerOcrServiceTest {
     }
     @After fun tearDown() { server.close() }
 
-    @Test fun `wire request has exactly one image part and one test token with no user auth`() = runBlocking {
+    @Test fun `wire request has exactly one image part and one Bearer token without team token`() = runBlocking {
         server.enqueue(MockResponse.Builder().code(200).body("""{"data":{"status":"OK","searchKeyword":"어성초","requestId":"ocr"}}""")
             .addHeader("X-Request-ID", "relay").build())
-        val result = service().recognize(photo) as OcrResult.Extracted
+        val result = service().recognize(photo, "unit-test-only") as OcrResult.Extracted
         assertEquals(OcrTrace("relay", "ocr"), result.trace)
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/api/ocr", request.url.encodedPath)
         assertNull(request.url.query)
-        assertEquals(listOf("unit-test-only"), request.headers.values("X-OCR-Test-Token"))
-        assertNull(request.headers["Authorization"])
+        assertNull(request.headers["X-OCR-Test-Token"])
+        assertEquals(listOf("Bearer unit-test-only"), request.headers.values("Authorization"))
         val body = request.body!!.utf8()
         assertEquals(1, Regex("Content-Disposition:").findAll(body).count())
         assertTrue(body.contains("name=\"image\"; filename=\"product.jpg\""))
@@ -55,18 +55,18 @@ class HttpScannerOcrServiceTest {
             server.enqueue(MockResponse.Builder().code(status).addHeader("Retry-After", "0").body("{}").build())
             server.enqueue(MockResponse.Builder().code(200).body("""{"data":{"status":"NO_TEXT"}}""").build())
             val before = server.requestCount
-            assertTrue(service().recognize(photo) is OcrResult.Failure)
+            assertTrue(service().recognize(photo, "unit-test-only") is OcrResult.Failure)
             assertEquals(before + 1, server.requestCount)
             // Consume the sentinel only by another explicit call.
-            assertTrue(service().recognize(photo) is OcrResult.NoText)
+            assertTrue(service().recognize(photo, "unit-test-only") is OcrResult.NoText)
         }
     }
 
     @Test fun `a second explicit request within three seconds is blocked without uploading`() = runBlocking {
         server.enqueue(MockResponse.Builder().code(200).body("""{"data":{"status":"NO_TEXT"}}""").build())
         val service = service()
-        assertTrue(service.recognize(photo) is OcrResult.NoText)
-        val rejected = service.recognize(photo) as OcrResult.Failure
+        assertTrue(service.recognize(photo, "unit-test-only") is OcrResult.NoText)
+        val rejected = service.recognize(photo, "unit-test-only") as OcrResult.Failure
         assertEquals(OcrFailure.RateLimited, rejected.reason)
         assertTrue(checkNotNull(rejected.retryAfterSeconds) in 1..3)
         assertEquals(1, server.requestCount)
@@ -74,21 +74,21 @@ class HttpScannerOcrServiceTest {
 
     @Test fun `redirect is not followed and token is not forwarded`() = runBlocking {
         server.enqueue(MockResponse.Builder().code(307).addHeader("Location", server.url("/other")).build())
-        assertTrue(service().recognize(photo) is OcrResult.Failure)
+        assertTrue(service().recognize(photo, "unit-test-only") is OcrResult.Failure)
         assertEquals(1, server.requestCount)
     }
 
     @Test fun `missing token and invalid image do not reach the server`() = runBlocking {
-        assertEquals(OcrFailure.NotConfigured, (service(token = null).recognize(photo) as OcrResult.Failure).reason)
+        assertEquals(OcrFailure.Unauthorized, (service().recognize(photo, "") as OcrResult.Failure).reason)
         photo.file.writeText("not a jpeg")
-        assertEquals(OcrFailure.InvalidImage, (service().recognize(photo) as OcrResult.Failure).reason)
+        assertEquals(OcrFailure.InvalidImage, (service().recognize(photo, "unit-test-only") as OcrResult.Failure).reason)
         assertEquals(0, server.requestCount)
     }
 
     @Test fun `read timeout is unknown outcome with a single request`() = runBlocking {
         server.enqueue(MockResponse.Builder().code(200).headersDelay(1, TimeUnit.SECONDS).body("{}").build())
         val client = HttpScannerOcrService.client().newBuilder().readTimeout(100, TimeUnit.MILLISECONDS).build()
-        val result = service(client).recognize(photo) as OcrResult.Failure
+        val result = service(client).recognize(photo, "unit-test-only") as OcrResult.Failure
         assertEquals(OcrFailure.OutcomeUnknown, result.reason)
         assertEquals(1, server.requestCount)
     }
@@ -107,15 +107,15 @@ class HttpScannerOcrServiceTest {
     @Test fun `concurrent request is rejected locally and cancellation never resends`() = runBlocking {
         server.enqueue(MockResponse.Builder().code(200).headersDelay(2, TimeUnit.SECONDS).body("{}").build())
         val service = service()
-        val running = async(Dispatchers.IO) { service.recognize(photo) }
+        val running = async(Dispatchers.IO) { service.recognize(photo, "unit-test-only") }
         server.takeRequest()
-        assertEquals(OcrFailure.Busy, (service.recognize(photo) as OcrResult.Failure).reason)
+        assertEquals(OcrFailure.Busy, (service.recognize(photo, "unit-test-only") as OcrResult.Failure).reason)
         running.cancelAndJoin()
         assertTrue(running.isCancelled)
         assertEquals(1, server.requestCount)
     }
 
-    private fun service(client: OkHttpClient = HttpScannerOcrService.client(), token: String? = "unit-test-only") =
+    private fun service(client: OkHttpClient = HttpScannerOcrService.client()) =
         HttpScannerOcrService(Retrofit.Builder().baseUrl(server.url("/")).client(client).build()
-            .create(ScannerOcrApi::class.java)) { token }
+            .create(ScannerOcrApi::class.java))
 }

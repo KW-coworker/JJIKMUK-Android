@@ -1,19 +1,18 @@
 package com.coworker.jjikmuk.data.remote.auth
 
+import com.coworker.jjikmuk.feature.auth.session.AuthSessionManager
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 
-/** Login owner supplies the raw access token; this class does not issue or persist credentials. */
+/** Read-only view of the real session; never keeps a second copy of the access token. */
 @Singleton
-class AccessTokenStore @Inject constructor() {
-    private val mutableToken = MutableStateFlow<String?>(null)
-    val token = mutableToken.asStateFlow()
-    fun setAccessToken(value: String?) {
-        val token = value?.trim()?.takeIf { it.isNotEmpty() }
-        require(token == null || token.none { it.isWhitespace() }) { "Supply the raw access token." }
-        mutableToken.value = token
+class AccessTokenStore @Inject constructor(private val sessions: AuthSessionManager) {
+    val token = sessions.state.map { currentToken() }.distinctUntilChanged()
+
+    fun currentToken(): String? {
+        val snapshot = sessions.state.value
+        return snapshot.credentials?.accessToken?.takeIf { sessions.isCurrent(snapshot) }
     }
-    fun clear() { mutableToken.value = null }
 }

@@ -36,6 +36,8 @@ fun AccountSecurityScreen(
     onBackClick: () -> Unit,
     onWithdrawalClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onPasswordChangeClick: () -> Unit = {},
+    hasPassword: Boolean = true,
 ) {
     Scaffold(
         topBar = {
@@ -74,9 +76,9 @@ fun AccountSecurityScreen(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 AccountSecurityMenuItem(
-                    title = "비밀번호 변경",
+                    title = if (hasPassword) "비밀번호 변경" else "Google로 로그인한 계정입니다",
                     iconRes = R.drawable.ic_setting_key,
-                    onClick = {},
+                    onClick = onPasswordChangeClick,
                 )
             }
             Spacer(

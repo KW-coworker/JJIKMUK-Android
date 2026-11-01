@@ -3,123 +3,88 @@ package com.coworker.jjikmuk.feature.auth.presentation.signup
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import com.coworker.jjikmuk.feature.auth.domain.*
+import com.coworker.jjikmuk.feature.auth.presentation.common.EmailVerificationController
+import com.coworker.jjikmuk.feature.auth.presentation.common.userMessage
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class SignUpViewModel : ViewModel() {
+@HiltViewModel
+class SignUpViewModel @Inject constructor(private val repository: AuthRepository,
+    private val signupPhotos: com.coworker.jjikmuk.feature.auth.photo.SignupPhotoPreparation =
+        com.coworker.jjikmuk.feature.auth.photo.SignupPhotoPreparation.Unavailable) : ViewModel() {
     private val _uiState = MutableStateFlow(SignUpUiState())
-    val uiState: StateFlow<SignUpUiState> = _uiState.asStateFlow()
-    private val _events = Channel<SignUpEvent>(Channel.BUFFERED)
-    val events = _events.receiveAsFlow()
+    val uiState = _uiState.asStateFlow()
+    private val verification = EmailVerificationController(repository, EmailPurpose.SignUp, viewModelScope)
+    private var revision = 0L
+    private var nicknameRequest = false
+    private var submitting = false
 
-    private var expectedOtp = INITIAL_MOCK_OTP
-    private var otpTimerJob: Job? = null
+    init {
+        viewModelScope.launch {
+            verification.state.collect { state ->
+                _uiState.update { it.copy(otp = state.code, otpError = state.error,
+                    emailError = state.error, isOtpVerified = state.verified,
+                    remainingOtpSeconds = state.remainingSeconds, resendSeconds = state.resendSeconds,
+                    isAuthRequestInFlight = state.busy) }
+            }
+        }
+    }
 
     fun updateEmail(email: String) {
-        otpTimerJob?.cancel()
-        val normalizedEmail = email.trim()
-        _uiState.update {
-            it.copy(
-                email = email,
-                emailError = when {
-                    normalizedEmail.isEmpty() -> null
-                    !EMAIL_REGEX.matches(normalizedEmail) -> INVALID_EMAIL_MESSAGE
-                    else -> null
-                },
-                otp = "",
-                otpError = null,
-                isOtpVerified = false,
-                remainingOtpSeconds = 0,
-                password = "",
-                passwordConfirm = "",
-                nickname = "",
-                nicknameError = null,
-                selectedConditions = emptySet(),
-                vegetarianDiet = null,
-                allergies = emptySet(),
-                profilePhotoUri = null,
-                profilePhotoBitmap = null,
-            )
-        }
+        if (email == _uiState.value.email) return
+        revision++
+        verification.reset(email)
+        _uiState.value = SignUpUiState(email = email)
     }
 
-    fun validateEmail(): Boolean {
-        val email = _uiState.value.email.trim()
-        val error = if (EMAIL_REGEX.matches(email)) null else INVALID_EMAIL_MESSAGE
-        _uiState.update { it.copy(emailError = error) }
-        if (error == null) {
-            expectedOtp = INITIAL_MOCK_OTP
-            startOtpTimer()
-        }
-        return error == null
-    }
+    suspend fun validateEmail(): Boolean = !submitting && verification.send()
+    fun updateOtp(otp: String) = verification.updateCode(otp)
+    suspend fun verifyOtp(): Boolean = !submitting && verification.verify()
+    suspend fun resendOtp(): Boolean = !submitting && verification.send()
+    // The final signup adapter must obtain this proof again immediately before submission.
+    fun currentVerificationProof(): EmailProof? = verification.currentProof()
 
-    fun updateOtp(otp: String) {
-        _uiState.update {
-            it.copy(
-                otp = otp.filter(Char::isDigit).take(OTP_LENGTH),
-                otpError = null,
-            )
-        }
-    }
-
-    fun verifyOtp(): Boolean {
-        val state = _uiState.value
-        val isValid = state.remainingOtpSeconds > 0 && state.otp == expectedOtp
-        _uiState.update {
-            it.copy(
-                isOtpVerified = isValid,
-                otpError = if (isValid) null else OTP_MISMATCH_MESSAGE,
-            )
-        }
-        if (isValid) otpTimerJob?.cancel()
-        return isValid
-    }
-
-    fun resendOtp() {
-        expectedOtp = RESENT_MOCK_OTP
-        _uiState.update {
-            it.copy(
-                otp = "",
-                otpError = null,
-                isOtpVerified = false,
-            )
-        }
-        startOtpTimer()
-        _events.trySend(SignUpEvent.OtpResent)
-    }
-
-    fun updatePassword(password: String) {
-        _uiState.update { it.copy(password = password) }
-    }
-
-    fun updatePasswordConfirm(password: String) {
-        _uiState.update { it.copy(passwordConfirm = password) }
-    }
-
+    fun updatePassword(password: String) { if (!submitting) _uiState.update { it.copy(password = password, submitError = null, recovery = SignUpRecovery.None) } }
+    fun updatePasswordConfirm(password: String) { if (!submitting) _uiState.update { it.copy(passwordConfirm = password, submitError = null, recovery = SignUpRecovery.None) } }
     fun updateNickname(nickname: String) {
-        _uiState.update { it.copy(nickname = nickname, nicknameError = null) }
+        if (submitting) return
+        revision++
+        _uiState.update { it.copy(nickname = nickname, nicknameError = null, nicknameAvailable = false, submitError = null) }
     }
 
-    fun validateNickname(): Boolean {
-        val nickname = _uiState.value.nickname.trim()
-        val error = if (nickname in FakeSignUpAccounts.registeredNicknames) {
-            DUPLICATE_NICKNAME_MESSAGE
-        } else {
-            null
+    suspend fun validateNickname(): Boolean {
+        if (nicknameRequest || submitting) return false
+        val nickname = normalizeAuthNickname(_uiState.value.nickname)
+        if (!validNickname(nickname)) {
+            _uiState.update { it.copy(nicknameError = "닉네임은 한글·영문·숫자·밑줄로 2~20자 입력해 주세요") }
+            return false
         }
-        _uiState.update { it.copy(nicknameError = error) }
-        return nickname.isNotEmpty() && error == null
+        nicknameRequest = true
+        val currentRevision = revision
+        _uiState.update { it.copy(isNicknameChecking = true, nicknameError = null) }
+        try {
+            val result = repository.nicknameAvailable(nickname)
+            if (currentRevision != revision) return false
+            val available = result is AuthResult.Success && result.value
+            _uiState.update { it.copy(nicknameAvailable = available, nicknameError = when (result) {
+                is AuthResult.Success -> if (available) null else "이미 사용 중인 닉네임이에요"
+                is AuthResult.Failure -> result.error.userMessage()
+            }) }
+            return available
+        } finally {
+            nicknameRequest = false
+            _uiState.update { it.copy(isNicknameChecking = false) }
+        }
     }
 
     fun toggleCondition(condition: SignUpCondition) {
+        if (submitting) return
         _uiState.update {
             val updatedConditions = if (condition in it.selectedConditions) {
                 it.selectedConditions - condition
@@ -143,14 +108,17 @@ class SignUpViewModel : ViewModel() {
     }
 
     fun selectVegetarianDiet(diet: VegetarianDiet) {
+        if (submitting) return
         _uiState.update { it.copy(vegetarianDiet = diet) }
     }
 
     fun updateAllergies(allergies: Set<String>) {
+        if (submitting) return
         _uiState.update { it.copy(allergies = allergies) }
     }
 
     fun toggleAllergy(allergy: String) {
+        if (submitting) return
         _uiState.update {
             val updatedAllergies = if (allergy in it.allergies) {
                 it.allergies - allergy
@@ -162,6 +130,7 @@ class SignUpViewModel : ViewModel() {
     }
 
     fun updateProfilePhoto(uri: String?, bitmap: Bitmap?) {
+        if (submitting) return
         _uiState.update {
             it.copy(
                 profilePhotoUri = uri,
@@ -170,55 +139,135 @@ class SignUpViewModel : ViewModel() {
         }
     }
 
-    fun restartFromEmail() {
-        otpTimerJob?.cancel()
-        _uiState.update {
-            it.copy(
-                otp = "",
-                otpError = null,
-                isOtpVerified = false,
-                remainingOtpSeconds = 0,
-                password = "",
-                passwordConfirm = "",
-            )
+
+    /** A successful reservation check is not required: signup performs the final uniqueness check. */
+    suspend fun submit(): Boolean {
+        val input = _uiState.value
+        if (submitting || nicknameRequest || input.isAuthRequestInFlight || input.registrationCompleted ||
+            input.recovery != SignUpRecovery.None) return false
+        val proof = verification.currentProof()
+        if (proof == null || proof.email != normalizeAuthEmail(input.email) || proof.purpose != EmailPurpose.SignUp) {
+            submissionError("이메일 인증이 만료됐어요. 입력한 내용을 유지하고 다시 인증해 주세요", SignUpRecovery.ReverifyEmail)
+            return false
         }
+        if (!input.isPasswordValid) {
+            submissionError("비밀번호 입력 조건과 확인값을 다시 확인해 주세요", SignUpRecovery.EditPassword)
+            return false
+        }
+        val nickname = normalizeAuthNickname(input.nickname)
+        if (!validNickname(nickname)) {
+            val message = "닉네임은 한글·영문·숫자·밑줄로 2~20자 입력해 주세요"
+            _uiState.update { it.copy(nicknameError = message, submitError = message) }
+            return false
+        }
+        val conditions = SignUpConditionMapping.encode(input)
+        if (conditions == null) {
+            submissionError("선택한 일부 식이조건은 아직 등록할 수 없어요. 선택한 항목을 유지하고 나중에 다시 시도해 주세요")
+            return false
+        }
+        val currentRevision = revision
+        submitting = true
+        _uiState.update { it.copy(isSubmitting = true, submitError = null, nicknameError = null) }
+        var photoId: String? = null
+        var dispatched = false
+        try {
+            if (input.profilePhotoUri != null || input.profilePhotoBitmap != null) {
+                try { photoId = signupPhotos.stage(proof.email, input.profilePhotoUri, input.profilePhotoBitmap) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) {
+                    submissionError("사진을 임시 보관하지 못했어요. 사진을 다시 선택하거나 선택 해제 후 가입해 주세요")
+                    return false
+                }
+            }
+            currentCoroutineContext().ensureActive()
+            if (currentRevision != revision) return false
+            if (verification.currentProof()?.token != proof.token) {
+                submissionError("이메일 인증이 만료됐어요. 다시 인증해 주세요", SignUpRecovery.ReverifyEmail)
+                return false
+            }
+            dispatched = true
+            val result = repository.signUp(SignUpSubmission(proof.email, input.password, nickname,
+                proof.token, conditions.allergies, conditions.specialDiet))
+            currentCoroutineContext().ensureActive()
+            if (currentRevision != revision) return false
+            return when (result) {
+                is AuthResult.Success -> {
+                    photoId?.let { id ->
+                        // If marking fails, keep the pending photo for explicit confirmation after verified login.
+                        try { signupPhotos.confirm(proof.email, id, result.value) }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { }
+                    }
+                    // No login token is issued by signup. Consume the proof and clear sensitive input.
+                    verification.reset()
+                    _uiState.value = SignUpUiState(registrationCompleted = true)
+                    true
+                }
+                is AuthResult.Failure -> {
+                    val error = result.error
+                    if (!error.outcomeUnknown) photoId?.let { id ->
+                        try { signupPhotos.discard(proof.email, id) }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { } // A leftover draft still needs explicit confirmation, never automatic upload.
+                    }
+                    val recovery = when {
+                        error.outcomeUnknown -> SignUpRecovery.CheckOutcome
+                        error.code in setOf("VERIFICATION_EXPIRED", "VERIFICATION_REQUIRED", "VERIFICATION_TOKEN_INVALID") -> SignUpRecovery.ReverifyEmail
+                        error.code == "EMAIL_ALREADY_REGISTERED" -> SignUpRecovery.Login
+                        error.code == "PASSWORD_INVALID" || error.field == "password" -> SignUpRecovery.EditPassword
+                        else -> SignUpRecovery.None
+                    }
+                    if (recovery in setOf(SignUpRecovery.ReverifyEmail, SignUpRecovery.CheckOutcome, SignUpRecovery.Login))
+                        verification.invalidateProof()
+                    val message = if (error.outcomeUnknown)
+                        "가입 결과를 확인하지 못했어요. 먼저 로그인을 확인하거나 이메일 인증을 다시 진행해 주세요"
+                        else error.userMessage()
+                    _uiState.update { it.copy(submitError = message, recovery = recovery,
+                        nicknameError = if (error.code in setOf("NICKNAME_ALREADY_EXISTS", "NICKNAME_INVALID") || error.field == "nickname") message else it.nicknameError,
+                        nicknameAvailable = if (error.code == "NICKNAME_ALREADY_EXISTS") false else it.nicknameAvailable) }
+                    false
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            if (currentRevision == revision && dispatched) {
+                verification.invalidateProof()
+                submissionError("가입 결과를 확인하지 못했어요. 로그인으로 확인하거나 다시 인증해 주세요", SignUpRecovery.CheckOutcome)
+            }
+            throw cancelled
+        } finally {
+            if (!dispatched) photoId?.let { id ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    runCatching { signupPhotos.discard(proof.email, id) }
+                }
+            }
+            submitting = false
+            if (currentRevision == revision) _uiState.update { it.copy(isSubmitting = false) }
+        }
+    }
+
+    fun prepareReverification() {
+        if (submitting) return
+        revision++
+        verification.reset(_uiState.value.email)
+        _uiState.update { it.copy(isOtpVerified = false, otp = "", submitError = null, recovery = SignUpRecovery.None) }
+    }
+
+    private fun submissionError(message: String, recovery: SignUpRecovery = SignUpRecovery.None) {
+        _uiState.update { it.copy(submitError = message, recovery = recovery) }
+    }
+
+    private fun validNickname(nickname: String) = Regex("[가-힣a-zA-Z0-9_]{2,20}").matches(nickname)
+
+    fun restartFromEmail() {
+        revision++
+        verification.reset(_uiState.value.email)
+        _uiState.update { it.copy(otp = "", otpError = null, isOtpVerified = false,
+            remainingOtpSeconds = 0, password = "", passwordConfirm = "", isAuthRequestInFlight = false) }
     }
 
     fun reset() {
-        otpTimerJob?.cancel()
+        revision++
+        verification.reset()
         _uiState.value = SignUpUiState()
     }
-
-    private fun startOtpTimer() {
-        otpTimerJob?.cancel()
-        _uiState.update { it.copy(remainingOtpSeconds = OTP_DURATION_SECONDS) }
-        otpTimerJob = viewModelScope.launch {
-            while (_uiState.value.remainingOtpSeconds > 0) {
-                delay(1_000L)
-                val nextSeconds = (_uiState.value.remainingOtpSeconds - 1).coerceAtLeast(0)
-                _uiState.update { it.copy(remainingOtpSeconds = nextSeconds) }
-                if (nextSeconds == 0) {
-                    _events.send(SignUpEvent.OtpExpired)
-                }
-            }
-        }
-    }
 }
-
-sealed interface SignUpEvent {
-    data object OtpResent : SignUpEvent
-    data object OtpExpired : SignUpEvent
-}
-
-private object FakeSignUpAccounts {
-    val registeredNicknames = setOf("타로")
-}
-
-private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
-private const val INVALID_EMAIL_MESSAGE = "올바른 이메일 주소 형식이 아니에요"
-private const val INITIAL_MOCK_OTP = "1133"
-private const val RESENT_MOCK_OTP = "2468"
-private const val OTP_MISMATCH_MESSAGE = "인증번호를 다시 확인해 주세요"
-private const val OTP_LENGTH = 4
-private const val OTP_DURATION_SECONDS = 300
-private const val DUPLICATE_NICKNAME_MESSAGE = "이미 사용중인 닉네임입니다"

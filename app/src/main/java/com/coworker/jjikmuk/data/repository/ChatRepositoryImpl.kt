@@ -8,33 +8,41 @@ import com.coworker.jjikmuk.domain.model.ChatProductCandidate
 import com.coworker.jjikmuk.domain.model.ChatResponse
 import com.coworker.jjikmuk.domain.repository.ChatRepository
 import javax.inject.Inject
+import com.coworker.jjikmuk.feature.auth.domain.*
+import com.coworker.jjikmuk.feature.auth.session.AuthorizedOperations
+import com.coworker.jjikmuk.feature.auth.presentation.common.userMessage
+import kotlinx.coroutines.CancellationException
+import retrofit2.HttpException
+import java.io.IOException
 
 class ChatRepositoryImpl @Inject constructor(
     private val chatApi: ChatApi,
+    private val operations: AuthorizedOperations,
 ) : ChatRepository {
 
     override suspend fun sendMessage(
         message: String,
         selectedProduct: ChatProductCandidate?,
     ): ChatResponse {
-        return runCatching {
-            val response = chatApi.sendMessage(
-                ChatApiRequest(
-                    message = message,
-                    barcode = selectedProduct?.barcode,
+        val result = operations.execute { accessToken ->
+            try {
+                AuthResult.Success(chatApi.sendMessage("Bearer $accessToken", ChatApiRequest(
+                    message = message, barcode = selectedProduct?.barcode,
                     product = selectedProduct?.toRequestProduct(),
-                ),
-            )
-            ChatResponse(
-                answer = response.answer,
-                productCandidates = response.recommended_products
-                    .filter { product -> product.selection_type == PRODUCT_CANDIDATE_TYPE }
-                    .mapNotNull { product -> product.toDomain() },
-            )
-        }.getOrElse { throwable ->
-            ChatResponse(
-                answer = "AI 서버 연결에 실패했어요. 서버가 실행 중인지 확인해주세요.\n\n${throwable.message.orEmpty()}",
-            )
+                    // Consent UI/answer/candidate contract is owned by the chat feature team.
+                    externalAiConsent = false,
+                )))
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: HttpException) { AuthResult.Failure(AuthFailure(AuthFailureKind.Server, error.code(),
+                code = if (error.code() == 401) "AUTH_TOKEN_INVALID" else null)) }
+            catch (_: IOException) { AuthResult.Failure(AuthFailure(AuthFailureKind.Network)) }
+            catch (_: Exception) { AuthResult.Failure(AuthFailure(AuthFailureKind.InvalidResponse)) }
+        }
+        return when (result) {
+            is AuthResult.Success -> ChatResponse(answer = result.value.answer,
+                productCandidates = result.value.recommended_products
+                    .filter { it.selection_type == PRODUCT_CANDIDATE_TYPE }.mapNotNull { it.toDomain() })
+            is AuthResult.Failure -> ChatResponse(answer = result.error.userMessage())
         }
     }
 

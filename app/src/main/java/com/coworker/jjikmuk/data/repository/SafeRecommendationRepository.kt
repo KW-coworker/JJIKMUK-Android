@@ -1,7 +1,6 @@
 package com.coworker.jjikmuk.data.repository
 
 import com.coworker.jjikmuk.data.remote.api.SafeRecommendationApi
-import com.coworker.jjikmuk.data.remote.dto.MyDietUpdate
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -17,19 +16,11 @@ data class SafeRecommendationPage(
 )
 
 class SafeRecommendationRepository @Inject constructor(private val api: SafeRecommendationApi) {
-    /** Update only the app-owned diet fields; preserve account identity and other server fields. */
-    suspend fun syncMyDiet(allergies: List<String>, diet: List<String>): RecommendationOwner {
+    /** Opening recommendations must not overwrite the account's saved dietary conditions. */
+    suspend fun owner(): RecommendationOwner {
         val me = api.getMe().data ?: error("내 프로필을 확인할 수 없어요.")
         require(me.id > 0 && me.nickname.isNotBlank()) { "내 프로필을 확인할 수 없어요." }
-        val updated = api.updateMe(MyDietUpdate(
-            nickname = me.nickname,
-            allergies = allergies.joinToString(","),
-            specialDiet = diet.joinToString(","),
-            diseases = me.diseases,
-            dislikedIngredients = me.dislikedIngredients,
-        )).data ?: error("식이 조건을 저장하지 못했어요.")
-        check(updated.id == me.id) { "프로필 사용자가 변경되었어요. 다시 시도해 주세요." }
-        return RecommendationOwner(updated.id, updated.nickname)
+        return RecommendationOwner(me.id, me.nickname)
     }
 
     suspend fun page(cursor: String? = null, excluded: List<String> = emptyList()): SafeRecommendationPage {
@@ -59,7 +50,7 @@ class SafeRecommendationRepository @Inject constructor(private val api: SafeReco
 internal fun Throwable.recommendationMessage(): String {
     if (this is CancellationException) throw this
     return when ((this as? HttpException)?.code()) {
-        401 -> "로그인이 필요해요. 로컬 테스트에서는 서버의 테스트 사용자 설정을 확인해 주세요."
+        401 -> "로그인 상태를 확인한 뒤 다시 시도해 주세요."
         403 -> "내 프로필에 접근할 수 없어요. 로그인 계정을 확인해 주세요."
         else -> "추천을 불러오지 못했어요. 서버 연결과 내 식이 조건을 확인한 뒤 다시 시도해 주세요."
     }
