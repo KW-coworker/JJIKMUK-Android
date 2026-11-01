@@ -118,6 +118,12 @@ fun AuthNavHost(
                         popUpTo(AuthRoute.PermissionApproval) { inclusive = true }
                     }
                 },
+                onSkip = {
+                    navController.navigate(AuthRoute.Login) {
+                        popUpTo(AuthRoute.PermissionApproval) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 

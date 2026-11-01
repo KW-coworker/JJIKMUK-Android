@@ -102,6 +102,7 @@ fun ProductScreen(
     productBarcodeToOpen: String? = null,
     onProductBarcodeOpenHandled: () -> Unit = {},
     onReturnToMyFromDetail: () -> Unit = {},
+    onAskProduct: (String) -> Unit = {},
     productViewModel: ProductViewModel = hiltViewModel(),
 ) {
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
@@ -130,6 +131,10 @@ fun ProductScreen(
         likedProductBarcodes = likedProductBarcodes,
         onToggleLikedProduct = productViewModel::toggleLikedProduct,
         onLoadMoreRecommendations = productViewModel::loadMoreSafeRecommendations,
+        onRetryRecommendations = productViewModel::retrySafeRecommendations,
+        onSelectCapacity = productViewModel::selectProductCapacity,
+        onRetryAlternatives = productViewModel::refreshAlternatives,
+        onAskProduct = onAskProduct,
         onScanTargetCheckedChange = productViewModel::updateScanTargetSelection,
         productBarcodeToOpen = productBarcodeToOpen,
         onProductBarcodeOpenHandled = onProductBarcodeOpenHandled,
@@ -162,6 +167,10 @@ private fun ProductScreenContent(
     productBarcodeToOpen: String?,
     onProductBarcodeOpenHandled: () -> Unit,
     onReturnToMyFromDetail: () -> Unit,
+    onRetryRecommendations: () -> Unit = {},
+    onSelectCapacity: (String) -> Unit = {},
+    onRetryAlternatives: () -> Unit = {},
+    onAskProduct: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
@@ -178,6 +187,19 @@ private fun ProductScreenContent(
     var selectedCategory by rememberSaveable { mutableStateOf("전체") }
     var selectedProfileFilter by rememberSaveable { mutableStateOf("비건 인증") }
     var shouldReturnToMyOnDetailBack by rememberSaveable { mutableStateOf(false) }
+    var alternativeListSource by remember { mutableStateOf<ProductDetailUiState?>(null) }
+    var detailReturnDestination by rememberSaveable { mutableStateOf(ProductDestination.Search) }
+    fun openRecommendedProduct(barcode: String?) {
+        if (barcode == null) return
+        if (currentDestination == ProductDestination.AlternativeList &&
+            alternativeListSource?.product?.barcode == detailUiState.product?.barcode) {
+            alternativeListSource = detailUiState
+        }
+        detailReturnDestination = currentDestination
+        onLoadProductDetail(barcode)
+        shouldReturnToMyOnDetailBack = false
+        currentDestination = ProductDestination.Detail
+    }
 
     fun navigateBackFromDetail() {
         if (shouldReturnToMyOnDetailBack) {
@@ -185,7 +207,7 @@ private fun ProductScreenContent(
             currentDestination = ProductDestination.Overview
             onReturnToMyFromDetail()
         } else {
-            currentDestination = ProductDestination.Search
+            currentDestination = detailReturnDestination
         }
     }
 
@@ -197,6 +219,9 @@ private fun ProductScreenContent(
         onProductBarcodeOpenHandled()
     }
 
+    BackHandler(enabled = currentDestination == ProductDestination.AlternativeList) {
+        currentDestination = ProductDestination.Detail
+    }
     BackHandler(enabled = currentDestination == ProductDestination.Detail) {
         navigateBackFromDetail()
     }
@@ -240,6 +265,14 @@ private fun ProductScreenContent(
                     )
                 }
 
+                ProductDestination.AlternativeList -> {
+                    JjikmukTopAppBar(
+                        leading = JjikmukTopAppBarLeading.Back { currentDestination = ProductDestination.Detail },
+                        showBottomDivider = true,
+                        centerContent = { Text("대체 상품 추천", style = JjikmukTheme.typography.labelL,
+                            color = JjikmukTheme.colors.textPrimary) },
+                    )
+                }
                 ProductDestination.Detail -> {
                     JjikmukTopAppBar(
                         selectedProfiles = selectedProfiles,
@@ -247,13 +280,14 @@ private fun ProductScreenContent(
                         leading = JjikmukTopAppBarLeading.Back(
                             onClick = ::navigateBackFromDetail,
                         ),
-                        showBottomDivider = true,
+                        showBottomDivider = false,
                     )
                 }
             }
         },
         bottomBar = {
-            if (!showProductFilterSheet && (currentDestination != ProductDestination.Search || searchUiState.isEmptyResult)) {
+            if (!showProductFilterSheet && currentDestination != ProductDestination.AlternativeList &&
+                (currentDestination != ProductDestination.Search || searchUiState.isEmptyResult)) {
                 JjikmukBottomNavigationBar(
                     selectedTab = selectedTab,
                     onTabClick = onTabClick,
@@ -271,6 +305,8 @@ private fun ProductScreenContent(
                 ProductDestination.Overview -> {
                     ProductContent(
                         recommendationUiState = recommendationUiState,
+                        onProductClick = ::openRecommendedProduct,
+                        onRetry = onRetryRecommendations,
                         onSearchClick = {
                             onResetSearchState()
                             currentDestination = ProductDestination.Search
@@ -298,6 +334,9 @@ private fun ProductScreenContent(
                         isLoadingMore = recommendationUiState.isLoadingMore,
                         canLoadMore = recommendationUiState.canLoadMore,
                         onLoadMore = onLoadMoreRecommendations,
+                        recommendationState = recommendationUiState,
+                        onRetry = onRetryRecommendations,
+                        onProductClick = ::openRecommendedProduct,
                     )
 
                     JjikmukDraggableScannerFab(
@@ -320,6 +359,7 @@ private fun ProductScreenContent(
                         onClearRecentKeywords = onClearRecentKeywords,
                         onFilterClick = { showProductFilterSheet = true },
                         onProductClick = { product ->
+                            detailReturnDestination = ProductDestination.Search
                             onLoadProductDetail(product.barcode)
                             shouldReturnToMyOnDetailBack = false
                             currentDestination = ProductDestination.Detail
@@ -334,11 +374,25 @@ private fun ProductScreenContent(
                     }
                 }
 
+                ProductDestination.AlternativeList -> {
+                    ProductAlternativeList(
+                        if (alternativeListSource?.product?.barcode == detailUiState.product?.barcode) detailUiState
+                        else alternativeListSource ?: detailUiState,
+                        onProduct = ::openRecommendedProduct, onRetry = onRetryAlternatives)
+                }
                 ProductDestination.Detail -> {
                     ProductDetailContent(
                         detailUiState = detailUiState,
                         likedProductBarcodes = likedProductBarcodes,
                         onToggleLikedProduct = onToggleLikedProduct,
+                        onSelectCapacity = onSelectCapacity,
+                        onAskProduct = onAskProduct,
+                        onAlternative = ::openRecommendedProduct,
+                        onMoreAlternatives = {
+                            alternativeListSource = detailUiState
+                            currentDestination = ProductDestination.AlternativeList
+                        },
+                        onRetryAlternatives = onRetryAlternatives,
                     )
 
                     JjikmukDraggableScannerFab(
@@ -395,6 +449,8 @@ private fun ProductContent(
     recommendationUiState: ProductRecommendationUiState,
     onSearchClick: () -> Unit,
     onRecommendationMoreClick: () -> Unit,
+    onProductClick: (String?) -> Unit = {},
+    onRetry: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -413,6 +469,8 @@ private fun ProductContent(
         RecommendedProductSection(
             recommendationUiState = recommendationUiState,
             onMoreClick = onRecommendationMoreClick,
+            onProductClick = onProductClick,
+            onRetry = onRetry,
         )
     }
 }
@@ -561,6 +619,11 @@ private fun ProductDetailContent(
     detailUiState: ProductDetailUiState,
     likedProductBarcodes: Set<String>,
     onToggleLikedProduct: (ProductDetail) -> Unit,
+    onSelectCapacity: (String) -> Unit = {},
+    onAskProduct: (String) -> Unit = {},
+    onAlternative: (String?) -> Unit = {},
+    onMoreAlternatives: () -> Unit = {},
+    onRetryAlternatives: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -589,10 +652,15 @@ private fun ProductDetailContent(
         }
 
         detailUiState.product != null -> {
-            ProductDetailLoadedContent(
-                product = detailUiState.product,
+            ProductDetailDesign(
+                state = detailUiState,
                 isLiked = detailUiState.product.barcode in likedProductBarcodes,
-                onFavoriteClick = { onToggleLikedProduct(detailUiState.product) },
+                onFavorite = { onToggleLikedProduct(detailUiState.product) },
+                onCapacity = onSelectCapacity,
+                onAsk = onAskProduct,
+                onAlternative = onAlternative,
+                onMoreAlternatives = onMoreAlternatives,
+                onRetryAlternatives = onRetryAlternatives,
                 modifier = modifier,
             )
         }
@@ -789,7 +857,7 @@ private fun ProductDetailInfoSection(
 }
 
 @Composable
-private fun ProductDetailRiskWarningCard(
+internal fun ProductDetailRiskWarningCard(
     product: ProductDetail,
     modifier: Modifier = Modifier,
 ) {
@@ -828,14 +896,14 @@ private fun ProductDetailRiskWarningCard(
         ) {
             Box(
                 modifier = Modifier
-                    .width(4.dp)
+                    .width(5.dp)
                     .fillMaxHeight()
                     .background(accentColor),
             )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 24.dp, top = 16.dp, end = 52.dp, bottom = 16.dp),
+                    .padding(start = 23.dp, top = 17.dp, end = 16.dp, bottom = 17.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row(
@@ -846,10 +914,7 @@ private fun ProductDetailRiskWarningCard(
                     Text(
                         text = title,
                         color = JjikmukTheme.colors.textPrimary,
-                        style = JjikmukTheme.typography.titleL.copy(
-                            fontSize = 15.sp,
-                            lineHeight = 22.sp,
-                        ),
+                        style = JjikmukTheme.typography.titleM,
                     )
                 }
                 Text(
@@ -871,13 +936,13 @@ private fun ProductDetailRiskWarningIcon(
         ProductSafetyStatus.Danger -> Image(
             painter = painterResource(R.drawable.ic_scanner_result_warning),
             contentDescription = null,
-            modifier = modifier.size(24.dp),
+            modifier = modifier.size(20.dp),
         )
 
         ProductSafetyStatus.Unknown -> Image(
             painter = painterResource(R.drawable.ic_warning_triangle_yellow),
             contentDescription = null,
-            modifier = modifier.size(24.dp),
+            modifier = modifier.size(20.dp),
         )
 
         ProductSafetyStatus.Pass -> Unit
@@ -980,7 +1045,7 @@ private fun allergyIcon(label: String): String =
     }?.icon ?: "·"
 
 @Composable
-private fun ProductDetailNutritionCard(
+internal fun ProductDetailNutritionCard(
     product: ProductDetail,
     modifier: Modifier = Modifier,
 ) {
@@ -1006,7 +1071,7 @@ private fun ProductDetailNutritionCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 19.dp, vertical = 15.dp),
-                horizontalArrangement = Arrangement.spacedBy(15.dp),
+                horizontalArrangement = Arrangement.spacedBy(17.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ProductMacroBars(product = product)
@@ -1132,7 +1197,7 @@ private fun ProductMacroStatusRow(
         Text(
             text = label,
             color = JjikmukTheme.colors.textPrimary,
-            style = JjikmukTheme.typography.labelM,
+            style = JjikmukTheme.typography.labelM.copy(fontSize = 13.sp, lineHeight = 22.sp),
             modifier = Modifier
                 .padding(start = 9.dp)
                 .weight(1f),
@@ -1140,13 +1205,13 @@ private fun ProductMacroStatusRow(
         Text(
             text = percent.toPercentText(),
             color = JjikmukTheme.colors.textPrimary,
-            style = JjikmukTheme.typography.labelM.asEnglish(),
+            style = JjikmukTheme.typography.labelM.asEnglish().copy(fontSize = 13.sp, lineHeight = 22.sp),
         )
     }
 }
 
 @Composable
-private fun ProductNutritionRows(
+internal fun ProductNutritionRows(
     product: ProductDetail,
     modifier: Modifier = Modifier,
 ) {
@@ -1200,7 +1265,7 @@ private fun ProductNutritionRow(
 }
 
 @Composable
-private fun ProductRawMaterialsBox(
+internal fun ProductRawMaterialsBox(
     product: ProductDetail,
     modifier: Modifier = Modifier,
 ) {
@@ -1212,13 +1277,13 @@ private fun ProductRawMaterialsBox(
         shape = RoundedCornerShape(14.dp),
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 17.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
                 text = product.rawMaterials?.takeIf(String::isNotBlank) ?: "원재료 정보가 없어요.",
                 color = JjikmukTheme.colors.textPrimary,
-                style = JjikmukTheme.typography.bodyM,
+                style = JjikmukTheme.typography.bodyM.copy(lineHeight = 22.sp, letterSpacing = (-0.58).sp),
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1452,6 +1517,8 @@ private fun ProductCategoryButton(
 private fun RecommendedProductSection(
     recommendationUiState: ProductRecommendationUiState,
     onMoreClick: () -> Unit,
+    onProductClick: (String?) -> Unit = {},
+    onRetry: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val products = recommendationUiState.products.map(ProductSearchResult::toRecommendationCardUiModel)
@@ -1471,7 +1538,7 @@ private fun RecommendedProductSection(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "코워커님을 위한",
+                    text = "${recommendationUiState.userName}님을 위한",
                     color = JjikmukTheme.colors.brand,
                     style = JjikmukTheme.typography.labelS,
                 )
@@ -1522,7 +1589,9 @@ private fun RecommendedProductSection(
 
                 recommendationUiState.errorMessage != null -> {
                     item {
-                        RecommendationMessageCard(message = recommendationUiState.errorMessage)
+                        Box(Modifier.clickable(onClick = onRetry)) {
+                            RecommendationMessageCard(message = recommendationUiState.errorMessage + "\n눌러서 다시 시도")
+                        }
                     }
                 }
 
@@ -1537,6 +1606,7 @@ private fun RecommendedProductSection(
                         JjikmukProductCard(
                             product = product,
                             size = JjikmukProductCardSize.Carousel,
+                            modifier = Modifier.clickable { onProductClick(product.barcode) },
                         )
                     }
                 }
@@ -1574,6 +1644,9 @@ private fun ProductRecommendationListContent(
     isLoadingMore: Boolean,
     canLoadMore: Boolean,
     onLoadMore: () -> Unit,
+    recommendationState: ProductRecommendationUiState = ProductRecommendationUiState(),
+    onRetry: () -> Unit = {},
+    onProductClick: (String?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
@@ -1601,9 +1674,25 @@ private fun ProductRecommendationListContent(
         )
 
         ProductRecommendationIntroCard(
-            userName = "코워커",
+            userName = recommendationState.userName,
             modifier = Modifier.padding(start = 20.dp, top = 16.dp, end = 20.dp),
         )
+
+        if (recommendationState.isLoading) {
+            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = JjikmukTheme.colors.brand)
+            }
+        }
+        if (recommendationState.errorMessage != null || (!recommendationState.isLoading && products.isEmpty())) {
+            Text(recommendationState.errorMessage ?: "조건에 맞는 상품을 찾지 못했어요.",
+                modifier = Modifier.padding(20.dp), color = JjikmukTheme.colors.textSecondary)
+            Text("다시 시도", modifier = Modifier.padding(horizontal = 20.dp).clickable(onClick = onRetry),
+                color = JjikmukTheme.colors.brand)
+        }
+        if (recommendationState.notice.isNotBlank()) {
+            Text(recommendationState.notice, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
+        }
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
@@ -1619,6 +1708,7 @@ private fun ProductRecommendationListContent(
                 JjikmukProductCard(
                     product = product,
                     size = JjikmukProductCardSize.FlexibleGrid,
+                    modifier = Modifier.clickable { onProductClick(product.barcode) },
                 )
             }
 
@@ -2139,8 +2229,9 @@ private fun ProductSearchResult.toRecommendationCardUiModel(): JjikmukProductCar
     JjikmukProductCardUiModel(
         brand = brandName,
         name = productName,
-        badge = "맞춤 안심",
+        badge = "프로필 기준",
         imageUrl = imageUrl,
+        barcode = barcode,
     )
 
 private fun Double?.toPercentText(): String =
@@ -2167,6 +2258,7 @@ private fun Double.formatOneDecimal(): String {
 }
 
 private enum class ProductDestination {
+    AlternativeList,
     Overview,
     RecommendationList,
     Search,

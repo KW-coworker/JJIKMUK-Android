@@ -1,5 +1,10 @@
 package com.coworker.jjikmuk.feature.product.presentation
 
+import com.coworker.jjikmuk.data.remote.auth.AccessTokenStore
+import com.coworker.jjikmuk.data.repository.SafeRecommendationRepository
+import com.coworker.jjikmuk.data.repository.recommendationMessage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coworker.jjikmuk.data.local.preference.RecentSearchKeywordStore
@@ -19,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -30,8 +36,13 @@ class ProductViewModel @Inject constructor(
     private val familyProfileRepository: FamilyProfileRepository,
     private val likedProductRepository: LikedProductRepository,
     private val recentSearchKeywordStore: RecentSearchKeywordStore,
+    private val safeRecommendations: SafeRecommendationRepository,
+    private val accessTokens: AccessTokenStore,
+    private val productOptions: com.coworker.jjikmuk.data.repository.ProductOptionsRepository,
 ) : ViewModel() {
 
+    private var detailJob: Job? = null
+    private var alternativeJob: Job? = null
     private val selectedProfileIds = MutableStateFlow<Set<String>?>(null)
 
     val scanTargetMembers: StateFlow<List<ScanTargetMemberUiModel>> =
@@ -61,7 +72,9 @@ class ProductViewModel @Inject constructor(
 
     private val _recommendationUiState = MutableStateFlow(ProductRecommendationUiState(isLoading = true))
     val recommendationUiState: StateFlow<ProductRecommendationUiState> = _recommendationUiState.asStateFlow()
-    private var currentRecommendationConditionKey: RecommendationConditionKey? = null
+    private var nextRecommendationCursor: String? = null
+    private var recommendationGeneration = 0
+    private var recommendationPageJob: Job? = null
 
     val likedProductBarcodes: StateFlow<Set<String>> =
         likedProductRepository.observeLikedProductBarcodes()
@@ -87,13 +100,22 @@ class ProductViewModel @Inject constructor(
 
         viewModelScope.launch {
             familyProfileRepository.observeProfiles()
-                .map { profiles ->
-                    profiles.firstOrNull { profile -> profile.isMe }.toRecommendationConditionKey()
+                .combine(accessTokens.token) { profiles, token ->
+                    profiles.firstOrNull { profile -> profile.isMe }?.toRecommendationConditionKey() to token
                 }
                 .distinctUntilChanged()
-                .collectLatest { conditionKey ->
-                    currentRecommendationConditionKey = conditionKey
-                    loadSafeRecommendations(conditionKey)
+                .collectLatest { (conditionKey, token) ->
+                    recommendationGeneration++
+                    recommendationPageJob?.cancel()
+                    nextRecommendationCursor = null
+                    if (token == null) {
+                        _recommendationUiState.value = ProductRecommendationUiState(errorMessage = "로그인 상태를 확인해 주세요.")
+                    } else if (conditionKey == null) {
+                        _recommendationUiState.value = ProductRecommendationUiState(
+                            errorMessage = "마이페이지에서 나의 식이 조건을 설정해 주세요.")
+                    } else {
+                        loadSafeRecommendations()
+                    }
                 }
         }
     }
@@ -183,38 +205,54 @@ class ProductViewModel @Inject constructor(
     }
 
     fun loadProductDetail(barcode: String?) {
-        val productBarcode = barcode?.takeIf(String::isNotBlank) ?: return
+        val code = barcode?.takeIf(String::isNotBlank) ?: return
+        detailJob?.cancel()
+        alternativeJob?.cancel()
+        _detailUiState.value = ProductDetailUiState(isLoading = true, referenceBarcode = code)
+        detailJob = viewModelScope.launch {
+            try {
+                // Read server-owned conditions via the authenticated product API; no implicit profile writes.
+                val product = productRepository.getProductDetail(code).getOrThrow()
+                _detailUiState.value = ProductDetailUiState(product = product, referenceBarcode = code, capacitiesLoading = true)
+                try {
+                    val capacities = productOptions.capacities(code)
+                    _detailUiState.update { it.copy(capacities = capacities.options,
+                        selectedCapacityKey = capacities.selectedKey, capacitiesLoading = false,
+                        product = capacities.options.firstOrNull { option -> option.key == capacities.selectedKey }?.product ?: product) }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { _detailUiState.update { it.copy(capacitiesLoading = false, capacityError = "중량 옵션을 불러오지 못했어요.") } }
+                refreshAlternatives()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { _detailUiState.value = ProductDetailUiState(referenceBarcode = code,
+                errorMessage = "상품 정보를 불러오지 못했어요. 서버 연결을 확인해 주세요.") }
+        }
+    }
 
-        viewModelScope.launch {
-            _detailUiState.update { state ->
-                state.copy(
-                    isLoading = true,
-                    errorMessage = null,
-                )
+    fun selectProductCapacity(key: String) {
+        val option = _detailUiState.value.capacities.firstOrNull { it.key == key } ?: return
+        _detailUiState.update { it.copy(product = option.product, selectedCapacityKey = key,
+            alternatives = emptyList(), alternativesError = null) }
+        refreshAlternatives()
+    }
+
+    fun refreshAlternatives() {
+        alternativeJob?.cancel()
+        val product = _detailUiState.value.product ?: return
+        if (product.safetyStatus != com.coworker.jjikmuk.domain.model.ProductSafetyStatus.Danger) {
+            _detailUiState.update { it.copy(alternativesLoading = false, alternatives = emptyList()) }
+            return
+        }
+        _detailUiState.update { it.copy(alternativesLoading = true, alternativesError = null) }
+        alternativeJob = viewModelScope.launch {
+            try {
+                val data = productOptions.alternatives(product.barcode)
+                if (_detailUiState.value.product?.barcode == product.barcode) _detailUiState.update {
+                    it.copy(alternatives = data.products, alternativesNotice = data.notice, alternativesLoading = false)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { if (_detailUiState.value.product?.barcode == product.barcode) _detailUiState.update {
+                it.copy(alternativesLoading = false, alternativesError = "대체 상품을 불러오지 못했어요.") }
             }
-
-            productRepository.getProductDetail(
-                barcode = productBarcode,
-                allergies = selectedAllergies(),
-            )
-                .onSuccess { product ->
-                    _detailUiState.update {
-                        ProductDetailUiState(
-                            isLoading = false,
-                            product = product,
-                            errorMessage = null,
-                        )
-                    }
-                }
-                .onFailure { throwable ->
-                    _detailUiState.update {
-                        ProductDetailUiState(
-                            isLoading = false,
-                            product = null,
-                            errorMessage = throwable.message ?: "상품 상세 정보를 불러오지 못했어요.",
-                        )
-                    }
-                }
         }
     }
 
@@ -235,76 +273,63 @@ class ProductViewModel @Inject constructor(
     }
 
     fun loadMoreSafeRecommendations() {
-        val conditionKey = currentRecommendationConditionKey ?: return
-        val currentState = _recommendationUiState.value
-        if (currentState.isLoading || currentState.isLoadingMore || !currentState.canLoadMore) return
-
-        viewModelScope.launch {
-            _recommendationUiState.update { state ->
-                state.copy(isLoadingMore = true, errorMessage = null)
+        val cursor = nextRecommendationCursor ?: return
+        val state = _recommendationUiState.value
+        if (state.isLoading || state.isLoadingMore || !state.canLoadMore) return
+        val generation = recommendationGeneration
+        _recommendationUiState.update { it.copy(isLoadingMore = true, errorMessage = null) }
+        recommendationPageJob = viewModelScope.launch {
+            try {
+                val page = safeRecommendations.page(cursor, state.products.mapNotNull { it.barcode })
+                if (generation != recommendationGeneration) return@launch
+                check(page.userId == state.userId) { "추천 사용자가 변경되었어요." }
+                check(page.nextCursor == null || page.nextCursor != cursor) { "추천 페이지가 반복되었어요." }
+                nextRecommendationCursor = page.nextCursor
+                _recommendationUiState.update { current -> current.copy(
+                    products = (current.products + page.products).distinctBy { it.barcode },
+                    isLoadingMore = false, canLoadMore = page.nextCursor != null, notice = page.notice,
+                ) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (generation == recommendationGeneration) _recommendationUiState.update {
+                    it.copy(isLoadingMore = false, canLoadMore = false, errorMessage = error.recommendationMessage())
+                }
             }
-
-            productRepository.getSafeRecommendations(
-                filters = conditionKey.toProductFilters(),
-                allergies = conditionKey.toAllergyKeys(),
-                limit = SAFE_RECOMMENDATION_LIMIT,
-            )
-                .onSuccess { products ->
-                    val existingBarcodes = _recommendationUiState.value.products
-                        .mapNotNull(ProductSearchResult::barcode)
-                        .toSet()
-                    val nextProducts = products.filterNot { product ->
-                        product.barcode != null && product.barcode in existingBarcodes
-                    }
-                    _recommendationUiState.update { state ->
-                        state.copy(
-                            products = state.products + nextProducts,
-                            isLoadingMore = false,
-                            canLoadMore = nextProducts.size >= SAFE_RECOMMENDATION_LIMIT,
-                            errorMessage = null,
-                        )
-                    }
-                }
-                .onFailure { throwable ->
-                    _recommendationUiState.update { state ->
-                        state.copy(
-                            isLoadingMore = false,
-                            canLoadMore = false,
-                            errorMessage = throwable.message ?: "맞춤 안심 상품을 더 불러오지 못했어요.",
-                        )
-                    }
-                }
         }
     }
 
-    private suspend fun loadSafeRecommendations(conditionKey: RecommendationConditionKey) {
-        _recommendationUiState.update { state ->
-            state.copy(isLoading = true, errorMessage = null)
+    fun retrySafeRecommendations() {
+        if (_recommendationUiState.value.isLoading) return
+        recommendationGeneration++
+        recommendationPageJob?.cancel()
+        nextRecommendationCursor = null
+        _recommendationUiState.value = ProductRecommendationUiState(isLoading = true)
+        recommendationPageJob = viewModelScope.launch {
+            val me = familyProfileRepository.observeProfiles().first().firstOrNull { it.isMe }
+            if (me == null) {
+                _recommendationUiState.value = ProductRecommendationUiState(
+                    errorMessage = "마이페이지에서 나의 식이 조건을 설정해 주세요.")
+            } else loadSafeRecommendations()
         }
+    }
 
-        productRepository.getSafeRecommendations(
-            filters = conditionKey.toProductFilters(),
-            allergies = conditionKey.toAllergyKeys(),
-            limit = SAFE_RECOMMENDATION_LIMIT,
-        )
-            .onSuccess { products ->
-                _recommendationUiState.value = ProductRecommendationUiState(
-                    products = products,
-                    isLoading = false,
-                    isLoadingMore = false,
-                    canLoadMore = products.size >= SAFE_RECOMMENDATION_LIMIT,
-                    errorMessage = null,
-                )
-            }
-            .onFailure { throwable ->
-                _recommendationUiState.value = ProductRecommendationUiState(
-                    products = emptyList(),
-                    isLoading = false,
-                    isLoadingMore = false,
-                    canLoadMore = false,
-                    errorMessage = throwable.message ?: "맞춤 안심 상품을 불러오지 못했어요.",
-                )
-            }
+    private suspend fun loadSafeRecommendations() {
+        _recommendationUiState.value = ProductRecommendationUiState(isLoading = true)
+        try {
+            val owner = safeRecommendations.owner()
+            val page = safeRecommendations.page()
+            check(page.userId == owner.userId) { "추천 사용자가 변경되었어요." }
+            nextRecommendationCursor = page.nextCursor
+            _recommendationUiState.value = ProductRecommendationUiState(
+                products = page.products, userName = owner.userName, userId = page.userId,
+                canLoadMore = page.nextCursor != null, notice = page.notice,
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            _recommendationUiState.value = ProductRecommendationUiState(errorMessage = error.recommendationMessage())
+        }
     }
 
     private fun selectedAllergies(): List<String> {
@@ -350,7 +375,6 @@ class ProductViewModel @Inject constructor(
 
     private companion object {
         const val MIN_SEARCH_KEYWORD_LENGTH = 2
-        const val SAFE_RECOMMENDATION_LIMIT = 6
     }
 }
 
@@ -358,38 +382,7 @@ private data class RecommendationConditionKey(
     val vegetarian: String,
     val allergies: List<String>,
     val preferences: List<String>,
-) {
-    fun toProductFilters(): List<String> {
-        return listOfNotNull(vegetarian)
-            .plus(preferences)
-            .mapNotNull(String::toProductFilterKey)
-            .distinct()
-    }
-
-    fun toAllergyKeys(): List<String> {
-        return allergies
-            .mapNotNull(String::toAllergyKey)
-            .distinct()
-    }
-}
-
-private fun String.toProductFilterKey(): String? {
-    return when (trim()) {
-        "비건", "vegan" -> "vegan"
-        "락토", "lacto", "lactoVegetarian" -> "lactoVegetarian"
-        "오보", "ovo", "ovoVegetarian" -> "ovoVegetarian"
-        "락토오보", "락토 오보", "lacto_ovo", "lactoOvo", "lactoOvoVegetarian" -> "lactoOvoVegetarian"
-        "페스코", "pesco", "pescatarian" -> "pescatarian"
-        "폴로", "pollo", "pollotarian" -> "pollotarian"
-        "저당", "low_sugar", "lowSugar" -> "lowSugar"
-        "저염", "low_sodium", "lowSodium" -> "lowSodium"
-        "글루텐프리", "gluten_free", "glutenFree" -> "glutenFree"
-        "저칼로리", "low_calorie", "lowCalorie" -> "lowCalorie"
-        "저지방", "low_fat", "lowFat" -> "lowFat"
-        "고단백", "high_protein", "highProtein" -> "highProtein"
-        else -> null
-    }
-}
+)
 
 private fun String.toAllergyKey(): String? {
     return when (trim()) {

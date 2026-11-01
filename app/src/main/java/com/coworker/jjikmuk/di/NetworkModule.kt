@@ -1,5 +1,12 @@
 package com.coworker.jjikmuk.di
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import java.util.Properties
+import com.coworker.jjikmuk.data.remote.auth.BackendAuthInterceptor
+import com.coworker.jjikmuk.data.remote.api.SafeRecommendationApi
 import com.coworker.jjikmuk.data.remote.api.ChatApi
 import com.coworker.jjikmuk.data.remote.api.ProductApi
 import dagger.Module
@@ -23,6 +30,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+
         return OkHttpClient.Builder()
             .connectTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -50,10 +58,12 @@ object NetworkModule {
     @BackendRetrofit
     fun provideBackendRetrofit(
         okHttpClient: OkHttpClient,
+        auth: BackendAuthInterceptor,
+        @ApplicationContext context: Context,
     ): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BackendServer.BASE_URL)
-            .client(okHttpClient)
+            .baseUrl(backendBaseUrl(context))
+            .client(okHttpClient.newBuilder().addInterceptor(auth).build())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
@@ -74,6 +84,28 @@ object NetworkModule {
         retrofit: Retrofit,
     ): ProductApi {
         return retrofit.create(ProductApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSafeRecommendationApi(@BackendRetrofit retrofit: Retrofit): SafeRecommendationApi =
+        retrofit.create(SafeRecommendationApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideProductOptionsApi(@BackendRetrofit retrofit: Retrofit): com.coworker.jjikmuk.data.remote.api.ProductOptionsApi =
+        retrofit.create(com.coworker.jjikmuk.data.remote.api.ProductOptionsApi::class.java)
+
+    private fun backendBaseUrl(context: Context): String {
+        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return BackendServer.BASE_URL
+        val file = File(context.noBackupFilesDir, "backend.properties")
+        if (!file.exists()) return BackendServer.BASE_URL
+        val properties = Properties().apply { file.inputStream().use(::load) }
+        val url = properties.getProperty("baseUrl")?.trim() ?: return BackendServer.BASE_URL
+        require(url == "http://127.0.0.1:8080/" || url == "http://10.0.2.2:8080/") {
+            "Debug backend override must point to the local test server."
+        }
+        return url
     }
 
     private const val NETWORK_TIMEOUT_SECONDS = 30L

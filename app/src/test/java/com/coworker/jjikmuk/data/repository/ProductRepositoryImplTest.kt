@@ -38,13 +38,12 @@ class ProductRepositoryImplTest {
         assertEquals(listOf("wheat"), api.allergies)
     }
 
-    @Test fun `cancellation propagates from search detail and recommendations`() = runTest {
+    @Test fun `cancellation propagates from search and detail`() = runTest {
         val cancellation = CancellationException("cancelled")
         val repository = ProductRepositoryImpl(FakeApi(error = cancellation))
         val requests: List<suspend () -> Any> = listOf(
             { repository.searchProducts("포키", emptyList()) },
             { repository.getProductDetail("id", emptyList()) },
-            { repository.getSafeRecommendations(emptyList(), emptyList(), 6) },
         )
         for (request in requests) {
             try {
@@ -72,9 +71,6 @@ class ProductRepositoryImplTest {
             checkRequest()
             return ProductDetailApiResponse()
         }
-        override suspend fun getSafeRecommendations(filters: List<String>, allergies: List<String>, limit: Int, userId: Long?): ProductSearchApiResponse {
-            checkRequest()
-            return ProductSearchApiResponse(data = products)
-        }
+
     }
 }

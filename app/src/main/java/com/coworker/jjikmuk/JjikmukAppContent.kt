@@ -89,6 +89,10 @@ fun JjikmukAppContent(
                         selectedTab = selectedTab,
                         onTabClick = ::handleMainTabClick,
                         onScannerClick = { showScanner = true },
+                        onAskProduct = { prompt ->
+                            chatConversationId = null
+                            chatMessage = prompt
+                        },
                         productBarcodeToOpen = productBarcodeToOpen,
                         onProductBarcodeOpenHandled = { productBarcodeToOpen = null },
                         onReturnToMyFromDetail = {

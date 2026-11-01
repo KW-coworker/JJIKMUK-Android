@@ -50,7 +50,6 @@ class ScannerGalleryTest {
                 searches++
                 return Result.success(emptyList())
             }
-            override suspend fun getSafeRecommendations(filters: List<String>, allergies: List<String>, limit: Int) = Result.success(emptyList<ProductSearchResult>())
             override suspend fun getProductDetail(barcode: String, allergies: List<String>): Result<ProductDetail> = error("Detail is deferred")
         }
         lateinit var model: ScannerCaptureViewModel
