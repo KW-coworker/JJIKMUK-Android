@@ -8,6 +8,20 @@ import java.util.TimeZone
 /** API 24-compatible offset timestamp parser. Never assume a timezone for a local datetime. */
 internal object AuthApiTime {
     private val offsetTimestamp = Regex("""(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})""")
+    private val localTimestamp = Regex("""\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?""")
+
+    /**
+     * Deployed email responses may omit the offset. Validate those dates, but do not turn
+     * them into instants: email verification already has a validated relative lifetime.
+     * Session and Google grant timestamps must continue to use strict [parseMillis].
+     */
+    fun emailTimestampMillis(value: String): Long? {
+        if (localTimestamp.matches(value)) {
+            parseMillis("${value}Z") // Calendar validation only; the fabricated instant is discarded.
+            return null
+        }
+        return parseMillis(value)
+    }
 
     fun parseMillis(value: String): Long {
         val match = requireNotNull(offsetTimestamp.matchEntire(value)) { "Missing or invalid timestamp offset" }

@@ -126,12 +126,19 @@ class HttpAuthRepositoryTest {
     }
     @Test fun `new login contract is decoded through HTTP without sending bearer or normalizing password`() = runBlocking {
         val repo = HttpAuthRepository.create(server.url("/"))
+        // A previous authenticated request on the same client must not leak its JWT into login.
+        enqueue(profileJson)
+        assertTrue(repo.me("previous-access") is AuthResult.Success)
+        assertEquals("Bearer previous-access", server.takeRequest().headers["Authorization"])
         enqueue(AuthContractModelsTest.loginJson)
         val result = (repo.login(" Ｕｓｅｒ＠Ｅｘａｍｐｌｅ．ｃｏｍ ", " KeepCase1! ") as AuthResult.Success).value
         assertEquals("refresh-secret", result.refresh!!.token)
         val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/auth/login", request.url.encodedPath)
         assertNull(request.headers["Authorization"])
         val body = JsonParser.parseString(request.body!!.utf8()).asJsonObject
+        assertEquals(setOf("email", "password"), body.keySet())
         assertEquals("user@example.com", body["email"].asString)
         assertEquals(" KeepCase1! ", body["password"].asString)
     }
@@ -154,6 +161,65 @@ class HttpAuthRepositoryTest {
     @Test fun `unconfigured service never pretends an OTP was sent`() = runBlocking {
         assertEquals(AuthFailureKind.NotConfigured,
             (HttpAuthRepository.unconfigured().sendEmail("user@example.com", EmailPurpose.SignUp) as AuthResult.Failure).error.kind)
+    }
+
+    @Test fun `email timestamps without offsets use relative lifetimes without guessing a timezone`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        for (purpose in EmailPurpose.entries) {
+            enqueue("""{"message":"ok","data":{"email":"user@example.com","purpose":"${purpose.wireValue}",
+                "expiresInSeconds":300,"expiresAt":"2026-10-31T17:50:38.2502111",
+                "resendAvailableAt":"2026-10-31T17:46:38.2502111"}}""")
+            val dispatch = (repo.sendEmail("user@example.com", purpose) as AuthResult.Success).value
+            assertEquals(300, dispatch.expiresInSeconds)
+            assertNull(dispatch.expiresAtMillis)
+            assertNull(dispatch.resendAvailableAtMillis)
+
+            enqueue("""{"data":{"email":"user@example.com","purpose":"${purpose.wireValue}",
+                "verificationToken":"proof","expiresInSeconds":${purpose.proofLifetimeSeconds},
+                "expiresAt":"2026-10-31T18:16:00.123456789"}}""")
+            val proof = (repo.verifyEmail("user@example.com", purpose, "0427") as AuthResult.Success).value
+            assertEquals(purpose.proofLifetimeSeconds, proof.expiresInSeconds)
+            assertEquals(purpose, proof.purpose)
+            assertNull(proof.expiresAtMillis)
+        }
+    }
+
+    @Test fun `offsetless email compatibility still rejects invalid timestamps identity and lifetime`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        val dispatch = """{"data":{"email":"user@example.com","purpose":"signup","expiresInSeconds":300,
+            "expiresAt":"2026-10-31T17:50:38.2502111"}}"""
+        val proof = """{"data":{"email":"user@example.com","purpose":"signup","verificationToken":"proof",
+            "expiresInSeconds":1800,"expiresAt":"2026-10-31T18:16:00"}}"""
+        for (bad in listOf("not-a-date", "", "2026-02-30T12:00:00", "2026-10-31T25:00:00",
+            "2026-10-31T17:50:38+19:00", "2026-10-31T17:50:38Zjunk")) {
+            enqueue(dispatch.replace("2026-10-31T17:50:38.2502111", bad))
+            assertEquals(AuthFailureKind.InvalidResponse,
+                (repo.sendEmail("user@example.com", EmailPurpose.SignUp) as AuthResult.Failure).error.kind)
+            enqueue(proof.replace("2026-10-31T18:16:00", bad))
+            assertEquals(AuthFailureKind.InvalidResponse,
+                (repo.verifyEmail("user@example.com", EmailPurpose.SignUp, "0427") as AuthResult.Failure).error.kind)
+        }
+        for (bad in listOf(dispatch.replace("user@example.com", "other@example.com"),
+            dispatch.replace("signup", "password_reset"), dispatch.replace("300", "0"),
+            dispatch.replace("300", "301"), dispatch.replace("\"expiresInSeconds\":300,", ""))) {
+            enqueue(bad)
+            assertEquals(AuthFailureKind.InvalidResponse,
+                (repo.sendEmail("user@example.com", EmailPurpose.SignUp) as AuthResult.Failure).error.kind)
+        }
+        enqueue(proof.replace("1800", "1801"))
+        assertEquals(AuthFailureKind.InvalidResponse,
+            (repo.verifyEmail("user@example.com", EmailPurpose.SignUp, "0427") as AuthResult.Failure).error.kind)
+    }
+
+    @Test fun `email dispatch client never automatically retries or follows redirects`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        for (status in listOf(307, 408, 429, 503)) {
+            server.enqueue(MockResponse.Builder().code(status).addHeader("Retry-After", "0")
+                .addHeader("Location", server.url("/redirect")).body("{}").build())
+            val before = server.requestCount
+            assertTrue(repo.sendEmail("user@example.com", EmailPurpose.SignUp) is AuthResult.Failure)
+            assertEquals(before + 1, server.requestCount)
+        }
     }
 
     @Test fun `refresh sends only refresh body with no bearer and requires complete new contract`() = runBlocking {

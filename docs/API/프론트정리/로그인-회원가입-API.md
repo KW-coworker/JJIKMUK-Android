@@ -94,6 +94,8 @@
 | 로그인·갱신·연결 | `expiresAt`, `refreshExpiresAt` | UTC `Z` 문자열 |
 | Google 연결 필요 | `expiresAt`, `expiresInSeconds` | 연결 증명 만료, 서비스 세션과 구분 |
 
+**2026-11-01 배포 응답 차이:** 이메일 발송 200 응답에서 `expiresAt`/`resendAvailableAt`에 offset이 없는 날짜를 확인했다. 위 표는 백엔드 명세 기준이며 변경하지 않는다. 앱은 이메일 발송·검증에 한해 유효한 offset 없는 날짜를 절대시각으로 추측하지 않고, 필수 `expiresInSeconds`와 요청 시작 시점으로 만료를 관리한다. 로그인/Refresh/Google 증명에는 이 호환을 적용하지 않는다. 발송 지연과 재현 결과는 [실서버 점검 기록](../../검증/2026-10-31-인증-실서버-점검.md) 참고.
+
 - offset 포함 문자열을 Instant로 해석한다. 구형 offset 없는 문자열에 임의로 Z를 붙이지 않는다.
 - 서버가 준 마감 시각과 남은 시간을 반영하고, 표시용 타이머는 단조 시계로 관리한다. 서버가 최종 만료를 판정한다.
 - OTP 5분, 가입 증명 30분, 재설정 증명 5분은 유지된다. 최종 `VERIFICATION_EXPIRED`는 재인증으로 복구한다.

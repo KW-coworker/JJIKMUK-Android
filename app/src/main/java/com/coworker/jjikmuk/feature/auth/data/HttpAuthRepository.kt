@@ -21,14 +21,15 @@ import java.util.concurrent.TimeUnit
 class HttpAuthRepository private constructor(
     private val api: AuthApi?,
     private val nowMillis: () -> Long = System::currentTimeMillis,
+    private val emailDispatchApi: AuthApi? = api,
 ) : AuthRepository {
 
-    override suspend fun sendEmail(email: String, purpose: EmailPurpose) = request(200,
+    override suspend fun sendEmail(email: String, purpose: EmailPurpose) = requestWithApi(emailDispatchApi, 200,
         { it.send(SendBody(normalizeAuthEmail(email), purpose.wireValue)) }) { body ->
         val data = requireNotNull(body.data)
         require(data.email == normalizeAuthEmail(email) && data.purpose == purpose.wireValue)
         EmailDispatch(data.email, purpose, requireNotNull(data.expiresInSeconds).also { require(it in 1..300) },
-            data.expiresAt?.let(AuthApiTime::parseMillis), data.resendAvailableAt?.let(AuthApiTime::parseMillis))
+            data.expiresAt?.let(AuthApiTime::emailTimestampMillis), data.resendAvailableAt?.let(AuthApiTime::emailTimestampMillis))
     }
 
     override suspend fun verifyEmail(email: String, purpose: EmailPurpose, code: String) = request(200,
@@ -37,7 +38,7 @@ class HttpAuthRepository private constructor(
         require(data.email == normalizeAuthEmail(email) && data.purpose == purpose.wireValue)
         EmailProof(requireNotNull(data.verificationToken).also { require(it.isNotBlank()) }, data.email,
             purpose, requireNotNull(data.expiresInSeconds).also { require(it in 1..purpose.proofLifetimeSeconds) },
-            data.expiresAt?.let(AuthApiTime::parseMillis))
+            data.expiresAt?.let(AuthApiTime::emailTimestampMillis))
     }
 
     override suspend fun nicknameAvailable(nickname: String) = request(200,
@@ -169,6 +170,9 @@ class HttpAuthRepository private constructor(
     )
 
     private suspend fun <T, R> request(status: Int, call: suspend (AuthApi) -> Response<T>,
+        decode: (T) -> R): AuthResult<R> = requestWithApi(api, status, call, decode)
+
+    private suspend fun <T, R> requestWithApi(api: AuthApi?, status: Int, call: suspend (AuthApi) -> Response<T>,
         decode: (T) -> R): AuthResult<R> {
         val configuredApi = api ?: return AuthResult.Failure(AuthFailure(AuthFailureKind.NotConfigured))
         return try {
@@ -216,8 +220,13 @@ class HttpAuthRepository private constructor(
                     chain.proceed(request.newBuilder().method(request.method, singleUseBody).build())
                 }
                 .build() // No BODY logger, shared auth interceptor, cookies or automatic token refresh.
-            return HttpAuthRepository(Retrofit.Builder().baseUrl(baseUrl).client(client)
-                .addConverterFactory(GsonConverterFactory.create(authJson())).build().create(AuthApi::class.java), nowMillis)
+            // SMTP dispatch has taken over 30 seconds on the deployed server. Give only email
+            // sending a longer window; inherit the same one-shot/no-retry/TLS policies.
+            val emailClient = client.newBuilder()
+                .readTimeout(60, TimeUnit.SECONDS).callTimeout(75, TimeUnit.SECONDS).build()
+            fun apiFor(httpClient: OkHttpClient): AuthApi = Retrofit.Builder().baseUrl(baseUrl).client(httpClient)
+                .addConverterFactory(GsonConverterFactory.create(authJson())).build().create(AuthApi::class.java)
+            return HttpAuthRepository(apiFor(client), nowMillis, apiFor(emailClient))
         }
     }
 }
