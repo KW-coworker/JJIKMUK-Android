@@ -26,9 +26,13 @@ class PendingSignupPhotoViewModelTest {
     private var uploadFailure: AuthFailure? = null
     private var uploads = 0
     private var reads = 0
+    private var readGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+    private var readFailure: AuthFailure? = null
     private val repo = object : TestAuthRepository() {
         override suspend fun photo(accessToken: String): AuthResult<ProfilePhoto> {
-            reads++; return serverPhoto?.let { AuthResult.Success(it) }
+            reads++; readGate?.await()
+            readFailure?.let { return AuthResult.Failure(it) }
+            return serverPhoto?.let { AuthResult.Success(it) }
                 ?: AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 404, "PHOTO_NOT_FOUND"))
         }
         override suspend fun uploadPhoto(accessToken: String, photo: ProfilePhoto): AuthResult<PhotoUploadReceipt> {
@@ -45,47 +49,58 @@ class PendingSignupPhotoViewModelTest {
         sessions.acceptProfile(sessions.state.value.generation, AuthProfile(id, "$id@example.com", "사용자", null, null, null,
             null, "USER", AuthProvider.LOCAL, true, true, null))
     }
-    @Test fun `only matching account sees draft and upload requires explicit confirmation`() = runTest {
+    @Test fun `matching confirmed account automatically uploads once and removes draft`() = runTest {
         ready(2); val vm = model(); vm.open(); runCurrent()
-        assertTrue(vm.state.value.done); assertNull(vm.state.value.pending); assertEquals(0, reads)
-        ready(); runCurrent(); vm.open(); runCurrent()
-        assertTrue(vm.state.value.canUpload); assertEquals(0, uploads); assertNotNull(pending)
-        vm.upload(); vm.upload(); runCurrent()
+        assertTrue(vm.state.value.done); assertEquals(0, reads)
+        ready(); runCurrent(); vm.open(); vm.open(); runCurrent()
         assertEquals(1, uploads); assertTrue(vm.state.value.done); assertNull(pending)
     }
-    @Test fun `same email with different confirmed user id never gets old photo`() = runTest {
-        pending = PendingSignupPhoto("draft", 2, false, photo)
-        ready(); val vm = model(); vm.open(); runCurrent()
-        assertTrue(vm.state.value.done); assertNull(vm.state.value.pending); assertEquals(0, reads)
+    @Test fun `unbound draft or different user id never uploads`() = runTest {
+        for (id in listOf(null, 2L)) {
+            pending = PendingSignupPhoto("draft", id, false, photo)
+            ready(); val vm = model(); vm.open(); runCurrent()
+            assertTrue(vm.state.value.done); assertEquals(0, reads)
+        }
     }
-    @Test fun `server photo is shown without silently overwriting another device change`() = runTest {
+    @Test fun `server photo wins and stale local draft is cleaned without upload`() = runTest {
         serverPhoto = ProfilePhoto(byteArrayOf(4), "image/jpeg")
         ready(); val vm = model(); vm.open(); runCurrent()
-        assertArrayEquals(byteArrayOf(4), vm.state.value.server!!.bytes); assertEquals(0, uploads)
-        vm.discard(); runCurrent(); assertNull(pending); assertEquals(0, uploads)
+        assertTrue(vm.state.value.done); assertNull(pending); assertEquals(0, uploads)
         assertArrayEquals(byteArrayOf(4), serverPhoto!!.bytes)
     }
-    @Test fun `lost upload remains durable and restart reads back without replay`() = runTest {
+    @Test fun `lost upload is read back after restart without replay`() = runTest {
+        uploadFailure = AuthFailure(AuthFailureKind.Network)
         ready(); var vm = model(); vm.open(); runCurrent()
-        uploadFailure = AuthFailure(AuthFailureKind.Network); vm.upload(); runCurrent()
-        assertTrue(pending!!.sending); assertTrue(vm.state.value.mustReload)
-        vm.upload(); runCurrent(); assertEquals(1, uploads)
+        assertTrue(pending!!.sending); assertNotNull(vm.state.value.message)
+        vm.open(); runCurrent(); assertEquals(1, uploads)
         vm = model(); vm.open(); runCurrent()
-        assertNotNull(vm.state.value.server); assertFalse(pending!!.sending); assertEquals(1, uploads)
-        vm.discard(); runCurrent(); assertNull(pending); assertEquals(1, uploads)
+        assertTrue(vm.state.value.done); assertNull(pending); assertEquals(1, uploads)
     }
     @Test fun `successful upload with failed cleanup retries only local deletion`() = runTest {
-        ready(); val vm = model(); vm.open(); runCurrent(); removeFails = true
-        vm.upload(); runCurrent(); assertTrue(vm.state.value.uploaded); assertFalse(vm.state.value.done)
-        vm.upload(); runCurrent(); assertEquals(1, uploads)
-        removeFails = false; vm.discard(); runCurrent(); assertTrue(vm.state.value.done); assertEquals(1, uploads)
+        removeFails = true
+        ready(); val vm = model(); vm.open(); runCurrent()
+        assertNotNull(vm.state.value.message); assertEquals(1, uploads)
+        removeFails = false; vm.retry(); runCurrent()
+        assertTrue(vm.state.value.done); assertEquals(1, uploads)
     }
-    @Test fun `account change before scheduled upload never sends old photo with new token`() = runTest {
-        ready(); val vm = model(); vm.open(); runCurrent(); vm.upload()
-        ready(2); runCurrent(); assertEquals(0, uploads); assertNull(vm.state.value.pending)
+    @Test fun `account change during lookup never uploads old photo to new account`() = runTest {
+        readGate = kotlinx.coroutines.CompletableDeferred()
+        ready(); val vm = model(); vm.open(); runCurrent()
+        ready(2); runCurrent(); readGate!!.complete(Unit); runCurrent()
+        assertEquals(0, uploads); assertNotNull(pending)
     }
-    @Test fun `later keeps private draft for next login without sending it`() = runTest {
-        ready(); val vm = model(); vm.open(); runCurrent(); vm.later()
-        assertTrue(vm.state.value.done); assertNull(vm.state.value.pending); assertNotNull(pending); assertEquals(0, uploads)
+    @Test fun `uncertain previous upload requires explicit retry after absent server photo`() = runTest {
+        pending = PendingSignupPhoto("draft", 1, true, photo)
+        ready(); val vm = model(); vm.open(); runCurrent()
+        assertEquals(0, uploads); assertNotNull(vm.state.value.message)
+        vm.retry(); vm.retry(); runCurrent()
+        assertEquals(1, uploads); assertTrue(vm.state.value.done)
+    }
+    @Test fun `failed server lookup keeps draft and does not assume photo is absent`() = runTest {
+        readFailure = AuthFailure(AuthFailureKind.Network)
+        ready(); val vm = model(); vm.open(); runCurrent()
+        assertNotNull(vm.state.value.message); assertEquals(0, uploads); assertNotNull(pending)
+        readFailure = null; vm.retry(); runCurrent()
+        assertEquals(1, uploads); assertTrue(vm.state.value.done)
     }
 }

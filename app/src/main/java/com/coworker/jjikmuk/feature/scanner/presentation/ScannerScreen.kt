@@ -66,6 +66,7 @@ fun ScannerScreen(
     galleryEnabled: Boolean = true,
     flashEnabled: Boolean = true,
     flashOn: Boolean = false,
+    compareEnabled: Boolean = ScannerAvailability.compareEnabled,
     cameraContent: @Composable () -> Unit = {
         Image(
             painter = painterResource(R.drawable.scanner_camera_preview),
@@ -112,7 +113,7 @@ fun ScannerScreen(
                 .size(width = 295.dp * guideScaleX, height = 353.dp * guideScaleY),
         )
 
-        ScannerModeSelector(
+        if (compareEnabled) ScannerModeSelector(
             mode = mode,
             onModeChange = onModeChange,
             modifier = Modifier
@@ -130,7 +131,7 @@ fun ScannerScreen(
                 .padding(bottom = 65.dp),
         )
 
-        if (mode == ScannerMode.Compare) {
+        if (compareEnabled && mode == ScannerMode.Compare) {
             CompareScanListTab(
                 onClick = onCompareListClick,
                 modifier = Modifier.align(Alignment.BottomCenter),

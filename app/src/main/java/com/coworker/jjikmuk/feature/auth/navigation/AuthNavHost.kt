@@ -87,7 +87,7 @@ fun AuthNavHost(
         ) {
             LaunchedEffect(Unit) {
                 delay(SPLASH_DURATION_MILLIS)
-                val destination = if (loginViewModel.hasRestoredSession()) AuthRoute.SessionEntry else AuthRoute.PermissionApproval
+                val destination = if (loginViewModel.hasRestoredSession()) AuthRoute.SessionEntry else if (com.coworker.jjikmuk.feature.auth.presentation.permission.PermissionOnboarding.shouldShow(context)) AuthRoute.PermissionApproval else AuthRoute.AuthChoice
                 navController.navigate(destination) {
                     popUpTo(AuthRoute.Splash) { inclusive = true }
                 }
@@ -143,7 +143,7 @@ fun AuthNavHost(
                 }
             }
             if (entry == SessionEntryState.Ready && session.canEnterHome && session.profile != null) {
-                com.coworker.jjikmuk.feature.auth.photo.PendingSignupPhotoRoute(pendingPhotoViewModel) {
+                LaunchedEffect(session.generation) {
                     if (navController.currentDestination?.route == AuthRoute.SessionEntry && loginViewModel.sessionState.value.canEnterHome)
                         navController.navigate(AuthRoute.Home) {
                             popUpTo(navController.graph.id) { inclusive = false }
@@ -264,9 +264,11 @@ fun AuthNavHost(
                 }
             } else {
                 key(session.generation) {
+                    com.coworker.jjikmuk.feature.auth.photo.SignupPhotoSyncHost(pendingPhotoViewModel) {
                     JjikmukAppContent(onReturnToAuthChoice = loginViewModel::logout, profile = session.profile,
                         onPasswordChangeClick = { navController.navigate(AuthRoute.AccountPassword) { launchSingleTop = true } },
                         onWithdrawalClick = { navController.navigate(AuthRoute.AccountWithdrawal) { launchSingleTop = true } })
+                    }
                 }
             }
         }

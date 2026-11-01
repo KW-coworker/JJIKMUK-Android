@@ -24,7 +24,7 @@ class PendingSignupPhotoRouteTest {
     private var uploads = 0
     private var fail = false
     private var serverPhoto: ProfilePhoto? = null
-    private val done = mutableStateOf(false)
+    private val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
     private val sessions = AuthSessionManager(object : SessionStore {
         override suspend fun read(): SessionCredentials? = null
         override suspend fun write(credentials: SessionCredentials) = Unit
@@ -37,8 +37,11 @@ class PendingSignupPhotoRouteTest {
         override suspend fun remove(email: String, id: String) { pending = null }
     }
     private val repo = object : AuthRepository by HttpAuthRepository.unconfigured() {
-        override suspend fun photo(accessToken: String): AuthResult<ProfilePhoto> = serverPhoto?.let { AuthResult.Success(it) }
-            ?: AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 404, "PHOTO_NOT_FOUND"))
+        override suspend fun photo(accessToken: String): AuthResult<ProfilePhoto> {
+            gate.await()
+            return serverPhoto?.let { AuthResult.Success(it) }
+                ?: AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 404, "PHOTO_NOT_FOUND"))
+        }
         override suspend fun uploadPhoto(accessToken: String, photo: ProfilePhoto): AuthResult<PhotoUploadReceipt> {
             uploads++; serverPhoto = photo
             return if (fail) AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
@@ -46,35 +49,31 @@ class PendingSignupPhotoRouteTest {
         }
     }
     private val vm = PendingSignupPhotoViewModel(store, AuthPhotos(repo, sessions, AuthenticatedRequests(sessions, repo)), sessions)
-    @Before fun show() {
+    private fun show() {
         runBlocking {
             sessions.acceptLogin(sessions.beginLogin(), AuthLogin("test", 1, "test@example.com", "unused", 900, true), System.currentTimeMillis())
             sessions.acceptProfile(sessions.state.value.generation, AuthProfile(1, "test@example.com", "사용자", null, null, null,
                 null, "USER", AuthProvider.LOCAL, true, true, null))
         }
         compose.setContent { JjikmukTheme {
-            if (done.value) Text("홈으로 계속") else PendingSignupPhotoRoute(vm) { done.value = true }
+            SignupPhotoSyncHost(vm) { Text("홈 화면") }
         } }
     }
-    @Test fun saveIsExplicitAndConfirmedServerPhotoRemovesDraft() {
-        compose.onNodeWithText("선택한 사진 저장").performScrollTo().assertIsEnabled()
-        compose.runOnIdle { assertEquals(0, uploads) }
-        compose.onNodeWithText("선택한 사진 저장").performClick()
-        compose.onNodeWithText("홈으로 계속").assertIsDisplayed()
+    @Test fun homeIsVisibleWhileLookupWaitsAndPhotoUploadsWithoutConfirmation() {
+        show()
+        compose.onNodeWithText("홈 화면").assertIsDisplayed()
+        compose.onNodeWithText("선택한 사진 저장").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(0, uploads); gate.complete(Unit) }
+        compose.waitUntil(5_000) { vm.state.value.done }
         compose.runOnIdle { assertEquals(1, uploads); assertNull(pending) }
     }
-    @Test fun laterKeepsDraftWithoutUpload() {
-        compose.onNodeWithText("나중에 설정하기").performScrollTo().performClick()
-        compose.onNodeWithText("홈으로 계속").assertIsDisplayed()
-        compose.runOnIdle { assertEquals(0, uploads); assertNotNull(pending) }
-    }
-    @Test fun lostResponseReadbackOffersServerPhotoInsteadOfResending() {
-        compose.runOnIdle { fail = true }
-        compose.onNodeWithText("선택한 사진 저장").performScrollTo().performClick()
-        compose.onNodeWithText("저장된 사진 다시 확인").performScrollTo().performClick()
-        compose.onNodeWithText("현재 계정에 저장된 사진").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("임시 사진 삭제하고 계속").performScrollTo().performClick()
-        compose.onNodeWithText("홈으로 계속").assertIsDisplayed()
+    @Test fun failureOffersRetryWithoutBlockingHomeAndReadsBackInsteadOfReuploading() {
+        fail = true
+        show(); compose.runOnIdle { gate.complete(Unit) }
+        compose.onNodeWithText("홈 화면").assertIsDisplayed()
+        compose.waitUntil(5_000) { vm.state.value.message != null }
+        compose.onNodeWithText("재시도").performClick()
+        compose.waitUntil(5_000) { vm.state.value.done }
         compose.runOnIdle { assertEquals(1, uploads); assertNull(pending) }
     }
 }

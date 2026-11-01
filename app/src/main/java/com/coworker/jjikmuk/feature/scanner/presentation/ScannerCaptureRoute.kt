@@ -76,6 +76,7 @@ fun ScannerMainRoute(
     var flashOn by rememberSaveable { mutableStateOf(false) }
     var hasFlash by remember { mutableStateOf(false) }
     var mode by rememberSaveable { mutableStateOf(ScannerMode.Normal) }
+    LaunchedEffect(Unit) { if (!ScannerAvailability.compareEnabled) mode = ScannerMode.Normal }
     val loadingPhoto = state.photo.takeIf { analysis.phase == ScannerPhase.Recognizing || analysis.phase == ScannerPhase.Searching }
     val controlsEnabled = !state.busy && !state.galleryConfirmation && analysis.phase == ScannerPhase.Camera
     var showCompareList by rememberSaveable { mutableStateOf(false) }

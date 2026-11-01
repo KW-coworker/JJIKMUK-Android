@@ -68,6 +68,7 @@ fun PermissionApprovalRoute(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) {
+        PermissionOnboarding.complete(context)
         onContinue()
     }
 
@@ -78,12 +79,13 @@ fun PermissionApprovalRoute(
                 ContextCompat.checkSelfPermission(context, permission) != PERMISSION_GRANTED
             }
             if (missingPermissions.isEmpty()) {
+                PermissionOnboarding.complete(context)
                 onContinue()
             } else {
                 permissionLauncher.launch(missingPermissions.toTypedArray())
             }
         },
-        onLaterClick = onSkip,
+        onLaterClick = { PermissionOnboarding.complete(context); onSkip() },
         modifier = modifier,
         logoModifier = logoModifier,
         titleModifier = titleModifier,
@@ -99,9 +101,6 @@ fun PermissionApprovalScreen(
     logoModifier: Modifier = Modifier,
     titleModifier: Modifier = Modifier,
 ) {
-    var cameraSelected by remember { mutableStateOf(true) }
-    var photoSelected by remember { mutableStateOf(false) }
-    var notificationSelected by remember { mutableStateOf(false) }
     var showPermissionReminder by rememberSaveable { mutableStateOf(false) }
 
     if (showPermissionReminder) {
@@ -134,12 +133,12 @@ fun PermissionApprovalScreen(
             .navigationBarsPadding()
             .padding(horizontal = 20.dp),
     ) {
-        Spacer(modifier = Modifier.height(53.dp))
+        Spacer(modifier = Modifier.height(56.dp))
         JjikmukAnimatedLogo(
             contentDescription = "JJIKMUK",
             modifier = logoModifier.size(73.dp),
         )
-        Spacer(modifier = Modifier.height(31.dp))
+        Spacer(modifier = Modifier.height(36.dp))
         PermissionHeading(modifier = titleModifier)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -148,32 +147,26 @@ fun PermissionApprovalScreen(
             style = JjikmukTheme.typography.bodyM,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
-        Spacer(modifier = Modifier.height(38.dp))
+        Spacer(modifier = Modifier.height(44.dp))
         PermissionCard(
             title = "카메라",
-            description = "상품 바코드와 음식을 촬영해 성분을\n분석해요",
+            description = "상품 바코드와 음식을 촬영해\n성분을 분석해요",
             iconRes = R.drawable.ic_permission_camera,
             iconBackground = Color(0xFFE9F9EE),
-            checked = cameraSelected,
-            onClick = { cameraSelected = !cameraSelected },
         )
         Spacer(modifier = Modifier.height(14.dp))
         PermissionCard(
             title = "사진",
-            description = "갤러리에 저장된 사진으로도 성분을\n확인해요",
+            description = "갤러리에 저장된 사진으로도\n성분을 확인해요",
             iconRes = R.drawable.ic_permission_photo,
             iconBackground = Info,
-            checked = photoSelected,
-            onClick = { photoSelected = !photoSelected },
         )
         Spacer(modifier = Modifier.height(14.dp))
         PermissionCard(
             title = "알림",
-            description = "맞춤 안심 상품과 여러 이벤트 알림을\n보내드려요",
+            description = "맞춤 안심 상품과 여러 이벤트\n알림을 보내드려요",
             iconRes = R.drawable.ic_permission_bell,
             iconBackground = Color(0xFFFFF7ED),
-            checked = notificationSelected,
-            onClick = { notificationSelected = !notificationSelected },
         )
         Spacer(modifier = Modifier.weight(1f))
         JjikmukPrimaryButton(
@@ -181,9 +174,9 @@ fun PermissionApprovalScreen(
             onClick = {
                 onAllowClick(
                     PermissionSelection(
-                        camera = cameraSelected,
-                        photo = photoSelected,
-                        notification = notificationSelected,
+                        camera = true,
+                        photo = true,
+                        notification = true,
                     ),
                 )
             },
@@ -316,19 +309,17 @@ private fun PermissionCard(
     description: String,
     iconRes: Int,
     iconBackground: Color,
-    checked: Boolean,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
+            .padding(horizontal = 4.dp)
             .fillMaxWidth()
             .height(86.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(JjikmukTheme.colors.surface)
             .border(1.dp, JjikmukTheme.colors.borderSubtle, RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
             .padding(horizontal = 14.dp),
     ) {
         Box(
@@ -362,28 +353,6 @@ private fun PermissionCard(
                 style = JjikmukTheme.typography.bodyS,
             )
         }
-        PermissionCheckIndicator(checked = checked)
-    }
-}
-
-@Composable
-private fun PermissionCheckIndicator(
-    checked: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    if (checked) {
-        Image(
-            painter = painterResource(R.drawable.ic_condition_check),
-            contentDescription = null,
-            modifier = modifier.size(26.dp),
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .border(2.dp, JjikmukTheme.colors.border, CircleShape),
-        )
     }
 }
 
@@ -411,7 +380,7 @@ private fun buildRequiredPermissions(selection: PermissionSelection): List<Strin
     }
 }
 
-private val PermissionBackground = Color(0xFFFCFCFF)
+private val PermissionBackground = Color.White
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable

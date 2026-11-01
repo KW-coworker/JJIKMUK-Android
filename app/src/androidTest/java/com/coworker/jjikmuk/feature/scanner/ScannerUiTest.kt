@@ -39,7 +39,7 @@ class ScannerUiTest {
         compose.setContent {
             JjikmukTheme {
                 ScannerScreen(
-                    mode = mode.value, onModeChange = { mode.value = it },
+                    compareEnabled = true,                    mode = mode.value, onModeChange = { mode.value = it },
                     onBackClick = {}, onFlashClick = {}, onGalleryClick = {},
                     onShutterClick = {}, onCompareListClick = {},
                     cameraContent = { Box(Modifier.fillMaxSize().background(Color.White)) },

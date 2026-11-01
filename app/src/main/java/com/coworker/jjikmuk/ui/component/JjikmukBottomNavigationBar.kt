@@ -26,11 +26,11 @@ enum class MainTab(
     val label: String,
     @DrawableRes val iconRes: Int,
 ) {
-    Home("Home", R.drawable.ic_home),
+    Home("Home", R.drawable.ic_nav_home),
     Diet("Diet", R.drawable.ic_diet),
-    Product("Product", R.drawable.ic_product),
-    History("Chat", R.drawable.ic_chat_history),
-    My("MY", R.drawable.ic_my),
+    Product("Product", R.drawable.ic_nav_product),
+    History("Chat", R.drawable.ic_nav_chat),
+    My("MY", R.drawable.ic_nav_my),
 }
 
 @Composable
@@ -42,17 +42,17 @@ fun JjikmukBottomNavigationBar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = JjikmukTheme.colors.surface,
-        shadowElevation = 8.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, JjikmukTheme.colors.borderSubtle),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(91.dp)
-                .padding(start = 31.dp, top = 8.dp, end = 27.dp, bottom = 20.dp),
+                .padding(start = 15.dp, top = 8.dp, end = 15.dp, bottom = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top,
         ) {
-            MainTab.entries.forEach { tab ->
+            MainTab.entries.filter { it != MainTab.Diet }.forEach { tab ->
                 JjikmukBottomNavigationItem(
                     tab = tab,
                     selected = tab == selectedTab,
@@ -75,15 +75,15 @@ private fun JjikmukBottomNavigationItem(
     Column(
         modifier = modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .size(width = 64.dp, height = 63.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(if (tab == MainTab.History) 7.dp else 4.dp, Alignment.CenterVertically),
     ) {
         Icon(
             painter = painterResource(tab.iconRes),
             contentDescription = tab.label,
             tint = itemColor,
-            modifier = Modifier.size(24.dp),
+            modifier = if (tab == MainTab.History) Modifier.size(21.dp, 20.dp) else Modifier.size(24.dp),
         )
         Text(
             text = tab.label,
