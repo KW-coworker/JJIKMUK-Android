@@ -36,7 +36,7 @@ SHA-1은 이 작업 폴더에서 `./gradlew :app:signingReport`로 확인한다.
 
 ### Android에 Client ID 적용
 
-빌드 설정은 로컬 Gradle 속성 `jjikmuk.googleWebClientId`를 읽는다. 예를 들어 개인 `~/.gradle/gradle.properties` 또는 빌드 옵션 `-Pjjikmuk.googleWebClientId=받은_Web_Client_ID`로 전달한다. 기본값은 빈 값이며, 개인 설정을 저장소에 추가하지 않는다.
+빌드 설정은 로컬 Gradle 속성 `jjikmuk.googleWebClientId`를 읽는다. 예를 들어 개인 `~/.gradle/gradle.properties` 또는 빌드 옵션 `-Pjjikmuk.googleWebClientId=받은_Web_Client_ID`로 전달한다. 기본값은 전달받은 프로젝트의 공개 Web Client ID다. 다른 환경의 개인 재정의 설정은 저장소에 추가하지 않는다.
 
 debug에서는 기존 앱 내부 `no_backup/auth-api.properties`에 `googleWebClientId=받은_Web_Client_ID`를 추가할 수도 있다. 파일에 다른 설정이 있으면 보존하고 `googleWebClientId`만 추가한다. debug 파일 값이 빌드 설정보다 우선하며 release는 이 파일을 읽지 않는다. Client ID는 식별자지만 OAuth Client secret, 계정 비밀번호, 서비스/Google 토큰은 설정 문서나 커밋에 넣지 않는다.
 
@@ -66,3 +66,7 @@ debug에서는 기존 앱 내부 `no_backup/auth-api.properties`에 `googleWebCl
 - [AndroidX Credentials 릴리스](https://developer.android.com/jetpack/androidx/releases/credentials): 안정 버전 `1.6.0` 사용.
 - [Google ID 라이브러리 릴리스](https://developers.google.com/identity/android-credential-manager/releases): `googleid:1.2.1` 사용.
 - API 계약 우선순위는 [로컬 명세 시작점](../../API/README.md), 연결 세부 계약은 [백엔드 통합 명세 v2](../../API/backend/api-spec/frontend-auth-integration-v2.md)를 따른다.
+
+## 2026-11-02 앱 Client ID 반영
+
+전달받은 프로젝트 jjikmuk-513317의 Web OAuth Client ID를 app/build.gradle.kts의 기본 google_web_client_id 리소스로 반영했다. Web Client ID는 공개 식별자이며 Client Secret은 앱/저장소에 포함하지 않는다. Gradle jjikmuk.googleWebClientId로 환경별 재정의가 가능하고 debug 기기 설정의 빈 값은 기본값을 가리지 않는다. 서버 GOOGLE_CLIENT_ID와 같은 Web ID를 사용해야 한다. Android OAuth 패키지·실제 서명 SHA 등록과 기기 Google 계정/Play 서비스도 별도 확인한다.

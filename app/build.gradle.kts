@@ -19,7 +19,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-        resValue("string", "google_web_client_id", providers.gradleProperty("jjikmuk.googleWebClientId").orElse("").get())
+        resValue("string", "google_web_client_id", providers.gradleProperty("jjikmuk.googleWebClientId").orElse("666201973913-lkruga52re3a61f7cuel2nbsg84udj2p.apps.googleusercontent.com").get())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
