@@ -13,7 +13,14 @@ import kotlinx.coroutines.flow.stateIn
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
     likedProductRepository: LikedProductRepository,
+    recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
 ) : ViewModel() {
+
+    val recentProducts = recentlyViewedProducts.products.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList(),
+    )
 
     val likedProducts: StateFlow<List<LikedProduct>> =
         likedProductRepository.observeLikedProducts()

@@ -38,6 +38,7 @@ class ProductViewModel @Inject constructor(
     private val recentSearchKeywordStore: RecentSearchKeywordStore,
     private val safeRecommendations: SafeRecommendationRepository,
     private val accessTokens: AccessTokenStore,
+    private val recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
     private val productOptions: com.coworker.jjikmuk.data.repository.ProductOptionsRepository,
 ) : ViewModel() {
 
@@ -206,6 +207,7 @@ class ProductViewModel @Inject constructor(
 
     fun loadProductDetail(barcode: String?) {
         val code = barcode?.takeIf(String::isNotBlank) ?: return
+        val viewOwner = recentlyViewedProducts.captureOwner()
         detailJob?.cancel()
         alternativeJob?.cancel()
         _detailUiState.value = ProductDetailUiState(isLoading = true, referenceBarcode = code)
@@ -214,6 +216,7 @@ class ProductViewModel @Inject constructor(
                 // Read server-owned conditions via the authenticated product API; no implicit profile writes.
                 val product = productRepository.getProductDetail(code).getOrThrow()
                 _detailUiState.value = ProductDetailUiState(product = product, referenceBarcode = code, capacitiesLoading = true)
+                recordViewedProduct(product, viewOwner)
                 try {
                     val capacities = productOptions.capacities(code)
                     _detailUiState.update { it.copy(capacities = capacities.options,
@@ -221,6 +224,9 @@ class ProductViewModel @Inject constructor(
                         product = capacities.options.firstOrNull { option -> option.key == capacities.selectedKey }?.product ?: product) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { _detailUiState.update { it.copy(capacitiesLoading = false, capacityError = "중량 옵션을 불러오지 못했어요.") } }
+                _detailUiState.value.product?.takeIf { it.barcode != product.barcode }?.let {
+                    recordViewedProduct(it, viewOwner)
+                }
                 refreshAlternatives()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { _detailUiState.value = ProductDetailUiState(referenceBarcode = code,
@@ -232,7 +238,19 @@ class ProductViewModel @Inject constructor(
         val option = _detailUiState.value.capacities.firstOrNull { it.key == key } ?: return
         _detailUiState.update { it.copy(product = option.product, selectedCapacityKey = key,
             alternatives = emptyList(), alternativesError = null) }
+        recordViewedProduct(option.product, recentlyViewedProducts.captureOwner())
         refreshAlternatives()
+    }
+
+    private fun recordViewedProduct(
+        product: ProductDetail,
+        owner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner?,
+    ) {
+        viewModelScope.launch {
+            try { recentlyViewedProducts.record(product, owner) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: java.io.IOException) { /* History storage failure must not hide a valid product detail. */ }
+        }
     }
 
     fun refreshAlternatives() {

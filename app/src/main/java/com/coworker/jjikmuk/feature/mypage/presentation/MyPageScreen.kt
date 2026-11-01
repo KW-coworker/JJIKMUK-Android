@@ -80,6 +80,11 @@ fun MyPageScreen(
     LaunchedEffect(photoState.generation) { photoViewModel.load() }
     val photoModel = com.coworker.jjikmuk.feature.auth.photo.rememberPrivatePhotoModel(photoState.photo)
     val likedProducts by myPageViewModel.likedProducts.collectAsStateWithLifecycle()
+    val viewedProducts by myPageViewModel.recentProducts.collectAsStateWithLifecycle()
+    val recentProducts = viewedProducts.map { product ->
+        MyPageProductUiModel(barcode = product.barcode, brand = product.brandName.ifBlank { "알수없음" },
+            name = product.productName, imageUrl = product.imageUrl)
+    }
     val likedProductUiModels = likedProducts.map { product -> product.toMyPageProductUiModel() }
     var selectedProductList by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
 
@@ -146,6 +151,7 @@ fun MyPageScreen(
             MyPageProductSection(
                 title = "최근 본 상품",
                 products = recentProducts,
+                onProductClick = { product -> product.barcode?.let { onHistoryProductClick(it, MyPageProductListType.Recent) } },
                 onMoreClick = { selectedProductList = MyPageProductListType.Recent },
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -439,6 +445,14 @@ private fun MyPageProductSection(
                     indication = null,
                     onClick = onMoreClick,
                 ),
+            )
+        }
+        if (products.isEmpty()) {
+            Text(
+                text = "${title}이 아직 없어요.",
+                color = JjikmukTheme.colors.textSecondary,
+                style = JjikmukTheme.typography.bodyM,
+                modifier = Modifier.padding(horizontal = 20.dp),
             )
         }
         Row(
@@ -852,24 +866,6 @@ private fun LikedProduct.toMyPageProductUiModel(): MyPageProductUiModel {
         imageUrl = imageUrl,
     )
 }
-
-private val recentProducts = listOf(
-    MyPageProductUiModel(
-        brand = "농심",
-        name = "새우깡",
-        imageResId = R.drawable.img_shrimp_snack,
-    ),
-    MyPageProductUiModel(
-        brand = "오리온",
-        name = "포키 블루베리",
-        imageResId = R.drawable.img_pocky_blueberry,
-    ),
-    MyPageProductUiModel(
-        brand = "해태",
-        name = "허니버터칩",
-        imageResId = R.drawable.img_honey_butter_chip,
-    ),
-)
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
