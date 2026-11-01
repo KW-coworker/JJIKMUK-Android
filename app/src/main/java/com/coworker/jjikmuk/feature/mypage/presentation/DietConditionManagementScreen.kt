@@ -1,6 +1,8 @@
 package com.coworker.jjikmuk.feature.mypage.presentation
 
 import androidx.compose.foundation.BorderStroke
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,12 +56,16 @@ import com.coworker.jjikmuk.ui.component.JjikmukBackButton
 import com.coworker.jjikmuk.ui.catalog.FoodAllergy
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
+typealias FamilySelectorContent = @Composable () -> Unit
+
 @Composable
 fun DietConditionManagementScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DietConditionManagementViewModel = hiltViewModel(),
+    selfEditor: (@Composable (FamilySelectorContent) -> Unit)? = null,
 ) {
+    BackHandler(onBack = onBackClick)
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     var selectedMemberId by rememberSaveable { mutableStateOf("me") }
     var editingProfile by remember { mutableStateOf<FamilyProfile?>(null) }
@@ -90,92 +96,71 @@ fun DietConditionManagementScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            DietConditionTopBar(onBackClick = onBackClick)
-        },
-        bottomBar = {
-            DietConditionBottomButton(
-                enabled = hasDietConditionChanges,
-                onClick = {
+    val familySelector: FamilySelectorContent = {
+        FamilyMemberSelector(
+            members = profiles,
+            selectedMemberId = selectedMemberId,
+            onMemberClick = { selectedMemberId = it },
+            onAddClick = {
+                editingProfile = FamilyProfile(NEW_FAMILY_ID, "", "🙂", "가족", false, "", emptySet(), emptySet())
+            },
+        )
+        Spacer(Modifier.fillMaxWidth().height(8.dp).background(JjikmukTheme.colors.surfaceSecondary))
+    }
+
+    if (selectedMember?.isMe == true && selfEditor != null) {
+        selfEditor(familySelector)
+    } else {
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            topBar = { DietConditionTopBar(onBackClick = onBackClick) },
+            bottomBar = {
+                DietConditionBottomButton(
+                    enabled = hasDietConditionChanges,
+                    onClick = {
+                        selectedMember?.let { member ->
+                            viewModel.updateDietCondition(member.id, editedVegetarian, editedAllergies, editedPreferences)
+                        }
+                    },
+                )
+            },
+            containerColor = JjikmukTheme.colors.surface,
+        ) { innerPadding ->
+            Column(Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState())) {
+                familySelector()
+                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp)) {
                     selectedMember?.let { member ->
-                        viewModel.updateDietCondition(
-                            profileId = member.id,
-                            vegetarian = editedVegetarian,
-                            allergies = editedAllergies,
-                            preferences = editedPreferences,
+                        DietConditionHeader(member = member, onEditClick = { editingProfile = member })
+                        Spacer(Modifier.height(28.dp))
+                        DietSectionTitle(text = "채식 유형", description = "단일 선택")
+                        Spacer(Modifier.height(14.dp))
+                        VegetarianGrid(
+                            selectedTitle = editedVegetarian,
+                            onOptionClick = { option ->
+                                editedVegetarian = if (editedVegetarian == option.title) "" else option.title
+                            },
+                        )
+                        Spacer(Modifier.height(30.dp))
+                        DietSectionTitle(text = "주의 성분 · 알레르기", description = "다중 선택")
+                        Spacer(Modifier.height(14.dp))
+                        DietChipFlow(
+                            values = allergyOptions,
+                            selectedValues = editedAllergies,
+                            selectedColor = Color(0xFFFF6B6B),
+                            selectedBackground = Color(0xFFFFF2F2),
+                            onValueClick = { editedAllergies = editedAllergies.toggleValue(it) },
+                        )
+                        Spacer(Modifier.height(30.dp))
+                        DietSectionTitle(text = "선호 조건", description = "다중 선택")
+                        Spacer(Modifier.height(14.dp))
+                        DietChipFlow(
+                            values = preferenceOptions,
+                            selectedValues = editedPreferences,
+                            selectedColor = JjikmukTheme.colors.brand,
+                            selectedBackground = JjikmukTheme.colors.info,
+                            onValueClick = { editedPreferences = editedPreferences.toggleValue(it) },
                         )
                     }
-                },
-            )
-        },
-        containerColor = JjikmukTheme.colors.surface,
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            FamilyMemberSelector(
-                members = profiles,
-                selectedMemberId = selectedMemberId,
-                onMemberClick = { selectedMemberId = it },
-            )
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .background(JjikmukTheme.colors.surfaceSecondary),
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 28.dp),
-            ) {
-                if (selectedMember != null) {
-                    DietConditionHeader(
-                        member = selectedMember,
-                        onEditClick = { editingProfile = selectedMember },
-                    )
-                    Spacer(modifier = Modifier.height(28.dp))
-                    DietSectionTitle(text = "채식 유형", description = "단일 선택")
-                    Spacer(modifier = Modifier.height(14.dp))
-                    VegetarianGrid(
-                        selectedTitle = editedVegetarian,
-                        onOptionClick = { option ->
-                            editedVegetarian = if (editedVegetarian == option.title) {
-                                ""
-                            } else {
-                                option.title
-                            }
-                        },
-                    )
-                    Spacer(modifier = Modifier.height(30.dp))
-                    DietSectionTitle(text = "주의 성분 · 알레르기", description = "다중 선택")
-                    Spacer(modifier = Modifier.height(14.dp))
-                    DietChipFlow(
-                        values = allergyOptions,
-                        selectedValues = editedAllergies,
-                        selectedColor = Color(0xFFFF6B6B),
-                        selectedBackground = Color(0xFFFFF2F2),
-                        onValueClick = { value ->
-                            editedAllergies = editedAllergies.toggleValue(value)
-                        },
-                    )
-                    Spacer(modifier = Modifier.height(30.dp))
-                    DietSectionTitle(text = "선호 조건", description = "다중 선택")
-                    Spacer(modifier = Modifier.height(14.dp))
-                    DietChipFlow(
-                        values = preferenceOptions,
-                        selectedValues = editedPreferences,
-                        selectedColor = JjikmukTheme.colors.brand,
-                        selectedBackground = JjikmukTheme.colors.info,
-                        onValueClick = { value ->
-                            editedPreferences = editedPreferences.toggleValue(value)
-                        },
-                    )
                 }
             }
         }
@@ -184,14 +169,14 @@ fun DietConditionManagementScreen(
     editingProfile?.let { profile ->
         FamilyProfileEditBottomSheet(
             profile = profile,
+            isNew = profile.id == NEW_FAMILY_ID,
             onDismiss = { editingProfile = null },
             onSave = { name, emoji, relation ->
-                viewModel.updateProfile(
-                    profileId = profile.id,
-                    name = name,
-                    emoji = emoji,
-                    relation = relation,
-                )
+                if (profile.id == NEW_FAMILY_ID) {
+                    viewModel.addProfile(name = name, emoji = emoji, relation = relation)
+                } else {
+                    viewModel.updateProfile(profileId = profile.id, name = name, emoji = emoji, relation = relation)
+                }
                 editingProfile = null
             },
             onDelete = {
@@ -242,12 +227,14 @@ private fun FamilyMemberSelector(
     members: List<FamilyProfile>,
     selectedMemberId: String,
     onMemberClick: (String) -> Unit,
+    onAddClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(112.dp)
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -259,7 +246,7 @@ private fun FamilyMemberSelector(
                 onClick = { onMemberClick(member.id) },
             )
         }
-        AddMemberTab()
+        AddMemberTab(onClick = onAddClick)
     }
 }
 
@@ -310,10 +297,11 @@ private fun FamilyMemberTab(
 
 @Composable
 private fun AddMemberTab(
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.width(54.dp),
+        modifier = modifier.width(54.dp).clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -617,13 +605,14 @@ private fun FamilyProfileEditBottomSheet(
     onDismiss: () -> Unit,
     onSave: (name: String, emoji: String, relation: String) -> Unit,
     onDelete: () -> Unit,
+    isNew: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var selectedEmoji by rememberSaveable(profile.id) { mutableStateOf(profile.emoji) }
     var selectedRelation by rememberSaveable(profile.id) { mutableStateOf(profile.relation) }
     var name by rememberSaveable(profile.id) { mutableStateOf(profile.name) }
     val canSave = name.isNotBlank() &&
-        (selectedEmoji != profile.emoji || selectedRelation != profile.relation || name != profile.name)
+        (isNew || selectedEmoji != profile.emoji || selectedRelation != profile.relation || name != profile.name)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -645,7 +634,7 @@ private fun FamilyProfileEditBottomSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "가족 프로필 수정",
+                    text = if (isNew) "가족 추가" else "가족 프로필 수정",
                     color = JjikmukTheme.colors.textPrimary,
                     style = JjikmukTheme.typography.titleL,
                 )
@@ -743,7 +732,7 @@ private fun FamilyProfileEditBottomSheet(
                     .padding(start = 16.dp, top = 17.dp, end = 16.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                BottomSheetActionButton(
+                if (!isNew) BottomSheetActionButton(
                     text = "삭제",
                     textColor = Color(0xFFE7000B),
                     backgroundColor = Color(0xFFFEF8F8),
@@ -752,7 +741,7 @@ private fun FamilyProfileEditBottomSheet(
                     modifier = Modifier.weight(0.78f),
                 )
                 BottomSheetActionButton(
-                    text = "수정하기",
+                    text = if (isNew) "추가하기" else "수정하기",
                     textColor = if (canSave) JjikmukTheme.colors.surface else JjikmukTheme.colors.textTertiary,
                     backgroundColor = if (canSave) JjikmukTheme.colors.brand else JjikmukTheme.colors.disabled,
                     borderColor = if (canSave) JjikmukTheme.colors.brand else JjikmukTheme.colors.border,
@@ -971,3 +960,5 @@ private fun DietConditionManagementScreenPreview() {
         DietConditionManagementScreen(onBackClick = {})
     }
 }
+
+private const val NEW_FAMILY_ID = "new-family-draft"

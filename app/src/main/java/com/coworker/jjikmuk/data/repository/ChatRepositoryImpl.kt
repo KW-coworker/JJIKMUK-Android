@@ -1,9 +1,8 @@
 package com.coworker.jjikmuk.data.repository
 
 import com.coworker.jjikmuk.data.remote.api.ChatApi
-import com.coworker.jjikmuk.data.remote.dto.ChatApiProduct
 import com.coworker.jjikmuk.data.remote.dto.ChatApiRequest
-import com.coworker.jjikmuk.data.remote.dto.ChatApiRecommendedProduct
+import com.coworker.jjikmuk.data.remote.dto.ChatApiResponse
 import com.coworker.jjikmuk.domain.model.ChatProductCandidate
 import com.coworker.jjikmuk.domain.model.ChatResponse
 import com.coworker.jjikmuk.domain.repository.ChatRepository
@@ -28,7 +27,6 @@ class ChatRepositoryImpl @Inject constructor(
             try {
                 AuthResult.Success(chatApi.sendMessage("Bearer $accessToken", ChatApiRequest(
                     message = message, barcode = selectedProduct?.barcode,
-                    product = selectedProduct?.toRequestProduct(),
                     // Consent UI/answer/candidate contract is owned by the chat feature team.
                     externalAiConsent = false,
                 )))
@@ -40,41 +38,26 @@ class ChatRepositoryImpl @Inject constructor(
         }
         return when (result) {
             is AuthResult.Success -> ChatResponse(answer = result.value.answer,
-                productCandidates = result.value.recommended_products
-                    .filter { it.selection_type == PRODUCT_CANDIDATE_TYPE }.mapNotNull { it.toDomain() })
+                productCandidates = result.value.toProductCandidates())
             is AuthResult.Failure -> ChatResponse(answer = result.error.userMessage())
         }
     }
 
-    private fun ChatProductCandidate.toRequestProduct(): ChatApiProduct? {
-        val productBarcode = barcode?.takeIf(String::isNotBlank) ?: return null
-
-        return ChatApiProduct(
-            productName = productName,
-            barcode = productBarcode,
-            allergy = allergyLabels,
-            rawMaterials = rawMaterials.orEmpty(),
-        )
-    }
-
-    private fun ChatApiRecommendedProduct.toDomain(): ChatProductCandidate? {
-        val name = product_name?.takeIf(String::isNotBlank) ?: return null
-        val allergies = (allergy_info + allergy)
-            .map(String::trim)
-            .filter(String::isNotEmpty)
-            .distinct()
-
-        return ChatProductCandidate(
-            productName = name,
-            brandName = prdlst_dcnm.orEmpty().ifBlank { "제품" },
-            barcode = barcode,
-            rawMaterials = rawmtrl_nm,
-            allergyLabels = allergies,
-            reason = reason,
-        )
-    }
-
-    private companion object {
-        const val PRODUCT_CANDIDATE_TYPE = "product_candidate"
-    }
 }
+
+/** The deployed server uses product_candidates; older responses use recommended_products. */
+internal fun ChatApiResponse.toProductCandidates(): List<ChatProductCandidate> =
+    (product_candidates.orEmpty() + recommended_products.orEmpty()
+        .filter { it.selection_type == "product_candidate" })
+        .mapNotNull { product ->
+            val name = product.product_name?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+            ChatProductCandidate(
+                productName = name,
+                brandName = product.prdlst_dcnm.orEmpty().ifBlank { "제품" },
+                barcode = product.barcode,
+                rawMaterials = product.rawmtrl_nm,
+                allergyLabels = (product.allergy_info.orEmpty() + product.allergy.orEmpty())
+                    .map(String::trim).filter(String::isNotEmpty).distinct(),
+                reason = product.reason,
+            )
+        }.distinctBy { it.barcode to it.productName }
