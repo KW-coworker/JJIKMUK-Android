@@ -24,9 +24,26 @@ class NetworkMigrationTest {
             assertEquals("Bearer test-only", request.headers["Authorization"])
             assertTrue(body.contains("\"externalAiConsent\":false")); assertTrue(body.contains("\"chatHistory\":[]"))
             assertFalse(body.contains("chat_history"))
+            val json = com.google.gson.JsonParser.parseString(body).asJsonObject
+            assertEquals(setOf("message", "chatHistory", "externalAiConsent"), json.keySet())
+            assertFalse(json.has("profiles"))
+            assertFalse(json.has("product"))
             assertFalse(client.retryOnConnectionFailure); assertFalse(client.followRedirects)
             assertFalse(client.interceptors.any { it.javaClass.name.contains("HttpLoggingInterceptor") })
             assertEquals("https://43.203.42.36/", BackendServer.BASE_URL)
+        }
+    }
+    @Test fun `selected product sends barcode without unsupported product or profiles`() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse.Builder().body("""{"answer":"확인"}""").build())
+            val api = Retrofit.Builder().baseUrl(server.url("/"))
+                .client(NetworkModule.provideOkHttpClient())
+                .addConverterFactory(GsonConverterFactory.create()).build().create(ChatApi::class.java)
+            api.sendMessage("Bearer test-only", ChatApiRequest("먹어도 돼?", barcode = "8801019309830"))
+            val json = com.google.gson.JsonParser.parseString(server.takeRequest().body!!.utf8()).asJsonObject
+            assertEquals("8801019309830", json.get("barcode").asString)
+            assertEquals(setOf("message", "barcode", "chatHistory", "externalAiConsent"), json.keySet())
         }
     }
     @Test fun `shared POST never replays 503 retry after or follows redirect`() = runBlocking {

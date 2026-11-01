@@ -2,33 +2,15 @@ package com.coworker.jjikmuk.data.remote.dto
 
 data class ChatApiRequest(
     val message: String,
-    val profiles: List<ChatApiProfile> = emptyList(),
     val barcode: String? = null,
-    val product: ChatApiProduct? = null,
     @com.google.gson.annotations.SerializedName("chatHistory")
     val chat_history: List<ChatApiHistoryMessage> = emptyList(),
     val externalAiConsent: Boolean = false,
 )
 
-data class ChatApiProfile(
-    val id: Long?,
-    val nickname: String,
-    val allergies: String?,
-    val diseases: String? = null,
-    val specialDiet: String? = null,
-    val dislikedIngredients: String? = null,
-)
-
 data class ChatApiHistoryMessage(
     val role: String,
     val content: String,
-)
-
-data class ChatApiProduct(
-    val productName: String,
-    val barcode: String,
-    val allergy: List<String>,
-    val rawMaterials: String,
 )
 
 data class ChatApiResponse(
@@ -43,11 +25,13 @@ data class ChatApiResponse(
     val active_profile_names: List<String> = emptyList(),
     val recommended_questions: List<String> = emptyList(),
     val recommended_products: List<ChatApiRecommendedProduct> = emptyList(),
+    val product_candidates: List<ChatApiRecommendedProduct> = emptyList(),
 )
 
 data class ChatApiRecommendedProduct(
     val product_name: String? = null,
     val food_code: String? = null,
+    @com.google.gson.annotations.SerializedName(value = "prdlst_dcnm", alternate = ["manufacturer_name", "brandName"])
     val prdlst_dcnm: String? = null,
     val barcode: String? = null,
     val rawmtrl_nm: String? = null,
