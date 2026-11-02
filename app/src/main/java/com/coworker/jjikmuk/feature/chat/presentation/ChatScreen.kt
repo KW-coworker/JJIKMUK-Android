@@ -61,6 +61,7 @@ fun ChatRoute(
         onBackClick = onBackClick,
         onSendMessage = viewModel::sendMessage,
         onProductCandidateClick = viewModel::selectProductCandidate,
+        onDismissProductCandidates = viewModel::dismissProductCandidates,
         modifier = modifier,
     )
 }
@@ -74,6 +75,7 @@ fun ChatScreen(
     onSendMessage: (String) -> Unit,
     onProductCandidateClick: (ChatProductCandidate) -> Unit,
     modifier: Modifier = Modifier,
+    onDismissProductCandidates: () -> Unit = {},
 ) {
     var inputMessage by rememberSaveable { mutableStateOf("") }
     var showImageSourceSheet by rememberSaveable { mutableStateOf(false) }
@@ -128,7 +130,7 @@ fun ChatScreen(
             ProductCandidatePicker(
                 candidates = uiState.productCandidates,
                 onCandidateClick = onProductCandidateClick,
-                onShowMoreClick = {},
+                onConfirmClick = onDismissProductCandidates,
                 modifier = Modifier
                     .matchParentSize()
                     .align(Alignment.BottomCenter),
