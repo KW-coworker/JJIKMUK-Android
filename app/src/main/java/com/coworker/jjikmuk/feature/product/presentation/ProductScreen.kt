@@ -1861,7 +1861,7 @@ private fun ProductRecommendationIntroCard(
                     style = JjikmukTheme.typography.labelS,
                 )
                 Text(
-                    text = "설정한신 프로필 기반으로\n딱 맞는 상품들을 준비했어요.",
+                    text = "설정하신 프로필 기반으로\n딱 맞는 상품들을 준비했어요.",
                     color = Color(0xFF4A5565),
                     style = JjikmukTheme.typography.caption,
                 )
