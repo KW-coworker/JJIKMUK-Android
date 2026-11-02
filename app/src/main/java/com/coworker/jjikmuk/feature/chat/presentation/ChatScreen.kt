@@ -33,7 +33,13 @@ import com.coworker.jjikmuk.ui.component.ImageSourceBottomSheet
 import com.coworker.jjikmuk.ui.component.JjikmukMessageInputBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.coworker.jjikmuk.feature.home.presentation.HomeViewModel
+import com.coworker.jjikmuk.ui.component.ScanTargetMemberUiModel
+import com.coworker.jjikmuk.ui.component.ScanTargetPopup
 import com.coworker.jjikmuk.ui.component.ScanTargetProfileUiModel
+import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
 import com.coworker.jjikmuk.ui.component.rememberJjikmukImageSourceLauncher
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
@@ -45,8 +51,11 @@ fun ChatRoute(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = hiltViewModel(),
+    scanTargetViewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val scanTargetMembers by scanTargetViewModel.scanTargetMembers.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { scanTargetViewModel.refreshMembersIfMissing() }
 
     LaunchedEffect(conversationId, initialMessage) {
         viewModel.start(
@@ -62,6 +71,9 @@ fun ChatRoute(
         onSendMessage = viewModel::sendMessage,
         onProductCandidateClick = viewModel::selectProductCandidate,
         onDismissProductCandidates = viewModel::dismissProductCandidates,
+        scanTargetMembers = scanTargetMembers,
+        onScanTargetOpen = scanTargetViewModel::refreshMembersIfMissing,
+        onScanTargetCheckedChange = scanTargetViewModel::updateScanTargetSelection,
         modifier = modifier,
     )
 }
@@ -76,8 +88,12 @@ fun ChatScreen(
     onProductCandidateClick: (ChatProductCandidate) -> Unit,
     modifier: Modifier = Modifier,
     onDismissProductCandidates: () -> Unit = {},
+    scanTargetMembers: List<ScanTargetMemberUiModel> = emptyList(),
+    onScanTargetOpen: () -> Unit = {},
+    onScanTargetCheckedChange: (memberId: String, checked: Boolean) -> Unit = { _, _ -> },
 ) {
     var inputMessage by rememberSaveable { mutableStateOf("") }
+    var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
     var showImageSourceSheet by rememberSaveable { mutableStateOf(false) }
     val imageSourceLauncher = rememberJjikmukImageSourceLauncher(
         onCameraFinished = { showImageSourceSheet = true },
@@ -90,8 +106,13 @@ fun ChatScreen(
             ChatTopBar(
                 title = title,
                 onBackClick = onBackClick,
-                selectedProfiles = defaultSelectedScanTargetProfiles(),
-                onScanTargetClick = {},
+                selectedProfiles = scanTargetMembers.toScanTargetProfiles(
+                    defaultImageResId = R.drawable.ic_launcher_foreground,
+                ),
+                onScanTargetClick = {
+                    onScanTargetOpen()
+                    showScanTargetPopup = true
+                },
             )
         },
     ) { innerPadding ->
@@ -154,6 +175,17 @@ fun ChatScreen(
                         .padding(bottom = 36.dp),
                 )
             }
+
+            if (showScanTargetPopup) {
+                ScanTargetPopup(
+                    members = scanTargetMembers,
+                    onMemberCheckedChange = onScanTargetCheckedChange,
+                    onDismissRequest = { showScanTargetPopup = false },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 15.dp),
+                )
+            }
         }
     }
 
@@ -199,19 +231,6 @@ private fun ChatTopBar(
     )
 }
 
-private fun defaultSelectedScanTargetProfiles(): List<ScanTargetProfileUiModel> {
-    return listOf(
-        ScanTargetProfileUiModel(
-            id = "me",
-            imageResId = R.drawable.ic_launcher_foreground,
-        ),
-        ScanTargetProfileUiModel(
-            id = "spouse",
-            imageResId = R.drawable.ic_launcher_foreground,
-            emoji = "👨🏻",
-        ),
-    )
-}
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable

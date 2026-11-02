@@ -45,6 +45,9 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val scanTargetMembers by viewModel.scanTargetMembers.collectAsStateWithLifecycle()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshMembersIfMissing()
+    }
     var showImageSourceSheet by rememberSaveable { mutableStateOf(false) }
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
     var inputMessage by rememberSaveable { mutableStateOf("") }
@@ -62,7 +65,10 @@ fun HomeScreen(
             JjikmukTopAppBar(
                 selectedProfiles = selectedProfiles,
                 onChatHistoryClick = onChatHistoryClick,
-                onScanTargetClick = { showScanTargetPopup = true },
+                onScanTargetClick = {
+                    viewModel.refreshMembersIfMissing()
+                    showScanTargetPopup = true
+                },
             )
         },
         bottomBar = {

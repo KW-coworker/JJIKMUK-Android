@@ -25,6 +25,8 @@ class HomeViewModel @Inject constructor(
     val scanTargetMembers: StateFlow<List<ScanTargetMemberUiModel>> =
         familyProfileRepository.observeProfiles()
             .combine(selectedProfileIds) { profiles, selectedIds ->
+                // Not loaded yet: keep the "select everyone by default" state until real members arrive.
+                if (profiles.isEmpty()) return@combine emptyList()
                 val nextSelectedIds = selectedIds.syncWithProfiles(profiles)
                 if (nextSelectedIds != selectedIds) {
                     selectedProfileIds.value = nextSelectedIds
@@ -44,6 +46,17 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             familyProfileRepository.ensureDefaultProfiles()
+        }
+    }
+
+    private var membersRefreshing = false
+
+    /** The first GET can fail (e.g. server restart); retry while the list is still empty. */
+    fun refreshMembersIfMissing() {
+        if (membersRefreshing || scanTargetMembers.value.isNotEmpty()) return
+        membersRefreshing = true
+        viewModelScope.launch {
+            try { familyProfileRepository.ensureDefaultProfiles() } finally { membersRefreshing = false }
         }
     }
 
