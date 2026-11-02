@@ -14,7 +14,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             JjikmukTheme {
-                JjikmukApp()
+                com.coworker.jjikmuk.feature.auth.photo.AccountPhotoPreviewProvider {
+                    JjikmukApp()
+                }
             }
         }
     }

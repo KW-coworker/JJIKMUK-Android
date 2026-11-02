@@ -93,4 +93,65 @@ class AuthPhotosTest {
         assertTrue(photos.upload(old) is AuthResult.Failure); assertEquals(1, uploads)
         pending.cancelAndJoin(); assertTrue(photos.state.value.mustReload); assertFalse(photos.state.value.busy)
     }
+    @Test fun `multiple avatar consumers reuse bytes while explicit refresh stays available`() = runTest {
+        var reads = 0
+        val counted = object : AuthRepository by repo {
+            override suspend fun photo(accessToken: String): AuthResult<ProfilePhoto> { reads++; return read }
+        }
+        val photos = service(counted)
+        repeat(3) { assertTrue(photos.loadIfNeeded() is AuthResult.Success) }
+        assertEquals(1, reads)
+        read = AuthResult.Success(serverCopy)
+        photos.load()
+        photos.loadIfNeeded()
+        assertEquals(2, reads); assertSame(serverCopy, photos.state.value.photo)
+        photos.delete()
+        photos.loadIfNeeded()
+        assertEquals(2, reads); assertNull(photos.state.value.photo)
+    }
+
+    @Test fun `missing avatar result is reused instead of requesting once per view`() = runTest {
+        var reads = 0
+        read = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 404, "PHOTO_NOT_FOUND"))
+        val counted = object : AuthRepository by repo {
+            override suspend fun photo(accessToken: String): AuthResult<ProfilePhoto> { reads++; return read }
+        }
+        val photos = service(counted)
+        repeat(3) { photos.loadIfNeeded() }
+        assertEquals(1, reads); assertTrue(photos.state.value.loaded); assertNull(photos.state.value.photo)
+        read = AuthResult.Success(old)
+        photos.load()
+        assertEquals(2, reads); assertSame(old, photos.state.value.photo)
+    }
+
+    @Test fun `concurrent avatar consumers do not duplicate the photo GET`() = runTest {
+        var reads = 0
+        val gate = CompletableDeferred<Unit>()
+        val delayed = object : AuthRepository by repo {
+            override suspend fun photo(accessToken: String): AuthResult<ProfilePhoto> { reads++; gate.await(); return read }
+        }
+        val photos = service(delayed)
+        val first = async { photos.loadIfNeeded() }; runCurrent()
+        photos.loadIfNeeded()
+        assertEquals(1, reads)
+        gate.complete(Unit); first.await()
+        photos.loadIfNeeded()
+        assertEquals(1, reads)
+    }
+
+    @Test fun `new login generation never reuses previous accounts cached photo`() = runTest {
+        var reads = 0
+        val counted = object : AuthRepository by repo {
+            override suspend fun photo(accessToken: String): AuthResult<ProfilePhoto> { reads++; return read }
+        }
+        val photos = service(counted)
+        photos.loadIfNeeded(); assertSame(old, photos.state.value.photo)
+        sessions.clear(); runCurrent()
+        val attempt = sessions.beginLogin()
+        sessions.acceptLogin(attempt, AuthLogin("B", 2, "2@example.com", "unused", 900, true, expiresAtMillis = 900_000), 0)
+        read = AuthResult.Success(serverCopy)
+        photos.loadIfNeeded()
+        assertEquals(2, reads); assertSame(serverCopy, photos.state.value.photo)
+    }
+
 }

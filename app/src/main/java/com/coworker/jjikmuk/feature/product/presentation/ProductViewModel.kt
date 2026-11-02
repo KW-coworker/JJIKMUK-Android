@@ -42,6 +42,7 @@ class ProductViewModel @Inject constructor(
     private val productOptions: com.coworker.jjikmuk.data.repository.ProductOptionsRepository,
 ) : ViewModel() {
 
+    private var detailOwner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner? = null
     private var detailJob: Job? = null
     private var alternativeJob: Job? = null
     private val selectedProfileIds = MutableStateFlow<Set<String>?>(null)
@@ -77,13 +78,10 @@ class ProductViewModel @Inject constructor(
     private var recommendationGeneration = 0
     private var recommendationPageJob: Job? = null
 
-    val likedProductBarcodes: StateFlow<Set<String>> =
-        likedProductRepository.observeLikedProductBarcodes()
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptySet(),
-            )
+    val favoriteState = likedProductRepository.observeState().stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0),
+        com.coworker.jjikmuk.domain.repository.LikedProductsState())
+    private var detailFavoriteAccount: com.coworker.jjikmuk.domain.repository.FavoriteAccount? = null
 
     private val _recentSearchKeywords = MutableStateFlow<List<String>>(emptyList())
     val recentSearchKeywords: StateFlow<List<String>> = _recentSearchKeywords.asStateFlow()
@@ -207,26 +205,40 @@ class ProductViewModel @Inject constructor(
 
     fun loadProductDetail(barcode: String?) {
         val code = barcode?.takeIf(String::isNotBlank) ?: return
+        loadDetail(code, null)
+    }
+
+    fun loadProductDetailById(productId: Long) {
+        if (productId > 0) loadDetail(null, productId)
+    }
+
+    private fun loadDetail(code: String?, productId: Long?) {
         val viewOwner = recentlyViewedProducts.captureOwner()
+        detailOwner = viewOwner
+        detailFavoriteAccount = likedProductRepository.captureAccount()
         detailJob?.cancel()
         alternativeJob?.cancel()
         _detailUiState.value = ProductDetailUiState(isLoading = true, referenceBarcode = code)
         detailJob = viewModelScope.launch {
             try {
                 // Read server-owned conditions via the authenticated product API; no implicit profile writes.
-                val product = productRepository.getProductDetail(code).getOrThrow()
+                val product = (if (productId != null) productRepository.getProductDetailById(productId)
+                    else productRepository.getProductDetail(requireNotNull(code))).getOrThrow()
+                if (viewOwner != recentlyViewedProducts.captureOwner()) return@launch
                 _detailUiState.value = ProductDetailUiState(product = product, referenceBarcode = code, capacitiesLoading = true)
                 recordViewedProduct(product, viewOwner)
+                refreshFavoriteStatus(product)
                 try {
-                    val capacities = productOptions.capacities(code)
+                    val capacities = productOptions.capacities(product.barcode)
                     _detailUiState.update { it.copy(capacities = capacities.options,
                         selectedCapacityKey = capacities.selectedKey, capacitiesLoading = false,
                         product = capacities.options.firstOrNull { option -> option.key == capacities.selectedKey }?.product ?: product) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { _detailUiState.update { it.copy(capacitiesLoading = false, capacityError = "중량 옵션을 불러오지 못했어요.") } }
                 _detailUiState.value.product?.takeIf { it.barcode != product.barcode }?.let {
-                    recordViewedProduct(it, viewOwner)
+                    recordViewedProduct(it, viewOwner, alreadyRecorded = false)
                 }
+                _detailUiState.value.product?.let(::refreshFavoriteStatus)
                 refreshAlternatives()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { _detailUiState.value = ProductDetailUiState(referenceBarcode = code,
@@ -235,19 +247,22 @@ class ProductViewModel @Inject constructor(
     }
 
     fun selectProductCapacity(key: String) {
+        if (detailOwner != recentlyViewedProducts.captureOwner() || key == _detailUiState.value.selectedCapacityKey) return
         val option = _detailUiState.value.capacities.firstOrNull { it.key == key } ?: return
         _detailUiState.update { it.copy(product = option.product, selectedCapacityKey = key,
             alternatives = emptyList(), alternativesError = null) }
-        recordViewedProduct(option.product, recentlyViewedProducts.captureOwner())
+        recordViewedProduct(option.product, detailOwner, alreadyRecorded = false)
+        refreshFavoriteStatus(option.product)
         refreshAlternatives()
     }
 
     private fun recordViewedProduct(
         product: ProductDetail,
         owner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner?,
+        alreadyRecorded: Boolean = true,
     ) {
         viewModelScope.launch {
-            try { recentlyViewedProducts.record(product, owner) }
+            try { recentlyViewedProducts.record(product, owner, alreadyRecorded) }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: java.io.IOException) { /* History storage failure must not hide a valid product detail. */ }
         }
@@ -284,10 +299,25 @@ class ProductViewModel @Inject constructor(
         }
     }
 
+    private fun refreshFavoriteStatus(product: ProductDetail) {
+        val id = product.productId?.takeIf { it > 0 } ?: return
+        val account = detailFavoriteAccount ?: return
+        viewModelScope.launch { likedProductRepository.refreshStatus(id, account) }
+    }
+
+    fun retryFavorites() {
+        val product = _detailUiState.value.product ?: return
+        refreshFavoriteStatus(product)
+    }
+
     fun toggleLikedProduct(product: ProductDetail) {
-        viewModelScope.launch {
-            likedProductRepository.toggleLikedProduct(product)
-        }
+        val id = product.productId?.takeIf { it > 0 } ?: return
+        val account = detailFavoriteAccount ?: return
+        if (account != likedProductRepository.captureAccount()) return
+        val state = favoriteState.value
+        if (state.account != account || id in state.pendingIds) return
+        val selected = state.statuses[id] ?: return
+        viewModelScope.launch { likedProductRepository.setFavorite(id, !selected, account) }
     }
 
     fun loadMoreSafeRecommendations() {

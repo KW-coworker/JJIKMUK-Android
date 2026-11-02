@@ -68,6 +68,7 @@ fun MyPageScreen(
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onLikedProductClick: (String) -> Unit = {},
+    onFavoriteProductClick: (Long) -> Unit = {},
     productListTypeToOpen: MyPageProductListType? = null,
     onProductListTypeOpenHandled: () -> Unit = {},
     onHistoryProductClick: (barcode: String, listType: MyPageProductListType) -> Unit = { _, _ -> },
@@ -76,11 +77,25 @@ fun MyPageScreen(
     myPageViewModel: MyPageViewModel = hiltViewModel(),
     photoViewModel: com.coworker.jjikmuk.feature.auth.photo.ProfilePhotoViewModel = hiltViewModel(),
 ) {
+    val familyState by myPageViewModel.familyState.collectAsStateWithLifecycle()
     val photoState by photoViewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(photoState.generation) { photoViewModel.load() }
+    LaunchedEffect(photoState.generation) { photoViewModel.ensureLoaded() }
     val photoModel = com.coworker.jjikmuk.feature.auth.photo.rememberPrivatePhotoModel(photoState.photo)
-    val likedProducts by myPageViewModel.likedProducts.collectAsStateWithLifecycle()
-    val viewedProducts by myPageViewModel.recentProducts.collectAsStateWithLifecycle()
+    val favorites by myPageViewModel.favoriteState.collectAsStateWithLifecycle()
+    val likedProducts = favorites.products
+    val favoriteMessage = favorites.message ?: if (favorites.isLoading) "즐겨찾기를 불러오는 중이에요." else null
+    val recentState by myPageViewModel.recentState.collectAsStateWithLifecycle()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        myPageViewModel.refreshRecentProducts()
+        myPageViewModel.refreshFavorites()
+        myPageViewModel.refreshFamilies()
+    }
+    val viewedProducts = recentState.products
+    val recentMessage = when {
+        recentState.failure != null -> "최근 본 상품을 불러오지 못했어요. 눌러서 다시 시도해 주세요."
+        recentState.isLoading -> "최근 본 상품을 불러오는 중이에요."
+        else -> null
+    }
     val recentProducts = viewedProducts.map { product ->
         MyPageProductUiModel(barcode = product.barcode, brand = product.brandName.ifBlank { "알수없음" },
             name = product.productName, imageUrl = product.imageUrl)
@@ -101,10 +116,18 @@ fun MyPageScreen(
             selectedListType = productListType,
             likedProducts = likedProductUiModels,
             recentProducts = recentProducts,
+            recentMessage = recentMessage,
+            onRetryRecent = myPageViewModel::refreshRecentProducts,
             onListTypeChange = { selectedProductList = it },
             onBackClick = { selectedProductList = null },
             onTabClick = onTabClick,
-            onProductClick = { barcode -> onHistoryProductClick(barcode, productListType) },
+            onProductClick = { product ->
+                if (productListType == MyPageProductListType.Liked) product.productId?.let(onFavoriteProductClick)
+                else product.barcode?.let { onHistoryProductClick(it, productListType) }
+            },
+            favoriteMessage = favoriteMessage,
+            onRetryFavorites = myPageViewModel::refreshFavorites,
+            onRemoveFavorite = myPageViewModel::removeFavorite,
             onScannerClick = onScannerClick,
             modifier = modifier,
         )
@@ -141,16 +164,23 @@ fun MyPageScreen(
                 onProfileEditClick = onProfileEditClick,
             )
             MyPageFamilyShareSection(
+                profiles = familyState.profiles,
+                status = familyState.message ?: if (!familyState.loaded) "가족 정보를 불러오는 중이에요." else null,
                 onSettingClick = onFamilyDietSettingClick,
             )
             MyPageProductSection(
                 title = "찜한 상품",
                 products = likedProductUiModels,
+                statusMessage = favoriteMessage,
+                onRetry = myPageViewModel::refreshFavorites,
+                onProductClick = { product -> if (product.isAvailable) product.productId?.let(onFavoriteProductClick) },
                 onMoreClick = { selectedProductList = MyPageProductListType.Liked },
             )
             MyPageProductSection(
                 title = "최근 본 상품",
                 products = recentProducts,
+                statusMessage = recentMessage,
+                onRetry = myPageViewModel::refreshRecentProducts,
                 onProductClick = { product -> product.barcode?.let { onHistoryProductClick(it, MyPageProductListType.Recent) } },
                 onMoreClick = { selectedProductList = MyPageProductListType.Recent },
             )
@@ -271,6 +301,8 @@ private fun MyPageProfileSection(
 
 @Composable
 private fun MyPageFamilyShareSection(
+    profiles: List<com.coworker.jjikmuk.domain.model.FamilyProfile>,
+    status: String?,
     onSettingClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -319,9 +351,9 @@ private fun MyPageFamilyShareSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MyPageFamilyAvatars()
+            MyPageFamilyAvatars(profiles)
             Text(
-                text = "나 외 2명 참여 중",
+                text = status ?: if (profiles.none { !it.isMe }) "등록된 가족이 없어요." else "나 외 ${profiles.count { !it.isMe }}명 등록됨",
                 color = JjikmukTheme.colors.textSecondary,
                 style = JjikmukTheme.typography.labelM,
             )
@@ -358,27 +390,12 @@ private fun MyPageSmallButton(
 
 @Composable
 private fun MyPageFamilyAvatars(
-    modifier: Modifier = Modifier,
+    profiles: List<com.coworker.jjikmuk.domain.model.FamilyProfile>, modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .width(92.dp)
-            .height(36.dp),
-    ) {
-        FamilyAvatar(
-            backgroundColor = Color(0xFFE5E7EB),
-            modifier = Modifier.align(Alignment.CenterStart),
-        )
-        FamilyAvatar(
-            emoji = "👨🏻",
-            backgroundColor = Color(0xFFDBEAFE),
-            modifier = Modifier.padding(start = 28.dp),
-        )
-        FamilyAvatar(
-            emoji = "👶🏻",
-            backgroundColor = Color(0xFFFEF9C2),
-            modifier = Modifier.padding(start = 56.dp),
-        )
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        profiles.take(3).forEach { profile ->
+            FamilyAvatar(emoji = profile.emoji, isMe = profile.isMe, backgroundColor = Color(0xFFE5E7EB))
+        }
     }
 }
 
@@ -387,6 +404,7 @@ private fun FamilyAvatar(
     backgroundColor: Color,
     modifier: Modifier = Modifier,
     emoji: String? = null,
+    isMe: Boolean = false,
 ) {
     Surface(
         modifier = modifier.size(36.dp),
@@ -398,12 +416,14 @@ private fun FamilyAvatar(
         ),
         shadowElevation = 2.dp,
     ) {
-        if (emoji != null) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = emoji,
-                    style = JjikmukTheme.typography.bodyL,
-                )
+        com.coworker.jjikmuk.feature.auth.photo.AccountAvatarContent(isMe) {
+            if (emoji != null) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = emoji,
+                        style = JjikmukTheme.typography.bodyL,
+                    )
+                }
             }
         }
     }
@@ -415,6 +435,8 @@ private fun MyPageProductSection(
     products: List<MyPageProductUiModel>,
     onProductClick: ((MyPageProductUiModel) -> Unit)? = null,
     onMoreClick: () -> Unit = {},
+    statusMessage: String? = null,
+    onRetry: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -447,12 +469,12 @@ private fun MyPageProductSection(
                 ),
             )
         }
-        if (products.isEmpty()) {
+        if (products.isEmpty() || statusMessage != null) {
             Text(
-                text = "${title}이 아직 없어요.",
+                text = statusMessage ?: "${title}이 아직 없어요.",
                 color = JjikmukTheme.colors.textSecondary,
                 style = JjikmukTheme.typography.bodyM,
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier = Modifier.padding(horizontal = 20.dp).clickable(onClick = onRetry),
             )
         }
         Row(
@@ -477,10 +499,15 @@ private fun MyPageProductListScreen(
     selectedListType: MyPageProductListType,
     likedProducts: List<MyPageProductUiModel>,
     recentProducts: List<MyPageProductUiModel>,
+    recentMessage: String?,
+    onRetryRecent: () -> Unit,
     onListTypeChange: (MyPageProductListType) -> Unit,
     onBackClick: () -> Unit,
     onTabClick: (MainTab) -> Unit,
-    onProductClick: (String) -> Unit,
+    onProductClick: (MyPageProductUiModel) -> Unit,
+    favoriteMessage: String?,
+    onRetryFavorites: () -> Unit,
+    onRemoveFavorite: (Long) -> Unit,
     onScannerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -542,6 +569,10 @@ private fun MyPageProductListScreen(
                     )
                 }
 
+                if (products.isNotEmpty() && selectedListType == MyPageProductListType.Liked && favoriteMessage != null) {
+                    Text(favoriteMessage, modifier = Modifier.fillMaxWidth().clickable(onClick = onRetryFavorites).padding(20.dp),
+                        color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyM)
+                }
                 if (products.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -550,7 +581,8 @@ private fun MyPageProductListScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "${selectedListType.title}이 아직 없어요.",
+                            text = if (selectedListType == MyPageProductListType.Recent) recentMessage ?: "최근 본 상품이 아직 없어요." else favoriteMessage ?: "${selectedListType.title}이 아직 없어요.",
+                            modifier = Modifier.clickable { if (selectedListType == MyPageProductListType.Recent) onRetryRecent() else onRetryFavorites() },
                             color = JjikmukTheme.colors.textSecondary,
                             style = JjikmukTheme.typography.bodyM,
                         )
@@ -570,7 +602,8 @@ private fun MyPageProductListScreen(
                             MyPageProductHistoryCard(
                                 product = product,
                                 showFavorite = selectedListType == MyPageProductListType.Liked,
-                                onClick = product.barcode?.let { barcode -> { onProductClick(barcode) } },
+                                onClick = if (product.isAvailable) { { onProductClick(product) } } else null,
+                                onRemoveFavorite = product.productId?.let { id -> { onRemoveFavorite(id) } },
                             )
                         }
                     }
@@ -635,6 +668,7 @@ private fun MyPageProductHistoryCard(
     product: MyPageProductUiModel,
     showFavorite: Boolean,
     onClick: (() -> Unit)?,
+    onRemoveFavorite: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val cardModifier = if (onClick != null) {
@@ -685,8 +719,7 @@ private fun MyPageProductHistoryCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        MyPageIngredientChip(text = "🥛 우유")
-                        MyPageIngredientChip(text = "🥜 땅콩")
+
                     }
                 }
             }
@@ -698,7 +731,8 @@ private fun MyPageProductHistoryCard(
                     style = JjikmukTheme.typography.h1,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 12.dp, end = 17.dp),
+                        .padding(top = 12.dp, end = 17.dp)
+                        .clickable { onRemoveFavorite?.invoke() },
                 )
             }
         }
@@ -845,6 +879,8 @@ private fun ProductThumbnail(
 
 private data class MyPageProductUiModel(
     val barcode: String? = null,
+    val productId: Long? = null,
+    val isAvailable: Boolean = true,
     val brand: String,
     val name: String,
     @DrawableRes val imageResId: Int? = null,
@@ -861,6 +897,8 @@ enum class MyPageProductListType(
 private fun LikedProduct.toMyPageProductUiModel(): MyPageProductUiModel {
     return MyPageProductUiModel(
         barcode = barcode,
+        productId = productId,
+        isAvailable = isAvailable,
         brand = brandName.ifBlank { "알수없음" },
         name = productName,
         imageUrl = imageUrl,

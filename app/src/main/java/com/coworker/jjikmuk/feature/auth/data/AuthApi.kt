@@ -30,7 +30,7 @@ internal interface AuthApi {
     @GET("api/users/me/family-profiles") suspend fun families(@Header("Authorization") authorization: String): Response<Envelope<List<FamilyBody>>>
     @GET("api/users/me/family-profiles/{id}") suspend fun family(@Header("Authorization") authorization: String, @Path("id") id: Long): Response<Envelope<FamilyBody>>
     @POST("api/users/me/family-profiles") suspend fun createFamily(@Header("Authorization") authorization: String,
-        @Body body: com.coworker.jjikmuk.feature.auth.domain.ProfileSubmission): Response<Envelope<FamilyBody>>
+        @Body body: com.coworker.jjikmuk.feature.auth.domain.FamilySubmission): Response<Envelope<FamilyBody>>
     @PATCH("api/users/me/family-profiles/{id}") suspend fun patchFamily(@Header("Authorization") authorization: String,
         @Path("id") id: Long, @Body body: okhttp3.RequestBody): Response<Envelope<FamilyBody>>
     @DELETE("api/users/me/family-profiles/{id}") suspend fun deleteFamily(@Header("Authorization") authorization: String,
@@ -45,7 +45,7 @@ internal class GoogleCancelBody(val linkToken: String)
 internal class ChangePasswordBody(val currentPassword: String, val newPassword: String)
 internal class PhotoReceiptBody(val photoUrl: String?, val authenticationRequired: Boolean?)
 internal class FamilyBody(val id: Long?, val nickname: String?, val allergies: String?, val specialDiet: String?,
-    val diseases: String?, val dislikedIngredients: String?, val version: Long?)
+    val diseases: String?, val dislikedIngredients: String?, val version: Long?, val relation: String?, val emoji: String?)
 internal class SendBody(val email: String, val purpose: String)
 internal class VerifyBody(val email: String, val purpose: String, val code: String)
 internal class LoginBody(val email: String, val password: String)

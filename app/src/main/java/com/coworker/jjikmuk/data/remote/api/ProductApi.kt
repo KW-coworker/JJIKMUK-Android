@@ -7,6 +7,9 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ProductApi {
+    @GET("api/products/id/{productId}")
+    suspend fun getProductDetailById(@Path("productId") productId: Long): ProductDetailApiResponse
+
 
     @GET("api/products/search")
     suspend fun searchProducts(

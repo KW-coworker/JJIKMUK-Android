@@ -12,7 +12,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 data class PhotoEditorState(val generation: Long = -1, val photo: ProfilePhoto? = null,
-    val busy: Boolean = false, val canEdit: Boolean = false, val mustReload: Boolean = false, val message: String? = null)
+    val busy: Boolean = false, val canEdit: Boolean = false, val mustReload: Boolean = false, val message: String? = null, val previewReady: Boolean = false)
 
 @HiltViewModel
 class ProfilePhotoViewModel @Inject constructor(
@@ -31,13 +31,19 @@ class ProfilePhotoViewModel @Inject constructor(
             error?.takeIf { it.first == session.generation }?.second ?: if (same) {
                 if (photo.mustReload) "사진 저장 결과를 확인해야 해요. 최신 사진을 확인해 주세요"
                 else photo.failure?.userMessage()
-            } else null)
+            } else null, previewReady = session.canEnterHome)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, PhotoEditorState())
 
     fun load() {
         if (sessions.state.value.credentials == null || state.value.busy) return
         inputError.value = null
         viewModelScope.launch { photos.load() }
+    }
+
+    fun ensureLoaded() {
+        val session = sessions.state.value
+        if (!session.canEnterHome) return
+        viewModelScope.launch { photos.loadIfNeeded(session.generation) }
     }
 
     fun beginSelection(): Boolean {

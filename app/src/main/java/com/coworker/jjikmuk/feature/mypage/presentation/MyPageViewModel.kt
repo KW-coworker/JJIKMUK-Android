@@ -9,24 +9,42 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
-    likedProductRepository: LikedProductRepository,
-    recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
+    private val familyProfileRepository: com.coworker.jjikmuk.domain.repository.FamilyProfileRepository,
+    private val likedProductRepository: LikedProductRepository,
+    private val recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
 ) : ViewModel() {
 
-    val recentProducts = recentlyViewedProducts.products.stateIn(
+    val recentState = recentlyViewedProducts.state.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = emptyList(),
+        started = SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0),
+        initialValue = com.coworker.jjikmuk.data.local.preference.RecentProductsState(),
     )
 
-    val likedProducts: StateFlow<List<LikedProduct>> =
-        likedProductRepository.observeLikedProducts()
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptyList(),
-            )
+    val familyState = familyProfileRepository.observeState().stateIn(viewModelScope,
+        SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0),
+        com.coworker.jjikmuk.domain.repository.FamilyProfilesState(loaded = false))
+    fun refreshFamilies() {
+        val account = familyProfileRepository.captureAccount()
+        viewModelScope.launch { familyProfileRepository.refresh(account) }
+    }
+
+    fun refreshRecentProducts() { viewModelScope.launch { recentlyViewedProducts.refresh() } }
+
+    val favoriteState = likedProductRepository.observeState().stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0),
+        com.coworker.jjikmuk.domain.repository.LikedProductsState())
+
+    fun refreshFavorites() {
+        val account = likedProductRepository.captureAccount()
+        viewModelScope.launch { likedProductRepository.refresh(account) }
+    }
+
+    fun removeFavorite(productId: Long) {
+        val account = likedProductRepository.captureAccount() ?: return
+        viewModelScope.launch { likedProductRepository.setFavorite(productId, false, account) }
+    }
 }

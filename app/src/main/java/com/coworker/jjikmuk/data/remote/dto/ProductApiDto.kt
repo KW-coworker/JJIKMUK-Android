@@ -22,6 +22,7 @@ data class ProductSearchItemDto(
 )
 
 data class ProductDto(
+    val productId: Long? = null,
     val barcode: String? = null,
     val productName: String? = null,
     val manufacturer: String? = null,

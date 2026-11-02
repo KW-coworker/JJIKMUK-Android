@@ -5,7 +5,15 @@ class ProfileSubmission(val nickname: String, val allergies: String? = null,
     val specialDiet: String? = null, val diseases: String? = null, val dislikedIngredients: String? = null)
 
 data class FamilyProfile(val id: Long, val nickname: String, val allergies: String?,
-    val specialDiet: String?, val diseases: String?, val dislikedIngredients: String?, val version: Long)
+    val specialDiet: String?, val diseases: String?, val dislikedIngredients: String?, val version: Long,
+    val relation: String? = null, val emoji: String? = null)
+
+/** Family-only metadata must never enter the account profile API. */
+class FamilySubmission(val nickname: String, val allergies: String? = null, val specialDiet: String? = null,
+    val diseases: String? = null, val dislikedIngredients: String? = null,
+    val relation: String? = null, val emoji: String? = null)
+class FamilyPatch(val conditions: ProfilePatch = ProfilePatch(),
+    val relation: ProfileField = ProfileField.Unchanged, val emoji: ProfileField = ProfileField.Unchanged)
 
 /** Kept in memory only. Never use the shared /me/photo URL as an image-cache key. */
 class ProfilePhoto(val bytes: ByteArray, val contentType: String) {

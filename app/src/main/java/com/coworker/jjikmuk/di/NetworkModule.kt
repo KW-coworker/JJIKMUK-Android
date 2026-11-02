@@ -18,6 +18,7 @@ import javax.inject.Singleton
 import okhttp3.OkHttpClient
 import com.coworker.jjikmuk.data.remote.BackendServer
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSink
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -39,7 +40,7 @@ object NetworkModule {
             .followRedirects(false).followSslRedirects(false)
             .addInterceptor { chain ->
                 val request = chain.request()
-                val body = request.body
+                val body = request.body ?: if (request.method in setOf("PUT", "DELETE")) ByteArray(0).toRequestBody() else null
                 // Paid POSTs must not be replayed by OkHttp for 408/503 follow-up responses.
                 val safeRequest = if (body == null || request.method in setOf("GET", "HEAD")) request else
                     request.newBuilder().method(request.method, object : RequestBody() {

@@ -5,4 +5,6 @@ data class LikedProduct(
     val productName: String,
     val brandName: String,
     val imageUrl: String?,
+    val productId: Long,
+    val isAvailable: Boolean = true,
 )
