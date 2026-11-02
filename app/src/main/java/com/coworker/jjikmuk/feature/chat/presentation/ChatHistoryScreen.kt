@@ -65,6 +65,7 @@ import com.coworker.jjikmuk.ui.component.ScanTargetMemberUiModel
 import com.coworker.jjikmuk.ui.component.ScanTargetPopup
 import com.coworker.jjikmuk.ui.component.defaultScanTargetMembers
 import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
+import com.coworker.jjikmuk.ui.component.toScanTargetMembers
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import kotlinx.coroutines.launch
 
@@ -84,11 +85,8 @@ fun ChatHistoryScreen(
     var isEditMode by rememberSaveable { mutableStateOf(false) }
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
     val selectedChatIds = remember { mutableStateListOf<String>() }
-    val scanTargetMembers = remember {
-        mutableStateListOf<ScanTargetMemberUiModel>().apply {
-            addAll(defaultScanTargetMembers())
-        }
-    }
+    val targetState by viewModel.targetState.collectAsStateWithLifecycle()
+    val scanTargetMembers = targetState.toScanTargetMembers()
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
         defaultImageResId = R.drawable.ic_launcher_foreground,
     )
@@ -176,14 +174,7 @@ fun ChatHistoryScreen(
             if (showScanTargetPopup) {
                 ScanTargetPopup(
                     members = scanTargetMembers,
-                    onMemberCheckedChange = { memberId, checked ->
-                        val memberIndex = scanTargetMembers.indexOfFirst { member -> member.id == memberId }
-                        if (memberIndex >= 0) {
-                            scanTargetMembers[memberIndex] = scanTargetMembers[memberIndex].copy(
-                                isSelected = checked,
-                            )
-                        }
-                    },
+                    onMemberCheckedChange = viewModel::selectTarget,
                     onDismissRequest = { showScanTargetPopup = false },
                     modifier = Modifier
                         .align(Alignment.TopEnd)

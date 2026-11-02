@@ -23,8 +23,15 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ChatHistoryViewModel @Inject constructor(
+    private val targets: com.coworker.jjikmuk.domain.repository.AnalysisTargetRepository,
     private val chatHistoryRepository: ChatHistoryRepository,
 ) : ViewModel() {
+
+    val targetState = targets.state
+    fun selectTarget(id: String, selected: Boolean) {
+        val account = targets.captureAccount()
+        viewModelScope.launch { targets.setSelected(id, selected, account) }
+    }
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()

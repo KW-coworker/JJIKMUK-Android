@@ -12,7 +12,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class NetworkMigrationTest {
-    @Test fun `chat uses backend path Bearer and explicit false consent without body logging`() = runBlocking {
+    @Test fun `chat uses backend path bearer and supported body without body logging`() = runBlocking {
         MockWebServer().use { server ->
             server.start(); server.enqueue(MockResponse.Builder().body("""{"answer":"확인"}""").build())
             val client = NetworkModule.provideOkHttpClient()
@@ -22,10 +22,10 @@ class NetworkMigrationTest {
             val request = server.takeRequest(); val body = request.body!!.utf8()
             assertEquals("/api/chat", request.url.encodedPath)
             assertEquals("Bearer test-only", request.headers["Authorization"])
-            assertTrue(body.contains("\"externalAiConsent\":false")); assertTrue(body.contains("\"chatHistory\":[]"))
+            assertFalse(body.contains("externalAiConsent")); assertTrue(body.contains("\"chatHistory\":[]"))
             assertFalse(body.contains("chat_history"))
             val json = com.google.gson.JsonParser.parseString(body).asJsonObject
-            assertEquals(setOf("message", "chatHistory", "externalAiConsent"), json.keySet())
+            assertEquals(setOf("message", "chatHistory"), json.keySet())
             assertFalse(json.has("profiles"))
             assertFalse(json.has("product"))
             assertFalse(client.retryOnConnectionFailure); assertFalse(client.followRedirects)
@@ -43,7 +43,7 @@ class NetworkMigrationTest {
             api.sendMessage("Bearer test-only", ChatApiRequest("먹어도 돼?", barcode = "8801019309830"))
             val json = com.google.gson.JsonParser.parseString(server.takeRequest().body!!.utf8()).asJsonObject
             assertEquals("8801019309830", json.get("barcode").asString)
-            assertEquals(setOf("message", "barcode", "chatHistory", "externalAiConsent"), json.keySet())
+            assertEquals(setOf("message", "barcode", "chatHistory"), json.keySet())
         }
     }
     @Test fun `shared POST never replays 503 retry after or follows redirect`() = runBlocking {

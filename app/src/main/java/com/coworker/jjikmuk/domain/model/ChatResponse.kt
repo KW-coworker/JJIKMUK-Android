@@ -3,6 +3,7 @@ package com.coworker.jjikmuk.domain.model
 data class ChatResponse(
     val answer: String,
     val productCandidates: List<ChatProductCandidate> = emptyList(),
+    val errorCode: String? = null,
 )
 
 data class ChatProductCandidate(

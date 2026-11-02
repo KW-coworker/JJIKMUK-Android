@@ -11,5 +11,8 @@ interface ChatApi {
     suspend fun sendMessage(
         @Header("Authorization") authorization: String,
         @Body request: ChatApiRequest,
+        @retrofit2.http.Query("analysisMode") analysisMode: String? = null,
+        @retrofit2.http.Query("includeSelf") includeSelf: Boolean? = null,
+        @retrofit2.http.Query("familyProfileIds") familyProfileIds: List<Long>? = null,
     ): ChatApiResponse
 }

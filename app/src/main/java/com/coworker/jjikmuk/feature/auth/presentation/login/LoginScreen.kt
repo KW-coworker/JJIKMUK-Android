@@ -67,7 +67,7 @@ fun LoginRoute(
         onEmailChange = viewModel::updateEmail,
         onPasswordChange = viewModel::updatePassword,
         onBackClick = { viewModel.reset(); onBackClick() },
-        onLoginClick = { scope.launch { if (viewModel.login()) onLoginSuccess() } },
+        onLoginClick = { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { if (viewModel.login()) onLoginSuccess() } },
         onForgotPasswordClick = onForgotPasswordClick,
         onSignUpClick = onSignUpClick,
         onGoogleLoginClick = onGoogleLoginClick,
