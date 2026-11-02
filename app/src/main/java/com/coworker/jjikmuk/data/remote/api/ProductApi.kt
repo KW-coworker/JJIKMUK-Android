@@ -8,7 +8,7 @@ import retrofit2.http.Query
 
 interface ProductApi {
     @GET("api/products/id/{productId}")
-    suspend fun getProductDetailById(@Path("productId") productId: Long): ProductDetailApiResponse
+    suspend fun getProductDetailById(@Path("productId") productId: Long, @Query("analysisMode") analysisMode: String? = null, @Query("includeSelf") includeSelf: Boolean? = null, @Query("familyProfileIds") familyProfileIds: List<Long>? = null): ProductDetailApiResponse
 
 
     @GET("api/products/search")
@@ -16,6 +16,7 @@ interface ProductApi {
         @Query("keyword") keyword: String,
         @Query("userId") userId: Long? = null,
         @Query("allergies") allergies: List<String> = emptyList(),
+        @Query("analysisMode") analysisMode: String? = null, @Query("includeSelf") includeSelf: Boolean? = null, @Query("familyProfileIds") familyProfileIds: List<Long>? = null,
     ): ProductSearchApiResponse
 
     @GET("api/products/{barcode}")
@@ -23,5 +24,6 @@ interface ProductApi {
         @Path("barcode") barcode: String,
         @Query("userId") userId: Long? = null,
         @Query("allergies") allergies: List<String> = emptyList(),
+        @Query("analysisMode") analysisMode: String? = null, @Query("includeSelf") includeSelf: Boolean? = null, @Query("familyProfileIds") familyProfileIds: List<Long>? = null,
     ): ProductDetailApiResponse
 }

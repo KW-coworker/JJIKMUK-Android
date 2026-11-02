@@ -34,6 +34,9 @@ import com.coworker.jjikmuk.ui.component.JjikmukMessageInputBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import com.coworker.jjikmuk.ui.component.ScanTargetProfileUiModel
+import com.coworker.jjikmuk.ui.component.ScanTargetPopup
+import com.coworker.jjikmuk.ui.component.toScanTargetMembers
+import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
 import com.coworker.jjikmuk.ui.component.rememberJjikmukImageSourceLauncher
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
@@ -47,6 +50,7 @@ fun ChatRoute(
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val targetState by viewModel.targetState.collectAsStateWithLifecycle()
 
     LaunchedEffect(conversationId, initialMessage) {
         viewModel.start(
@@ -60,6 +64,8 @@ fun ChatRoute(
         uiState = uiState,
         onBackClick = onBackClick,
         onSendMessage = viewModel::sendMessage,
+        targetState = targetState,
+        onTargetCheckedChange = viewModel::selectTarget,
         onProductCandidateClick = viewModel::selectProductCandidate,
         onDismissProductCandidates = viewModel::dismissProductCandidates,
         modifier = modifier,
@@ -76,7 +82,11 @@ fun ChatScreen(
     onProductCandidateClick: (ChatProductCandidate) -> Unit,
     modifier: Modifier = Modifier,
     onDismissProductCandidates: () -> Unit = {},
+    targetState: com.coworker.jjikmuk.domain.repository.AnalysisTargetsState = com.coworker.jjikmuk.domain.repository.AnalysisTargetsState(),
+    onTargetCheckedChange: (String, Boolean) -> Unit = { _, _ -> },
 ) {
+    var showTargets by rememberSaveable { mutableStateOf(false) }
+    val members = targetState.toScanTargetMembers()
     var inputMessage by rememberSaveable { mutableStateOf("") }
     var showImageSourceSheet by rememberSaveable { mutableStateOf(false) }
     val imageSourceLauncher = rememberJjikmukImageSourceLauncher(
@@ -90,8 +100,8 @@ fun ChatScreen(
             ChatTopBar(
                 title = title,
                 onBackClick = onBackClick,
-                selectedProfiles = defaultSelectedScanTargetProfiles(),
-                onScanTargetClick = {},
+                selectedProfiles = members.toScanTargetProfiles(R.drawable.ic_launcher_foreground),
+                onScanTargetClick = { showTargets = true },
             )
         },
     ) { innerPadding ->
@@ -116,6 +126,12 @@ fun ChatScreen(
                         text = message.text,
                         isMine = message.isMine,
                     )
+                }
+                item {
+                    Text(targetState.message ?: if (!targetState.ready) "분석 대상을 확인하고 있어요."
+                        else if (targetState.selection?.mode == "none") "분석 대상 없음 · 개인 조건 없이 조회해요."
+                        else "분석 대상: " + members.filter { it.isSelected }.joinToString { it.name },
+                        style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary)
                 }
                 if (uiState.isLoading) {
                     item {
@@ -154,6 +170,10 @@ fun ChatScreen(
                         .padding(bottom = 36.dp),
                 )
             }
+            if (showTargets) ScanTargetPopup(members = members,
+                onMemberCheckedChange = onTargetCheckedChange,
+                onDismissRequest = { showTargets = false },
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 20.dp))
         }
     }
 
@@ -196,20 +216,6 @@ private fun ChatTopBar(
                 modifier = Modifier.align(Alignment.Center),
             )
         },
-    )
-}
-
-private fun defaultSelectedScanTargetProfiles(): List<ScanTargetProfileUiModel> {
-    return listOf(
-        ScanTargetProfileUiModel(
-            id = "me",
-            imageResId = R.drawable.ic_launcher_foreground,
-        ),
-        ScanTargetProfileUiModel(
-            id = "spouse",
-            imageResId = R.drawable.ic_launcher_foreground,
-            emoji = "👨🏻",
-        ),
     )
 }
 

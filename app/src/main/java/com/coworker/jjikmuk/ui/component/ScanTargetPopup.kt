@@ -1,5 +1,7 @@
 package com.coworker.jjikmuk.ui.component
 
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,13 +70,13 @@ fun ScanTargetPopup(
             ScanTargetPopupHeader(
                 onDismissRequest = onDismissRequest,
             )
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(208.dp)
                     .padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
-                members.forEach { member ->
+                items(members, key = { it.id }) { member ->
                     ScanTargetMemberRow(
                         member = member,
                         onCheckedChange = { checked ->

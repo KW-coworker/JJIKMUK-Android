@@ -6,6 +6,8 @@ import com.coworker.jjikmuk.data.remote.dto.ChatApiResponse
 import com.coworker.jjikmuk.domain.model.ChatProductCandidate
 import com.coworker.jjikmuk.domain.model.ChatResponse
 import com.coworker.jjikmuk.domain.repository.ChatRepository
+import com.coworker.jjikmuk.domain.repository.AnalysisTargetRepository
+import com.coworker.jjikmuk.domain.repository.AnalysisTargetSelection
 import javax.inject.Inject
 import com.coworker.jjikmuk.feature.auth.domain.*
 import com.coworker.jjikmuk.feature.auth.session.AuthorizedOperations
@@ -17,31 +19,37 @@ import java.io.IOException
 class ChatRepositoryImpl @Inject constructor(
     private val chatApi: ChatApi,
     private val operations: AuthorizedOperations,
+    private val targets: AnalysisTargetRepository,
 ) : ChatRepository {
 
-    override suspend fun sendMessage(
-        message: String,
-        selectedProduct: ChatProductCandidate?,
-    ): ChatResponse {
+    override suspend fun sendMessage(message: String, selectedProduct: ChatProductCandidate?, selection: AnalysisTargetSelection?): ChatResponse {
+        val chosen = selection ?: targets.awaitSelection()
+            ?: return ChatResponse("분석 대상을 불러오지 못했어요. 가족 목록과 로그인 상태를 확인해 주세요.", errorCode = "ANALYSIS_SELECTION_UNAVAILABLE")
+        if (!targets.isCurrent(chosen)) return changed()
         val result = operations.execute { accessToken ->
+            if (!targets.isCurrent(chosen)) return@execute AuthResult.Failure(AuthFailure(AuthFailureKind.Server, code = "ANALYSIS_SELECTION_CHANGED"))
             try {
-                AuthResult.Success(chatApi.sendMessage("Bearer $accessToken", ChatApiRequest(
-                    message = message, barcode = selectedProduct?.barcode,
-                    // Consent UI/answer/candidate contract is owned by the chat feature team.
-                    externalAiConsent = false,
-                )))
+                // Backend resolves owned profiles from JWT and query IDs. Consent remains server-owned.
+                AuthResult.Success(chatApi.sendMessage("Bearer $accessToken", ChatApiRequest(message = message, barcode = selectedProduct?.barcode),
+                    analysisMode = chosen.mode, includeSelf = chosen.queryIncludeSelf, familyProfileIds = chosen.queryFamilyIds))
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (error: HttpException) { AuthResult.Failure(AuthFailure(AuthFailureKind.Server, error.code(),
-                code = if (error.code() == 401) "AUTH_TOKEN_INVALID" else null)) }
+            catch (error: HttpException) { AuthResult.Failure(com.coworker.jjikmuk.feature.auth.data.AuthErrorMapper.decode(
+                error.code(), error.response()?.errorBody()?.use { it.string() }, null, System.currentTimeMillis())) }
             catch (_: IOException) { AuthResult.Failure(AuthFailure(AuthFailureKind.Network)) }
             catch (_: Exception) { AuthResult.Failure(AuthFailure(AuthFailureKind.InvalidResponse)) }
         }
+        if (!targets.isCurrent(chosen)) return changed()
         return when (result) {
-            is AuthResult.Success -> ChatResponse(answer = result.value.answer,
-                productCandidates = result.value.toProductCandidates())
-            is AuthResult.Failure -> ChatResponse(answer = result.error.userMessage())
+            is AuthResult.Success -> ChatResponse(result.value.answer, result.value.toProductCandidates())
+            is AuthResult.Failure -> ChatResponse(when (result.error.code) {
+                "ANALYSIS_SELECTION_CHANGED" -> "분석 대상이 바뀌었어요. 다시 질문해 주세요."
+                "FAMILY_NOT_FOUND" -> "선택한 가족을 확인할 수 없어요. 가족 목록을 새로고침해 주세요."
+                "CHAT_ANALYSIS_SELECTION_UNSUPPORTED", "ANALYSIS_SELECTION_INVALID" -> "서버에서 선택한 대상을 처리하지 못했어요. 분석 대상과 서버 배포 상태를 확인해 주세요."
+                else -> result.error.userMessage()
+            }, errorCode = result.error.code ?: "CHAT_REQUEST_FAILED")
         }
     }
+    private fun changed() = ChatResponse("분석 대상이나 계정이 바뀌었어요. 다시 질문해 주세요.", errorCode = "ANALYSIS_SELECTION_CHANGED")
 
 }
 

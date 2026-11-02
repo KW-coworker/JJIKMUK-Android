@@ -16,6 +16,7 @@ data class ProductDetail(
     val analysisMessage: String?,
     val isDangerous: Boolean,
     val productId: Long? = null,
+    val personalConditionsApplied: Boolean = true,
 )
 
 enum class ProductSafetyStatus {

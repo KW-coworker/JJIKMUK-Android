@@ -53,6 +53,19 @@ class ProductDetailDesignTest {
         rule.onAllNodesWithText("열량 약 140.0kcal").onFirst().assertExists()
         shot("capacity-expanded")
     }
+    @Test fun noTargetsDoesNotShowPersonalDangerOrSuitabilityJudgment() {
+        val p=product(ProductSafetyStatus.Danger).copy(personalConditionsApplied=false, allergyLabels=listOf("우유"))
+        rule.setContent { JjikmukTheme {
+            ProductDetailDesign(ProductDetailUiState(product=p,referenceBarcode="fixture"),false,{}, {}, {}, {}, {}, {})
+        } }
+        rule.onNodeWithText("선택한 대상 없음 · 개인 식이조건 미적용").assertExists()
+        rule.onNodeWithText("사용자 맞춤 위험 성분 감지").assertDoesNotExist()
+        rule.onNodeWithText("사용자 적합성 확인 불가").assertDoesNotExist()
+        rule.onNodeWithText("등록 알레르기 충돌 없음").assertDoesNotExist()
+        rule.onNodeWithContentDescription("사용자 맞춤 위험 성분 감지").assertDoesNotExist()
+        rule.onNodeWithText("제품 표시 알레르기 성분").assertExists()
+        shot("no-targets")
+    }
     @Test fun safe()=render(ProductSafetyStatus.Pass,"safe")
     @Test fun unknown()=render(ProductSafetyStatus.Unknown,"unknown")
     @Test fun danger()=render(ProductSafetyStatus.Danger,"danger")

@@ -10,5 +10,8 @@ interface SafeRecommendationApi {
         @Query("limit") limit: Int = 6,
         @Query("cursor") cursor: String? = null,
         @Query("excludeBarcodes") excluded: List<String> = emptyList(),
+        @Query("analysisMode") analysisMode: String? = null,
+        @Query("includeSelf") includeSelf: Boolean? = null,
+        @Query("familyProfileIds") familyProfileIds: List<Long>? = null,
     ): SafeRecommendationResponse
 }

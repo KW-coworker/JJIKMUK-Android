@@ -12,13 +12,28 @@ import com.coworker.jjikmuk.domain.repository.ProductRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 
-class ProductRepositoryImpl @Inject constructor(
+class ProductRepositoryImpl internal constructor(
     private val productApi: ProductApi,
+    private val targets: com.coworker.jjikmuk.domain.repository.AnalysisTargetRepository? = null,
 ) : ProductRepository {
+    @Inject constructor(targets: com.coworker.jjikmuk.domain.repository.AnalysisTargetRepository, productApi: ProductApi) : this(productApi, targets)
+
+    internal suspend fun selection(): com.coworker.jjikmuk.domain.repository.AnalysisTargetSelection? =
+        if (targets == null) null else targets.awaitSelection() ?: error("분석 대상을 확인할 수 없어요.")
+    internal fun verify(selection: com.coworker.jjikmuk.domain.repository.AnalysisTargetSelection?) {
+        check(selection == null || targets?.isCurrent(selection) == true) { "분석 대상이 바뀌었어요. 다시 조회해 주세요." }
+    }
+    internal fun applySelection(product: ProductDetail, selection: com.coworker.jjikmuk.domain.repository.AnalysisTargetSelection?): ProductDetail =
+        if (selection?.mode != "none") product else product.copy(personalConditionsApplied = false,
+            safetyStatus = ProductSafetyStatus.Unknown, dangerousIngredients = emptyList(), isDangerous = false,
+            analysisMessage = "선택한 대상 없음 · 개인 식이조건 미적용")
+
 
     override suspend fun getProductDetailById(productId: Long): Result<ProductDetail> = requestResult {
-        val data = productApi.getProductDetailById(productId).data ?: error("상품 정보를 찾을 수 없어요.")
-        data.toDomain().also { require(it.productId == productId) }
+        val chosen = selection()
+        val data = productApi.getProductDetailById(productId, chosen?.mode, chosen?.queryIncludeSelf, chosen?.queryFamilyIds).data ?: error("상품 정보를 찾을 수 없어요.")
+        verify(chosen)
+        applySelection(data.toDomain(), chosen).also { require(it.productId == productId) }
     }
 
     override suspend fun searchProducts(
@@ -26,11 +41,9 @@ class ProductRepositoryImpl @Inject constructor(
         allergies: List<String>,
     ): Result<List<ProductSearchResult>> =
         requestResult {
-            productApi.searchProducts(
-                keyword = keyword,
-                allergies = allergies,
-            )
-                .data
+            // Catalog search must remain available even when personal profiles cannot be loaded.
+            val response = productApi.searchProducts(keyword = keyword, analysisMode = "none")
+            response.data
                 .orEmpty()
                 .mapNotNull { item -> item.toDomain() }
                 .sortedBySimilarity(keyword)
@@ -41,13 +54,16 @@ class ProductRepositoryImpl @Inject constructor(
         allergies: List<String>,
     ): Result<ProductDetail> =
         requestResult {
+            val chosen = selection()
             val detailData = productApi.getProductDetail(
                 barcode = barcode,
-                allergies = allergies,
+                allergies = if (chosen == null) allergies else emptyList(),
+                analysisMode = chosen?.mode, includeSelf = chosen?.queryIncludeSelf, familyProfileIds = chosen?.queryFamilyIds,
             ).data
                 ?: error("상품 상세 정보를 찾을 수 없어요.")
 
-            detailData.toDomain()
+            verify(chosen)
+            applySelection(detailData.toDomain(), chosen)
         }
 
     /** API failures stay failures; cancelling the caller must cancel the request, too. */

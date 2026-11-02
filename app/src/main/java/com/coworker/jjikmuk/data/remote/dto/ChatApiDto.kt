@@ -5,7 +5,6 @@ data class ChatApiRequest(
     val barcode: String? = null,
     @com.google.gson.annotations.SerializedName("chatHistory")
     val chat_history: List<ChatApiHistoryMessage> = emptyList(),
-    val externalAiConsent: Boolean = false,
 )
 
 data class ChatApiHistoryMessage(

@@ -75,7 +75,7 @@ internal fun ProductDetailDesign(
                     Text(product.productName, style = JjikmukTheme.typography.h1,
                         color = JjikmukTheme.colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                Image(painterResource(when (product.safetyStatus) {
+                if (product.personalConditionsApplied) Image(painterResource(when (product.safetyStatus) {
                     ProductSafetyStatus.Pass -> R.drawable.ic_face_pass
                     ProductSafetyStatus.Unknown -> R.drawable.ic_face_unknown
                     ProductSafetyStatus.Danger -> R.drawable.ic_face_danger
@@ -85,7 +85,8 @@ internal fun ProductDetailDesign(
                     ProductSafetyStatus.Danger -> "사용자 맞춤 위험 성분 감지"
                 }, modifier = Modifier.size(81.dp))
             }
-            if (product.safetyStatus != ProductSafetyStatus.Pass) ProductDetailRiskWarningCard(product)
+            ProductDetailRiskWarningCard(product)
+            ProductDetailAllergySection(product)
             CapacityPicker(state, onCapacity)
             Surface(onClick = { onAsk("${product.productName}의 성분과 알레르기 주의사항을 알려줘") },
                 modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
@@ -111,7 +112,7 @@ internal fun ProductDetailDesign(
                     style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textPrimary)
             }
             ProductRawMaterialsBox(product)
-            if (product.safetyStatus == ProductSafetyStatus.Danger) AlternativeSection(
+            if (product.personalConditionsApplied && product.safetyStatus == ProductSafetyStatus.Danger) AlternativeSection(
                 state, onAlternative, onMoreAlternatives, onRetryAlternatives)
         }
     }

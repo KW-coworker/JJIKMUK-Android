@@ -15,6 +15,7 @@ import com.coworker.jjikmuk.domain.repository.FamilyProfileRepository
 import com.coworker.jjikmuk.domain.repository.LikedProductRepository
 import com.coworker.jjikmuk.domain.repository.ProductRepository
 import com.coworker.jjikmuk.ui.component.ScanTargetMemberUiModel
+import com.coworker.jjikmuk.ui.component.toScanTargetMembers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,7 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class ProductViewModel @Inject constructor(
+    private val targets: com.coworker.jjikmuk.domain.repository.AnalysisTargetRepository,
     private val productRepository: ProductRepository,
     private val familyProfileRepository: FamilyProfileRepository,
     private val likedProductRepository: LikedProductRepository,
@@ -44,27 +46,11 @@ class ProductViewModel @Inject constructor(
 
     private var detailOwner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner? = null
     private var detailJob: Job? = null
+    private var searchJob: Job? = null
+    private var lastDetailRequest: Pair<String?, Long?>? = null
     private var alternativeJob: Job? = null
-    private val selectedProfileIds = MutableStateFlow<Set<String>?>(null)
-
-    val scanTargetMembers: StateFlow<List<ScanTargetMemberUiModel>> =
-        familyProfileRepository.observeProfiles()
-            .combine(selectedProfileIds) { profiles, selectedIds ->
-                val nextSelectedIds = selectedIds.syncWithProfiles(profiles)
-                if (nextSelectedIds != selectedIds) {
-                    selectedProfileIds.value = nextSelectedIds
-                }
-                profiles.map { profile ->
-                    profile.toScanTargetMemberUiModel(
-                        isSelected = profile.id in nextSelectedIds,
-                    )
-                }
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptyList(),
-            )
+    val scanTargetMembers = targets.state.map { it.toScanTargetMembers() }.stateIn(viewModelScope,
+        SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0), emptyList())
 
     private val _searchUiState = MutableStateFlow(ProductSearchUiState())
     val searchUiState: StateFlow<ProductSearchUiState> = _searchUiState.asStateFlow()
@@ -98,24 +84,21 @@ class ProductViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            familyProfileRepository.observeProfiles()
-                .combine(accessTokens.token) { profiles, token ->
-                    profiles.firstOrNull { profile -> profile.isMe }?.toRecommendationConditionKey() to token
+            targets.state.map { it.selection.takeIf { _ -> it.ready } }.distinctUntilChanged().collectLatest { selection ->
+                detailJob?.cancel(); alternativeJob?.cancel()
+                recommendationGeneration++; recommendationPageJob?.cancel(); nextRecommendationCursor = null
+                val detailRequest = lastDetailRequest
+                if (detailRequest != null) _detailUiState.value = ProductDetailUiState(isLoading = selection != null,
+                    errorMessage = if (selection == null) "분석 대상을 확인하고 있어요." else null)
+                if (selection == null) {
+                    _recommendationUiState.value = ProductRecommendationUiState(notice = "분석 대상을 확인하고 있어요.")
+                } else {
+                    detailRequest?.let { loadDetail(it.first, it.second) }
+                    if (selection.mode == "none") _recommendationUiState.value = ProductRecommendationUiState(
+                        notice = "선택한 대상 없음 · 개인 식이조건 미적용")
+                    else loadSafeRecommendations()
                 }
-                .distinctUntilChanged()
-                .collectLatest { (conditionKey, token) ->
-                    recommendationGeneration++
-                    recommendationPageJob?.cancel()
-                    nextRecommendationCursor = null
-                    if (token == null) {
-                        _recommendationUiState.value = ProductRecommendationUiState(errorMessage = "로그인 상태를 확인해 주세요.")
-                    } else if (conditionKey == null) {
-                        _recommendationUiState.value = ProductRecommendationUiState(
-                            errorMessage = "마이페이지에서 나의 식이 조건을 설정해 주세요.")
-                    } else {
-                        loadSafeRecommendations()
-                    }
-                }
+            }
         }
     }
 
@@ -155,7 +138,8 @@ class ProductViewModel @Inject constructor(
             recentSearchKeywordStore.addKeyword(trimmedKeyword)
         }
 
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             _searchUiState.update { state ->
                 state.copy(
                     query = trimmedKeyword,
@@ -168,7 +152,7 @@ class ProductViewModel @Inject constructor(
 
             productRepository.searchProducts(
                 keyword = trimmedKeyword,
-                allergies = selectedAllergies(),
+                allergies = emptyList(),
             )
                 .onSuccess { products ->
                     _searchUiState.update { state ->
@@ -213,6 +197,7 @@ class ProductViewModel @Inject constructor(
     }
 
     private fun loadDetail(code: String?, productId: Long?) {
+        lastDetailRequest = code to productId
         val viewOwner = recentlyViewedProducts.captureOwner()
         detailOwner = viewOwner
         detailFavoriteAccount = likedProductRepository.captureAccount()
@@ -271,7 +256,7 @@ class ProductViewModel @Inject constructor(
     fun refreshAlternatives() {
         alternativeJob?.cancel()
         val product = _detailUiState.value.product ?: return
-        if (product.safetyStatus != com.coworker.jjikmuk.domain.model.ProductSafetyStatus.Danger) {
+        if (!product.personalConditionsApplied || product.safetyStatus != com.coworker.jjikmuk.domain.model.ProductSafetyStatus.Danger) {
             _detailUiState.update { it.copy(alternativesLoading = false, alternatives = emptyList()) }
             return
         }
@@ -289,14 +274,9 @@ class ProductViewModel @Inject constructor(
         }
     }
 
-    fun updateScanTargetSelection(
-        memberId: String,
-        checked: Boolean,
-    ) {
-        selectedProfileIds.update { current ->
-            val currentSelectedIds = current.orEmpty()
-            if (checked) currentSelectedIds + memberId else currentSelectedIds - memberId
-        }
+    fun updateScanTargetSelection(memberId: String, checked: Boolean) {
+        val account = targets.captureAccount()
+        viewModelScope.launch { targets.setSelected(memberId, checked, account) }
     }
 
     private fun refreshFavoriteStatus(product: ProductDetail) {
@@ -363,6 +343,11 @@ class ProductViewModel @Inject constructor(
     }
 
     private suspend fun loadSafeRecommendations() {
+        val selection = targets.awaitSelection()
+        if (selection == null || selection.mode == "none") {
+            _recommendationUiState.value = ProductRecommendationUiState(notice = if (selection == null) "분석 대상을 확인할 수 없어요." else "선택한 대상 없음 · 개인 식이조건 미적용")
+            return
+        }
         _recommendationUiState.value = ProductRecommendationUiState(isLoading = true)
         try {
             val owner = safeRecommendations.owner()
@@ -387,30 +372,6 @@ class ProductViewModel @Inject constructor(
             .map(String::trim)
             .filter(String::isNotBlank)
             .distinct()
-    }
-
-    private fun Set<String>?.syncWithProfiles(
-        profiles: List<FamilyProfile>,
-    ): Set<String> {
-        val profileIds = profiles.map { profile -> profile.id }.toSet()
-        if (this == null) return profileIds
-
-        return intersect(profileIds)
-    }
-
-    private fun FamilyProfile.toScanTargetMemberUiModel(
-        isSelected: Boolean,
-    ): ScanTargetMemberUiModel {
-        return ScanTargetMemberUiModel(
-            id = id,
-            name = name,
-            relation = if (isMe) "나" else relation,
-            emoji = emoji,
-            isSelected = isSelected,
-            vegetarian = vegetarian,
-            allergies = allergies,
-            preferences = preferences,
-        )
     }
 
     private fun FamilyProfile?.toRecommendationConditionKey(): RecommendationConditionKey {

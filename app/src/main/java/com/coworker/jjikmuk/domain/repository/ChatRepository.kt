@@ -7,5 +7,6 @@ interface ChatRepository {
     suspend fun sendMessage(
         message: String,
         selectedProduct: ChatProductCandidate? = null,
+        selection: AnalysisTargetSelection? = null,
     ): ChatResponse
 }

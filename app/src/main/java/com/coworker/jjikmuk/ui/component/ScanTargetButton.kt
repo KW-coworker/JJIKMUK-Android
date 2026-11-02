@@ -15,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -36,7 +38,8 @@ fun ScanTargetButton(
     Box(
         modifier = modifier
             .size(width = 100.dp, height = 40.dp)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "분석 대상 선택" },
         contentAlignment = Alignment.CenterEnd,
     ) {
         val displayProfiles = selectedProfiles.take(MAX_VISIBLE_PROFILE_COUNT)

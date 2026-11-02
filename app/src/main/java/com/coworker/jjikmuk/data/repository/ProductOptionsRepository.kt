@@ -12,14 +12,19 @@ data class ProductAlternatives(val products: List<ProductAlternative>, val notic
 
 class ProductOptionsRepository @Inject constructor(private val api: ProductOptionsApi, private val mapper: ProductRepositoryImpl) {
     suspend fun capacities(barcode: String): ProductCapacities {
-        val data = api.variants(barcode).data ?: error("중량 정보를 확인할 수 없어요.")
+        val chosen = mapper.selection()
+        val data = api.variants(barcode, chosen?.mode, chosen?.queryIncludeSelf, chosen?.queryFamilyIds).data ?: error("중량 정보를 확인할 수 없어요.")
+        mapper.verify(chosen)
         return ProductCapacities(data.selectedOptionKey, data.options.mapNotNull { option ->
             val detail = option.data ?: return@mapNotNull null
-            ProductCapacity(option.key, option.label, option.amount, option.unit, mapper.mapDetail(detail))
+            ProductCapacity(option.key, option.label, option.amount, option.unit, mapper.applySelection(mapper.mapDetail(detail), chosen))
         })
     }
     suspend fun alternatives(barcode: String): ProductAlternatives {
-        val data = api.alternatives(barcode).data ?: error("대체 상품 응답을 확인할 수 없어요.")
+        val chosen = mapper.selection()
+        if (chosen?.mode == "none") return ProductAlternatives(emptyList(), "개인 식이조건 미적용")
+        val data = api.alternatives(barcode, analysisMode = chosen?.mode, includeSelf = chosen?.queryIncludeSelf, familyProfileIds = chosen?.queryFamilyIds).data ?: error("대체 상품 응답을 확인할 수 없어요.")
+        mapper.verify(chosen)
         val items = (data.items + data.fallbackItems).mapNotNull { item ->
             val p = item.product ?: return@mapNotNull null
             val code = p.barcode?.takeIf(String::isNotBlank) ?: return@mapNotNull null

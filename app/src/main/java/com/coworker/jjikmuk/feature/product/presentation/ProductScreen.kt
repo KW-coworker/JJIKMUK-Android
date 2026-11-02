@@ -199,6 +199,7 @@ private fun ProductScreenContent(
     var shouldReturnToMyOnDetailBack by rememberSaveable { mutableStateOf(false) }
     var alternativeListSource by remember { mutableStateOf<ProductDetailUiState?>(null) }
     var detailReturnDestination by rememberSaveable { mutableStateOf(ProductDestination.Search) }
+    LaunchedEffect(scanTargetMembers) { alternativeListSource = null }
     fun openRecommendedProduct(barcode: String?) {
         if (barcode == null) return
         if (currentDestination == ProductDestination.AlternativeList &&
@@ -362,6 +363,7 @@ private fun ProductScreenContent(
 
                 ProductDestination.Search -> {
                     ProductSearchContent(
+                        personalConditionsApplied = scanTargetMembers.isEmpty() || scanTargetMembers.any { it.isSelected },
                         searchUiState = searchUiState,
                         recentKeywords = recentSearchKeywords,
                         onKeywordClick = { keyword ->
@@ -547,24 +549,30 @@ private fun ProductSearchContent(
     onClearRecentKeywords: () -> Unit,
     onFilterClick: () -> Unit,
     onProductClick: (ProductSearchResult) -> Unit,
+    personalConditionsApplied: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    if (searchUiState.hasSearched) {
-        ProductSearchResultContent(
-            searchUiState = searchUiState,
-            onFilterClick = onFilterClick,
-            emptyBottomPadding = 0.dp,
-            onProductClick = onProductClick,
-            modifier = modifier,
-        )
-    } else {
-        ProductSearchInitialContent(
-            recentKeywords = recentKeywords,
-            onKeywordClick = onKeywordClick,
-            onDeleteRecentKeyword = onDeleteRecentKeyword,
-            onClearRecentKeywords = onClearRecentKeywords,
-            modifier = modifier,
-        )
+    Column(modifier.fillMaxSize()) {
+        if (!personalConditionsApplied) Text("선택한 대상 없음 · 개인 식이조건 미적용",
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary)
+        if (searchUiState.hasSearched) {
+            ProductSearchResultContent(
+                searchUiState = searchUiState,
+                onFilterClick = onFilterClick,
+                emptyBottomPadding = 0.dp,
+                onProductClick = onProductClick,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            ProductSearchInitialContent(
+                recentKeywords = recentKeywords,
+                onKeywordClick = onKeywordClick,
+                onDeleteRecentKeyword = onDeleteRecentKeyword,
+                onClearRecentKeywords = onClearRecentKeywords,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -845,7 +853,7 @@ private fun ProductDetailInfoSection(
                 )
             }
 
-            Box(
+            if (product.personalConditionsApplied) Box(
                 modifier = Modifier.size(81.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -880,6 +888,11 @@ internal fun ProductDetailRiskWarningCard(
     product: ProductDetail,
     modifier: Modifier = Modifier,
 ) {
+    if (!product.personalConditionsApplied) {
+        Text("선택한 대상 없음 · 개인 식이조건 미적용", modifier = modifier.padding(vertical = 12.dp),
+            style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary)
+        return
+    }
     if (product.safetyStatus == ProductSafetyStatus.Pass) return
     val title = when (product.safetyStatus) {
         ProductSafetyStatus.Danger -> "사용자 맞춤 위험 성분 감지"
@@ -995,7 +1008,7 @@ private fun ProductSafetyStatus.faceContentDescription(): String =
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ProductDetailAllergySection(
+internal fun ProductDetailAllergySection(
     product: ProductDetail,
     modifier: Modifier = Modifier,
 ) {
@@ -1006,7 +1019,7 @@ private fun ProductDetailAllergySection(
         verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         Text(
-            text = "주의 성분",
+            text = "제품 표시 알레르기 성분",
             color = JjikmukTheme.colors.textPrimary,
             style = JjikmukTheme.typography.titleL,
             modifier = Modifier.padding(start = 4.dp),
@@ -1616,7 +1629,7 @@ private fun RecommendedProductSection(
 
                 products.isEmpty() -> {
                     item {
-                        RecommendationMessageCard(message = "조건에 맞는 안심 상품을 찾지 못했어요.")
+                        RecommendationMessageCard(message = recommendationUiState.notice.ifBlank { "조건에 맞는 안심 상품을 찾지 못했어요." })
                     }
                 }
 
@@ -1703,7 +1716,7 @@ private fun ProductRecommendationListContent(
             }
         }
         if (recommendationState.errorMessage != null || (!recommendationState.isLoading && products.isEmpty())) {
-            Text(recommendationState.errorMessage ?: "조건에 맞는 상품을 찾지 못했어요.",
+            Text(recommendationState.errorMessage ?: recommendationState.notice.ifBlank { "조건에 맞는 상품을 찾지 못했어요." },
                 modifier = Modifier.padding(20.dp), color = JjikmukTheme.colors.textSecondary)
             Text("다시 시도", modifier = Modifier.padding(horizontal = 20.dp).clickable(onClick = onRetry),
                 color = JjikmukTheme.colors.brand)
