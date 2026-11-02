@@ -8,6 +8,7 @@ import org.junit.Assert.*
 
 class ProductOptionsRepositoryTest {
     private val mapper = ProductRepositoryImpl(object: ProductApi {
+        override suspend fun getProductDetailById(productId: Long): ProductDetailApiResponse = error("unused")
         override suspend fun searchProducts(keyword:String,userId:Long?,allergies:List<String>):ProductSearchApiResponse = error("unused")
         override suspend fun getProductDetail(barcode:String,userId:Long?,allergies:List<String>):ProductDetailApiResponse = error("unused")
     })

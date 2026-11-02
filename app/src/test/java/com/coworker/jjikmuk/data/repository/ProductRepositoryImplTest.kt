@@ -55,13 +55,24 @@ class ProductRepositoryImplTest {
         }
     }
 
+    @Test fun `detail preserves stable server id and id lookup verifies identity`() = runTest {
+        val detail = ProductDetailApiResponse(data = ProductDetailDataDto(product = ProductDto(
+            productId = 123, barcode = "880", productName = "서버 상품")))
+        val repository = ProductRepositoryImpl(FakeApi(detail = detail))
+        assertEquals(123L, repository.getProductDetail("880").getOrThrow().productId)
+        assertEquals(123L, repository.getProductDetailById(123).getOrThrow().productId)
+        assertTrue(repository.getProductDetailById(456).isFailure)
+    }
+
     private class FakeApi(
         private val error: Exception? = null,
         private val products: List<ProductSearchItemDto> = emptyList(),
+        private val detail: ProductDetailApiResponse = ProductDetailApiResponse(),
     ) : ProductApi {
         var calls = 0
         var allergies: List<String> = emptyList()
         private fun checkRequest() { calls++; error?.let { throw it } }
+        override suspend fun getProductDetailById(productId: Long): ProductDetailApiResponse { checkRequest(); return detail }
         override suspend fun searchProducts(keyword: String, userId: Long?, allergies: List<String>): ProductSearchApiResponse {
             checkRequest()
             this.allergies = allergies
@@ -69,7 +80,7 @@ class ProductRepositoryImplTest {
         }
         override suspend fun getProductDetail(barcode: String, userId: Long?, allergies: List<String>): ProductDetailApiResponse {
             checkRequest()
-            return ProductDetailApiResponse()
+            return detail
         }
 
     }

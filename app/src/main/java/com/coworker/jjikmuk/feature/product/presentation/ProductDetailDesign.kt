@@ -35,6 +35,9 @@ internal fun ProductDetailDesign(
     onMoreAlternatives: () -> Unit,
     onRetryAlternatives: () -> Unit,
     modifier: Modifier = Modifier,
+    favoriteEnabled: Boolean = true,
+    favoriteMessage: String? = null,
+    onRetryFavorite: () -> Unit = {},
 ) {
     val product = state.product ?: return
     Column(modifier.fillMaxSize().background(JjikmukTheme.colors.surface)
@@ -56,8 +59,11 @@ internal fun ProductDetailDesign(
             Text(if (isLiked) "♥" else "♡", fontSize = 28.sp, lineHeight = 32.sp,
                 color = if (isLiked) Color.Red else JjikmukTheme.colors.textSecondary,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 14.dp)
-                    .size(44.dp).wrapContentSize().clickable(onClick = onFavorite))
+                    .size(44.dp).wrapContentSize().clickable(enabled = favoriteEnabled, onClick = onFavorite))
         }
+        if (favoriteMessage != null) Text(favoriteMessage,
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onRetryFavorite).padding(20.dp),
+            color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyM)
         Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(top = 30.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(35.dp)) {
             Row(Modifier.fillMaxWidth().heightIn(min = 81.dp), verticalAlignment = Alignment.CenterVertically,

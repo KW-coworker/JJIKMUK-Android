@@ -15,6 +15,7 @@ data class ProductDetail(
     val dangerousIngredients: List<String>,
     val analysisMessage: String?,
     val isDangerous: Boolean,
+    val productId: Long? = null,
 )
 
 enum class ProductSafetyStatus {

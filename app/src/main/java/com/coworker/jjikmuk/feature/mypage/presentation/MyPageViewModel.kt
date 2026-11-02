@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
-    likedProductRepository: LikedProductRepository,
+    private val likedProductRepository: LikedProductRepository,
     private val recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
 ) : ViewModel() {
 
@@ -25,11 +25,17 @@ class MyPageViewModel @Inject constructor(
 
     fun refreshRecentProducts() { viewModelScope.launch { recentlyViewedProducts.refresh() } }
 
-    val likedProducts: StateFlow<List<LikedProduct>> =
-        likedProductRepository.observeLikedProducts()
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptyList(),
-            )
+    val favoriteState = likedProductRepository.observeState().stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0),
+        com.coworker.jjikmuk.domain.repository.LikedProductsState())
+
+    fun refreshFavorites() {
+        val account = likedProductRepository.captureAccount()
+        viewModelScope.launch { likedProductRepository.refresh(account) }
+    }
+
+    fun removeFavorite(productId: Long) {
+        val account = likedProductRepository.captureAccount() ?: return
+        viewModelScope.launch { likedProductRepository.setFavorite(productId, false, account) }
+    }
 }

@@ -40,6 +40,7 @@ fun JjikmukAppContent(
     var showProfileEdit by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showAccountSecurity by rememberSaveable { mutableStateOf(false) }
+    var productIdToOpen by rememberSaveable { mutableStateOf<Long?>(null) }
     var productBarcodeToOpen by rememberSaveable { mutableStateOf<String?>(null) }
     var productDetailReturnListType by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
     var myProductListTypeToOpen by rememberSaveable { mutableStateOf<MyPageProductListType?>(null) }
@@ -101,7 +102,8 @@ fun JjikmukAppContent(
                             chatMessage = prompt
                         },
                         productBarcodeToOpen = productBarcodeToOpen,
-                        onProductBarcodeOpenHandled = { productBarcodeToOpen = null },
+                        productIdToOpen = productIdToOpen,
+                        onProductBarcodeOpenHandled = { productBarcodeToOpen = null; productIdToOpen = null },
                         onReturnToMyFromDetail = {
                             selectedTab = MainTab.My
                             myProductListTypeToOpen = productDetailReturnListType
@@ -143,7 +145,14 @@ fun JjikmukAppContent(
                         onSettingsClick = {
                             showSettings = true
                         },
+                        onFavoriteProductClick = { id ->
+                            productIdToOpen = id
+                            productBarcodeToOpen = null
+                            productDetailReturnListType = com.coworker.jjikmuk.feature.mypage.presentation.MyPageProductListType.Liked
+                            selectedTab = MainTab.Product
+                        },
                         onLikedProductClick = { barcode ->
+                            productIdToOpen = null
                             productBarcodeToOpen = barcode
                             productDetailReturnListType = null
                             selectedTab = MainTab.Product
@@ -151,6 +160,7 @@ fun JjikmukAppContent(
                         productListTypeToOpen = myProductListTypeToOpen,
                         onProductListTypeOpenHandled = { myProductListTypeToOpen = null },
                         onHistoryProductClick = { barcode, listType ->
+                            productIdToOpen = null
                             productBarcodeToOpen = barcode
                             productDetailReturnListType = listType
                             selectedTab = MainTab.Product

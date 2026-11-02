@@ -4,6 +4,8 @@ import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.coworker.jjikmuk.domain.model.ProductDetail
 
 interface ProductRepository {
+    suspend fun getProductDetailById(productId: Long): Result<ProductDetail> = Result.failure(UnsupportedOperationException())
+
     suspend fun searchProducts(
         keyword: String,
         allergies: List<String> = emptyList(),

@@ -100,6 +100,7 @@ fun ProductScreen(
     onScannerClick: () -> Unit,
     modifier: Modifier = Modifier,
     productBarcodeToOpen: String? = null,
+    productIdToOpen: Long? = null,
     onProductBarcodeOpenHandled: () -> Unit = {},
     onReturnToMyFromDetail: () -> Unit = {},
     onAskProduct: (String) -> Unit = {},
@@ -108,7 +109,10 @@ fun ProductScreen(
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
     val detailUiState by productViewModel.detailUiState.collectAsStateWithLifecycle()
     val recommendationUiState by productViewModel.recommendationUiState.collectAsStateWithLifecycle()
-    val likedProductBarcodes by productViewModel.likedProductBarcodes.collectAsStateWithLifecycle()
+    val favorites by productViewModel.favoriteState.collectAsStateWithLifecycle()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        productViewModel.retryFavorites()
+    }
     val recentSearchKeywords by productViewModel.recentSearchKeywords.collectAsStateWithLifecycle()
     val scanTargetMembers by productViewModel.scanTargetMembers.collectAsStateWithLifecycle()
 
@@ -128,8 +132,11 @@ fun ProductScreen(
         onClearRecentKeywords = productViewModel::clearRecentSearchKeywords,
         detailUiState = detailUiState,
         onLoadProductDetail = productViewModel::loadProductDetail,
-        likedProductBarcodes = likedProductBarcodes,
+        favorites = favorites,
         onToggleLikedProduct = productViewModel::toggleLikedProduct,
+        onRetryFavorite = productViewModel::retryFavorites,
+        onLoadProductDetailById = productViewModel::loadProductDetailById,
+        productIdToOpen = productIdToOpen,
         onLoadMoreRecommendations = productViewModel::loadMoreSafeRecommendations,
         onRetryRecommendations = productViewModel::retrySafeRecommendations,
         onSelectCapacity = productViewModel::selectProductCapacity,
@@ -160,7 +167,7 @@ private fun ProductScreenContent(
     onClearRecentKeywords: () -> Unit,
     detailUiState: ProductDetailUiState,
     onLoadProductDetail: (String?) -> Unit,
-    likedProductBarcodes: Set<String>,
+    favorites: com.coworker.jjikmuk.domain.repository.LikedProductsState,
     onToggleLikedProduct: (ProductDetail) -> Unit,
     onLoadMoreRecommendations: () -> Unit,
     onScanTargetCheckedChange: (memberId: String, checked: Boolean) -> Unit,
@@ -168,9 +175,12 @@ private fun ProductScreenContent(
     onProductBarcodeOpenHandled: () -> Unit,
     onReturnToMyFromDetail: () -> Unit,
     onRetryRecommendations: () -> Unit = {},
+    onRetryFavorite: () -> Unit = {},
     onSelectCapacity: (String) -> Unit = {},
     onRetryAlternatives: () -> Unit = {},
     onAskProduct: (String) -> Unit = {},
+    productIdToOpen: Long? = null,
+    onLoadProductDetailById: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
@@ -211,9 +221,12 @@ private fun ProductScreenContent(
         }
     }
 
-    LaunchedEffect(productBarcodeToOpen) {
-        val barcode = productBarcodeToOpen ?: return@LaunchedEffect
-        onLoadProductDetail(barcode)
+    LaunchedEffect(productBarcodeToOpen, productIdToOpen) {
+        val id = productIdToOpen
+        val barcode = productBarcodeToOpen
+        if (id != null) onLoadProductDetailById(id)
+        else if (barcode != null) onLoadProductDetail(barcode)
+        else return@LaunchedEffect
         shouldReturnToMyOnDetailBack = true
         currentDestination = ProductDestination.Detail
         onProductBarcodeOpenHandled()
@@ -383,7 +396,8 @@ private fun ProductScreenContent(
                 ProductDestination.Detail -> {
                     ProductDetailContent(
                         detailUiState = detailUiState,
-                        likedProductBarcodes = likedProductBarcodes,
+                        favorites = favorites,
+                        onRetryFavorite = onRetryFavorite,
                         onToggleLikedProduct = onToggleLikedProduct,
                         onSelectCapacity = onSelectCapacity,
                         onAskProduct = onAskProduct,
@@ -617,8 +631,9 @@ private fun ProductSearchInitialContent(
 @Composable
 private fun ProductDetailContent(
     detailUiState: ProductDetailUiState,
-    likedProductBarcodes: Set<String>,
+    favorites: com.coworker.jjikmuk.domain.repository.LikedProductsState,
     onToggleLikedProduct: (ProductDetail) -> Unit,
+    onRetryFavorite: () -> Unit = {},
     onSelectCapacity: (String) -> Unit = {},
     onAskProduct: (String) -> Unit = {},
     onAlternative: (String?) -> Unit = {},
@@ -654,7 +669,11 @@ private fun ProductDetailContent(
         detailUiState.product != null -> {
             ProductDetailDesign(
                 state = detailUiState,
-                isLiked = detailUiState.product.barcode in likedProductBarcodes,
+                isLiked = favorites.statuses[detailUiState.product.productId] == true,
+                favoriteEnabled = detailUiState.product.productId?.let { it in favorites.statuses && it !in favorites.pendingIds } == true,
+                favoriteMessage = if (detailUiState.product.productId == null) "이 상품은 아직 즐겨찾기를 사용할 수 없어요."
+                    else favorites.message,
+                onRetryFavorite = onRetryFavorite,
                 onFavorite = { onToggleLikedProduct(detailUiState.product) },
                 onCapacity = onSelectCapacity,
                 onAsk = onAskProduct,
@@ -2285,7 +2304,7 @@ private fun ProductScreenPreview() {
             onClearRecentKeywords = {},
             detailUiState = ProductDetailUiState(),
             onLoadProductDetail = {},
-            likedProductBarcodes = emptySet(),
+            favorites = com.coworker.jjikmuk.domain.repository.LikedProductsState(),
             onToggleLikedProduct = {},
             onLoadMoreRecommendations = {},
             onScanTargetCheckedChange = { _, _ -> },

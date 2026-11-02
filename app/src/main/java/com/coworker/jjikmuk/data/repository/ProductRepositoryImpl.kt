@@ -16,6 +16,11 @@ class ProductRepositoryImpl @Inject constructor(
     private val productApi: ProductApi,
 ) : ProductRepository {
 
+    override suspend fun getProductDetailById(productId: Long): Result<ProductDetail> = requestResult {
+        val data = productApi.getProductDetailById(productId).data ?: error("상품 정보를 찾을 수 없어요.")
+        data.toDomain().also { require(it.productId == productId) }
+    }
+
     override suspend fun searchProducts(
         keyword: String,
         allergies: List<String>,
@@ -76,6 +81,7 @@ class ProductRepositoryImpl @Inject constructor(
             ?: error("상품명이 없는 상품이에요.")
 
         return ProductDetail(
+            productId = product.productId?.takeIf { it > 0 },
             barcode = product.barcode.orEmpty(),
             productName = productName,
             brandName = product.manufacturer.toDisplayManufacturer(),
