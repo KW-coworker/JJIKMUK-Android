@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.feature.product.presentation.ProductAlternativeList
 import com.coworker.jjikmuk.feature.product.presentation.ProductDetailDesign
@@ -46,7 +48,9 @@ internal fun ScannerProductDetailRoute(
     viewModel: ProductViewModel = hiltViewModel(),
 ) {
     val detail by viewModel.detailUiState.collectAsStateWithLifecycle()
-    val likedBarcodes by viewModel.likedProductBarcodes.collectAsStateWithLifecycle()
+    val favorites by viewModel.favoriteState.collectAsStateWithLifecycle()
+    // Same favorite refresh rule as the product tab detail.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.retryFavorites() }
     var showAlternatives by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(barcode) {
@@ -56,7 +60,12 @@ internal fun ScannerProductDetailRoute(
 
     ScannerProductDetailScreen(
         detail = detail,
-        isLiked = detail.product?.barcode?.let { it in likedBarcodes } == true,
+        isLiked = detail.product?.productId?.let { favorites.statuses[it] } == true,
+        favoriteEnabled = detail.product?.productId?.let { it in favorites.statuses && it !in favorites.pendingIds } == true,
+        favoriteMessage = detail.product?.let { product ->
+            if (product.productId == null) "이 상품은 아직 즐겨찾기를 사용할 수 없어요." else favorites.message
+        },
+        onRetryFavorite = viewModel::retryFavorites,
         showAlternatives = showAlternatives,
         onBackClick = { if (showAlternatives) showAlternatives = false else onBackClick() },
         onRetry = { viewModel.loadProductDetail(detail.referenceBarcode ?: barcode) },
@@ -88,6 +97,9 @@ internal fun ScannerProductDetailScreen(
     onMoreAlternatives: () -> Unit,
     onRetryAlternatives: () -> Unit,
     modifier: Modifier = Modifier,
+    favoriteEnabled: Boolean = true,
+    favoriteMessage: String? = null,
+    onRetryFavorite: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -137,6 +149,9 @@ internal fun ScannerProductDetailScreen(
                     state = detail,
                     isLiked = isLiked,
                     onFavorite = onFavorite,
+                    favoriteEnabled = favoriteEnabled,
+                    favoriteMessage = favoriteMessage,
+                    onRetryFavorite = onRetryFavorite,
                     onCapacity = onCapacity,
                     onAsk = onAsk,
                     onAlternative = onAlternative,
