@@ -21,6 +21,7 @@ fun JjikmukLoginButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    text: String = "로그인",
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -44,7 +45,7 @@ fun JjikmukLoginButton(
         interactionSource = interactionSource,
     ) {
         Text(
-            text = "로그인",
+            text = text,
             style = MaterialTheme.typography.labelLarge,
         )
     }

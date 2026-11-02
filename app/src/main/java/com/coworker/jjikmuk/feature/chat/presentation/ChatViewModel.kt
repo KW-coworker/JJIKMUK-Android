@@ -80,6 +80,12 @@ class ChatViewModel @Inject constructor(
         )
     }
 
+    /** Closes the candidate sheet without choosing; the next typed message starts a new question. */
+    fun dismissProductCandidates() {
+        pendingProductQuestion = null
+        _uiState.update { state -> state.copy(productCandidates = emptyList()) }
+    }
+
     private fun sendMessageInternal(
         displayMessage: String,
         requestMessage: String,

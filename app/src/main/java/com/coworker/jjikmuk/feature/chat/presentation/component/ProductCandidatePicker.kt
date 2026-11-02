@@ -29,7 +29,7 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 fun ProductCandidatePicker(
     candidates: List<ChatProductCandidate>,
     onCandidateClick: (ChatProductCandidate) -> Unit,
-    onShowMoreClick: () -> Unit,
+    onConfirmClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (candidates.isEmpty()) return
@@ -43,7 +43,7 @@ fun ProductCandidatePicker(
         ProductCandidateBottomSheet(
             candidates = candidates,
             onCandidateClick = onCandidateClick,
-            onShowMoreClick = onShowMoreClick,
+            onConfirmClick = onConfirmClick,
         )
     }
 }
@@ -52,7 +52,7 @@ fun ProductCandidatePicker(
 private fun ProductCandidateBottomSheet(
     candidates: List<ChatProductCandidate>,
     onCandidateClick: (ChatProductCandidate) -> Unit,
-    onShowMoreClick: () -> Unit,
+    onConfirmClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -88,7 +88,8 @@ private fun ProductCandidateBottomSheet(
             }
 
             JjikmukLoginButton(
-                onClick = onShowMoreClick,
+                text = "확인",
+                onClick = onConfirmClick,
                 modifier = Modifier
                     .fillMaxWidth(),
             )
@@ -145,7 +146,7 @@ private fun ProductCandidatePickerPreview() {
                 ),
             ),
             onCandidateClick = {},
-            onShowMoreClick = {},
+            onConfirmClick = {},
         )
     }
 }
