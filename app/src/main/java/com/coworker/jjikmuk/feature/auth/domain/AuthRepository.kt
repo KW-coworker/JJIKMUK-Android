@@ -72,8 +72,8 @@ interface AuthRepository {
     suspend fun deletePhoto(accessToken: String): AuthResult<Unit>
     suspend fun families(accessToken: String): AuthResult<List<FamilyProfile>>
     suspend fun family(accessToken: String, id: Long): AuthResult<FamilyProfile>
-    suspend fun createFamily(accessToken: String, input: ProfileSubmission): AuthResult<FamilyProfile>
-    suspend fun patchFamily(accessToken: String, id: Long, version: Long, patch: ProfilePatch): AuthResult<FamilyProfile>
+    suspend fun createFamily(accessToken: String, input: FamilySubmission): AuthResult<FamilyProfile>
+    suspend fun patchFamily(accessToken: String, id: Long, version: Long, patch: FamilyPatch): AuthResult<FamilyProfile>
     suspend fun deleteFamily(accessToken: String, id: Long, version: Long): AuthResult<Unit>
     suspend fun changePassword(accessToken: String, userId: Long, currentPassword: String, newPassword: String): AuthResult<Unit>
     suspend fun deleteAccount(accessToken: String, userId: Long): AuthResult<Unit>

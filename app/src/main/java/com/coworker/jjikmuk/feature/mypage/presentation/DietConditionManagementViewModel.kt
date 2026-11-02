@@ -2,83 +2,34 @@ package com.coworker.jjikmuk.feature.mypage.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.coworker.jjikmuk.domain.model.FamilyProfile
-import com.coworker.jjikmuk.domain.repository.FamilyProfileRepository
+import com.coworker.jjikmuk.domain.repository.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class DietConditionManagementViewModel @Inject constructor(
-    private val familyProfileRepository: FamilyProfileRepository,
-) : ViewModel() {
-
-    val profiles: StateFlow<List<FamilyProfile>> =
-        familyProfileRepository.observeProfiles()
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptyList(),
-            )
-
-    init {
-        viewModelScope.launch {
-            familyProfileRepository.ensureDefaultProfiles()
-        }
+class DietConditionManagementViewModel @Inject constructor(private val familyProfileRepository: FamilyProfileRepository) : ViewModel() {
+    val state = familyProfileRepository.observeState().stateIn(viewModelScope,
+        SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0), FamilyProfilesState(loaded = false))
+    val profiles = state.map { it.profiles }.stateIn(viewModelScope,
+        SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0), emptyList())
+    fun refresh() {
+        val account = familyProfileRepository.captureAccount()
+        viewModelScope.launch { familyProfileRepository.refresh(account) }
     }
-
-    fun addProfile(
-        name: String,
-        emoji: String,
-        relation: String,
-    ) {
-        viewModelScope.launch {
-            familyProfileRepository.addProfile(
-                name = name,
-                emoji = emoji,
-                relation = relation,
-            )
-        }
+    fun addProfile(name: String, emoji: String, relation: String, account: FamilyAccount? = state.value.account, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch { if (familyProfileRepository.addProfile(name, emoji, relation, account)) onSuccess() }
     }
-
-    fun updateProfile(
-        profileId: String,
-        name: String,
-        emoji: String,
-        relation: String,
-    ) {
-        viewModelScope.launch {
-            familyProfileRepository.updateProfile(
-                profileId = profileId,
-                name = name,
-                emoji = emoji,
-                relation = relation,
-            )
-        }
+    fun updateProfile(profileId: String, name: String, emoji: String, relation: String,
+        version: Long? = null, account: FamilyAccount? = state.value.account, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch { if (familyProfileRepository.updateProfile(profileId, name, emoji, relation, version, account)) onSuccess() }
     }
-
-    fun updateDietCondition(
-        profileId: String,
-        vegetarian: String,
-        allergies: Set<String>,
-        preferences: Set<String>,
-    ) {
-        viewModelScope.launch {
-            familyProfileRepository.updateDietCondition(
-                profileId = profileId,
-                vegetarian = vegetarian,
-                allergies = allergies,
-                preferences = preferences,
-            )
-        }
+    fun updateDietCondition(profileId: String, vegetarian: String, allergies: Set<String>, preferences: Set<String>,
+        version: Long? = null, account: FamilyAccount? = state.value.account) {
+        viewModelScope.launch { familyProfileRepository.updateDietCondition(profileId, vegetarian, allergies, preferences, version, account) }
     }
-
-    fun deleteProfile(profileId: String) {
-        viewModelScope.launch {
-            familyProfileRepository.deleteProfile(profileId)
-        }
+    fun deleteProfile(profileId: String, version: Long? = null, account: FamilyAccount? = state.value.account, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch { if (familyProfileRepository.deleteProfile(profileId, version, account)) onSuccess() }
     }
 }

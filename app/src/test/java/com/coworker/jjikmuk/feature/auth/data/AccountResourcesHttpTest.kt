@@ -69,11 +69,11 @@ class AccountResourcesHttpTest {
         enqueue("""{"data":$family}""")
         assertTrue(repository.family("access", 41) is AuthResult.Success); server.takeRequest()
         enqueue("""{"data":$family}""", 201)
-        assertTrue(repository.createFamily("access", ProfileSubmission("가족", "milk", "lowSugar")) is AuthResult.Success)
+        assertTrue(repository.createFamily("access", FamilySubmission("가족", "milk", "lowSugar")) is AuthResult.Success)
         val create = JsonParser.parseString(server.takeRequest().body!!.utf8()).asJsonObject
         assertFalse(create.has("ownerId")); assertFalse(create.has("version")); assertFalse(create.has("email"))
         enqueue("""{"data":$family}""")
-        assertTrue(repository.patchFamily("access", 41, 2, ProfilePatch(allergies = ProfileField.Clear)) is AuthResult.Success)
+        assertTrue(repository.patchFamily("access", 41, 2, FamilyPatch(ProfilePatch(allergies = ProfileField.Clear))) is AuthResult.Success)
         val patch = server.takeRequest()
         assertEquals("PATCH", patch.method)
         val payload = JsonParser.parseString(patch.body!!.utf8()).asJsonObject
@@ -85,9 +85,29 @@ class AccountResourcesHttpTest {
         assertEquals("2", delete.url.queryParameter("version")); assertEquals(0L, delete.bodySize)
     }
 
+    @Test fun `family metadata round trips and partial patch clears only requested field`() = runBlocking {
+        val data = JsonParser.parseString(family).asJsonObject.apply {
+            addProperty("relation", "아버지"); addProperty("emoji", "👨🏻")
+        }
+        enqueue("""{"data":$data}""", 201)
+        val created = repository.createFamily("access", FamilySubmission("아빠", allergies = "milk,wheat", relation = "아버지", emoji = "👨🏻")) as AuthResult.Success
+        assertEquals("아버지", created.value.relation); assertEquals("👨🏻", created.value.emoji)
+        val create = server.takeRequest()
+        assertEquals("Bearer access", create.headers["Authorization"])
+        val body = JsonParser.parseString(create.body!!.utf8()).asJsonObject
+        assertEquals("milk,wheat", body["allergies"].asString)
+        assertEquals("👨🏻", body["emoji"].asString); assertFalse(body.has("ownerId"))
+        enqueue("""{"data":$data}""")
+        assertTrue(repository.patchFamily("access", 41, 2, FamilyPatch(relation = ProfileField.Clear)) is AuthResult.Success)
+        val patch = JsonParser.parseString(server.takeRequest().body!!.utf8()).asJsonObject
+        assertTrue(patch["relation"].isJsonNull)
+        assertEquals(2, patch["version"].asInt)
+        assertFalse(patch.has("allergies")); assertFalse(patch.has("emoji")); assertFalse(patch.has("conditions"))
+    }
+
     @Test fun `family conflict and mismatched IDs retain error instead of overwriting`() = runBlocking {
         enqueue("""{"code":"PROFILE_VERSION_CONFLICT"}""", 409)
-        assertEquals("PROFILE_VERSION_CONFLICT", (repository.patchFamily("access", 41, 0, ProfilePatch(nickname = "가족")) as AuthResult.Failure).error.code)
+        assertEquals("PROFILE_VERSION_CONFLICT", (repository.patchFamily("access", 41, 0, FamilyPatch(ProfilePatch(nickname = "가족"))) as AuthResult.Failure).error.code)
         enqueue("""{"data":$family}""")
         assertTrue(repository.family("access", 42) is AuthResult.Failure)
         enqueue("""{"data":[$family,$family]}""")

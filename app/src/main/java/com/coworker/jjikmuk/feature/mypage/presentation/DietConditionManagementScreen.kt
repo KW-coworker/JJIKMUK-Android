@@ -66,7 +66,12 @@ fun DietConditionManagementScreen(
     selfEditor: (@Composable (FamilySelectorContent) -> Unit)? = null,
 ) {
     BackHandler(onBack = onBackClick)
-    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+    val syncState by viewModel.state.collectAsStateWithLifecycle()
+    val profiles = syncState.profiles
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    var editorAccount by remember { mutableStateOf<com.coworker.jjikmuk.domain.repository.FamilyAccount?>(null) }
+    var draftSource by remember { mutableStateOf<FamilyProfile?>(null) }
+    val editable = syncState.loaded && !syncState.busy && !syncState.needsReload
     var selectedMemberId by rememberSaveable { mutableStateOf("me") }
     var editingProfile by remember { mutableStateOf<FamilyProfile?>(null) }
     var editedVegetarian by rememberSaveable { mutableStateOf("") }
@@ -82,14 +87,23 @@ fun DietConditionManagementScreen(
             editedAllergies != selectedMember.allergies ||
             editedPreferences != selectedMember.preferences)
 
+    LaunchedEffect(syncState.account) {
+        editingProfile = null
+        selectedMemberId = "me"
+        draftSource = null
+    }
+
     LaunchedEffect(profiles) {
         if (profiles.isNotEmpty() && profiles.none { profile -> profile.id == selectedMemberId }) {
             selectedMemberId = profiles.first().id
         }
     }
 
-    LaunchedEffect(selectedMember?.id, selectedMember?.vegetarian, selectedMember?.allergies, selectedMember?.preferences) {
-        if (selectedMember != null) {
+    LaunchedEffect(selectedMember?.id, selectedMember?.version, selectedMember?.vegetarian, selectedMember?.allergies, selectedMember?.preferences) {
+        if (selectedMember != null && (draftSource?.id != selectedMember.id || draftSource?.let {
+                editedVegetarian == it.vegetarian && editedAllergies == it.allergies && editedPreferences == it.preferences
+            } != false)) {
+            draftSource = selectedMember
             editedVegetarian = selectedMember.vegetarian
             editedAllergies = selectedMember.allergies
             editedPreferences = selectedMember.preferences
@@ -101,10 +115,22 @@ fun DietConditionManagementScreen(
             members = profiles,
             selectedMemberId = selectedMemberId,
             onMemberClick = { selectedMemberId = it },
+            canAdd = editable && profiles.count { !it.isMe } < 20,
             onAddClick = {
+                editorAccount = syncState.account
                 editingProfile = FamilyProfile(NEW_FAMILY_ID, "", "🙂", "가족", false, "", emptySet(), emptySet())
             },
         )
+        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(syncState.message ?: if (syncState.busy) "가족 정보를 불러오거나 저장하고 있어요." else "가족은 최대 20명까지 등록할 수 있어요.",
+                modifier = Modifier.weight(1f), color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyS)
+            Text("새로고침", modifier = Modifier.clickable(enabled = !syncState.busy) {
+                editingProfile = null
+                draftSource = null
+                viewModel.refresh()
+            }.padding(start = 12.dp), color = JjikmukTheme.colors.brand)
+        }
         Spacer(Modifier.fillMaxWidth().height(8.dp).background(JjikmukTheme.colors.surfaceSecondary))
     }
 
@@ -116,10 +142,10 @@ fun DietConditionManagementScreen(
             topBar = { DietConditionTopBar(onBackClick = onBackClick) },
             bottomBar = {
                 DietConditionBottomButton(
-                    enabled = hasDietConditionChanges,
+                    enabled = editable && selectedMember?.conditionsSupported == true && hasDietConditionChanges,
                     onClick = {
                         selectedMember?.let { member ->
-                            viewModel.updateDietCondition(member.id, editedVegetarian, editedAllergies, editedPreferences)
+                            viewModel.updateDietCondition(member.id, editedVegetarian, editedAllergies, editedPreferences, draftSource?.version, syncState.account)
                         }
                     },
                 )
@@ -130,13 +156,18 @@ fun DietConditionManagementScreen(
                 familySelector()
                 Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp)) {
                     selectedMember?.let { member ->
-                        DietConditionHeader(member = member, onEditClick = { editingProfile = member })
+                        DietConditionHeader(member = member, onEditClick = {
+                            if (editable) { editorAccount = syncState.account; editingProfile = member }
+                        })
+                        if (!member.conditionsSupported) Text("현재 앱에서 표시할 수 없는 조건이 있어 식이조건 수정은 중단했어요.",
+                            color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyS)
                         Spacer(Modifier.height(28.dp))
                         DietSectionTitle(text = "채식 유형", description = "단일 선택")
                         Spacer(Modifier.height(14.dp))
                         VegetarianGrid(
                             selectedTitle = editedVegetarian,
                             onOptionClick = { option ->
+                                if (!editable || !member.conditionsSupported) return@VegetarianGrid
                                 editedVegetarian = if (editedVegetarian == option.title) "" else option.title
                             },
                         )
@@ -148,6 +179,7 @@ fun DietConditionManagementScreen(
                             selectedValues = editedAllergies,
                             selectedColor = Color(0xFFFF6B6B),
                             selectedBackground = Color(0xFFFFF2F2),
+                            enabled = editable && member.conditionsSupported,
                             onValueClick = { editedAllergies = editedAllergies.toggleValue(it) },
                         )
                         Spacer(Modifier.height(30.dp))
@@ -158,6 +190,7 @@ fun DietConditionManagementScreen(
                             selectedValues = editedPreferences,
                             selectedColor = JjikmukTheme.colors.brand,
                             selectedBackground = JjikmukTheme.colors.info,
+                            enabled = editable && member.conditionsSupported,
                             onValueClick = { editedPreferences = editedPreferences.toggleValue(it) },
                         )
                     }
@@ -170,18 +203,18 @@ fun DietConditionManagementScreen(
         FamilyProfileEditBottomSheet(
             profile = profile,
             isNew = profile.id == NEW_FAMILY_ID,
-            onDismiss = { editingProfile = null },
+            enabled = editable,
+            statusMessage = syncState.message,
+            onDismiss = { if (!syncState.busy) editingProfile = null },
             onSave = { name, emoji, relation ->
                 if (profile.id == NEW_FAMILY_ID) {
-                    viewModel.addProfile(name = name, emoji = emoji, relation = relation)
+                    viewModel.addProfile(name, emoji, relation, editorAccount) { editingProfile = null }
                 } else {
-                    viewModel.updateProfile(profileId = profile.id, name = name, emoji = emoji, relation = relation)
+                    viewModel.updateProfile(profile.id, name, emoji, relation, profile.version, editorAccount) { editingProfile = null }
                 }
-                editingProfile = null
             },
             onDelete = {
-                viewModel.deleteProfile(profile.id)
-                editingProfile = null
+                viewModel.deleteProfile(profile.id, profile.version, editorAccount) { editingProfile = null }
             },
         )
     }
@@ -228,6 +261,7 @@ private fun FamilyMemberSelector(
     selectedMemberId: String,
     onMemberClick: (String) -> Unit,
     onAddClick: () -> Unit,
+    canAdd: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -246,7 +280,7 @@ private fun FamilyMemberSelector(
                 onClick = { onMemberClick(member.id) },
             )
         }
-        AddMemberTab(onClick = onAddClick)
+        AddMemberTab(onClick = { if (canAdd) onAddClick() })
     }
 }
 
@@ -606,12 +640,15 @@ private fun FamilyProfileEditBottomSheet(
     onSave: (name: String, emoji: String, relation: String) -> Unit,
     onDelete: () -> Unit,
     isNew: Boolean = false,
+    enabled: Boolean = true,
+    statusMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
     var selectedEmoji by rememberSaveable(profile.id) { mutableStateOf(profile.emoji) }
     var selectedRelation by rememberSaveable(profile.id) { mutableStateOf(profile.relation) }
     var name by rememberSaveable(profile.id) { mutableStateOf(profile.name) }
-    val canSave = name.isNotBlank() &&
+    val validName = Regex("^[가-힣A-Za-z0-9_]{2,20}$").matches(com.coworker.jjikmuk.feature.auth.domain.normalizeAuthNickname(name))
+    val canSave = enabled && validName &&
         (isNew || selectedEmoji != profile.emoji || selectedRelation != profile.relation || name != profile.name)
 
     ModalBottomSheet(
@@ -719,10 +756,12 @@ private fun FamilyProfileEditBottomSheet(
                 }
 
                 Spacer(modifier = Modifier.height(22.dp))
-                ProfileNameTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                )
+                ProfileNameTextField(value = name, onValueChange = { if (enabled) name = it })
+                if (!validName) Text("이름은 한글·영문·숫자·밑줄로 2~20자 입력해 주세요.",
+                    modifier = Modifier.padding(top = 8.dp), color = JjikmukTheme.colors.textSecondary,
+                    style = JjikmukTheme.typography.bodyS)
+                if (statusMessage != null) Text(statusMessage, modifier = Modifier.padding(top = 8.dp),
+                    color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyS)
             }
 
             Row(
@@ -737,6 +776,7 @@ private fun FamilyProfileEditBottomSheet(
                     textColor = Color(0xFFE7000B),
                     backgroundColor = Color(0xFFFEF8F8),
                     borderColor = Color(0xFFFFD6D6),
+                    enabled = enabled,
                     onClick = onDelete,
                     modifier = Modifier.weight(0.78f),
                 )

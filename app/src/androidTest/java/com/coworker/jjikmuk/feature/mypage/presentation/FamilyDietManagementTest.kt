@@ -23,17 +23,20 @@ class FamilyDietManagementTest {
         var lastDietId: String? = null
         override fun observeProfiles() = values
         override suspend fun ensureDefaultProfiles() = Unit
-        override suspend fun addProfile(name: String, emoji: String, relation: String) {
+        override suspend fun addProfile(name: String, emoji: String, relation: String, account: com.coworker.jjikmuk.domain.repository.FamilyAccount?): Boolean {
             values.value = values.value + FamilyProfile("new", name, emoji, relation, false, "해당 없음", emptySet(), emptySet())
+            return true
         }
-        override suspend fun updateProfile(profileId: String, name: String, emoji: String, relation: String) {
+        override suspend fun updateProfile(profileId: String, name: String, emoji: String, relation: String, version: Long?, account: com.coworker.jjikmuk.domain.repository.FamilyAccount?): Boolean {
             values.value = values.value.map { if (it.id == profileId) it.copy(name = name, emoji = emoji, relation = relation) else it }
+            return true
         }
-        override suspend fun updateDietCondition(profileId: String, vegetarian: String, allergies: Set<String>, preferences: Set<String>) {
+        override suspend fun updateDietCondition(profileId: String, vegetarian: String, allergies: Set<String>, preferences: Set<String>, version: Long?, account: com.coworker.jjikmuk.domain.repository.FamilyAccount?): Boolean {
             lastDietId = profileId
             values.value = values.value.map { if (it.id == profileId) it.copy(vegetarian = vegetarian, allergies = allergies, preferences = preferences) else it }
+            return true
         }
-        override suspend fun deleteProfile(profileId: String) { values.value = values.value.filterNot { it.id == profileId } }
+        override suspend fun deleteProfile(profileId: String, version: Long?, account: com.coworker.jjikmuk.domain.repository.FamilyAccount?): Boolean { values.value = values.value.filterNot { it.id == profileId }; return true }
     }
 
     @Test fun familySelectionEditsFamilyAndSelfUsesAccountEditor() {

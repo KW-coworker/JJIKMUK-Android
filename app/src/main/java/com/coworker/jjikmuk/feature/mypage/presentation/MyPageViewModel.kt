@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
+    private val familyProfileRepository: com.coworker.jjikmuk.domain.repository.FamilyProfileRepository,
     private val likedProductRepository: LikedProductRepository,
     private val recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
 ) : ViewModel() {
@@ -22,6 +23,14 @@ class MyPageViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0),
         initialValue = com.coworker.jjikmuk.data.local.preference.RecentProductsState(),
     )
+
+    val familyState = familyProfileRepository.observeState().stateIn(viewModelScope,
+        SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0),
+        com.coworker.jjikmuk.domain.repository.FamilyProfilesState(loaded = false))
+    fun refreshFamilies() {
+        val account = familyProfileRepository.captureAccount()
+        viewModelScope.launch { familyProfileRepository.refresh(account) }
+    }
 
     fun refreshRecentProducts() { viewModelScope.launch { recentlyViewedProducts.refresh() } }
 

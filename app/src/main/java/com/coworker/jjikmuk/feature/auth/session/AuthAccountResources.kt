@@ -5,12 +5,18 @@ import javax.inject.Inject
 import kotlinx.coroutines.sync.Mutex
 
 /** Server family IDs only; the local Room UUIDs are never migrated implicitly. */
-class AuthFamilies @Inject constructor(private val repository: AuthRepository, private val requests: AuthenticatedRequests) {
-    suspend fun list() = requests.execute(retrySafeRead = true, request = repository::families)
-    suspend fun get(id: Long) = requests.execute(retrySafeRead = true) { repository.family(it, id) }
-    suspend fun create(input: ProfileSubmission) = requests.execute { repository.createFamily(it, input) }
-    suspend fun patch(id: Long, version: Long, patch: ProfilePatch) = requests.execute { repository.patchFamily(it, id, version, patch) }
-    suspend fun delete(id: Long, version: Long) = requests.execute { repository.deleteFamily(it, id, version) }
+class AuthFamilies @Inject constructor(private val repository: AuthRepository, private val requests: AuthenticatedRequests,
+    private val sessions: AuthSessionManager) {
+    suspend fun list(generation: Long = sessions.state.value.generation) = execute(generation, true, repository::families)
+    suspend fun get(id: Long, generation: Long = sessions.state.value.generation) = execute(generation, true) { repository.family(it, id) }
+    suspend fun create(input: FamilySubmission, generation: Long = sessions.state.value.generation) = execute(generation) { repository.createFamily(it, input) }
+    suspend fun patch(id: Long, version: Long, patch: FamilyPatch, generation: Long = sessions.state.value.generation) = execute(generation) { repository.patchFamily(it, id, version, patch) }
+    suspend fun delete(id: Long, version: Long, generation: Long = sessions.state.value.generation) = execute(generation) { repository.deleteFamily(it, id, version) }
+    private suspend fun <T> execute(generation: Long, read: Boolean = false, call: suspend (String) -> AuthResult<T>): AuthResult<T> =
+        requests.execute(retrySafeRead = read) { token ->
+            if (sessions.state.value.generation != generation) AuthResult.Failure(AuthFailure(AuthFailureKind.Server, code = "SESSION_CHANGED"))
+            else call(token)
+        }
 }
 
 /** Mutations never replay. UI confirms intent and handles an unknown outcome separately. */

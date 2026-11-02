@@ -9,4 +9,9 @@ data class FamilyProfile(
     val vegetarian: String,
     val allergies: Set<String>,
     val preferences: Set<String>,
+    val serverId: Long? = null,
+    val version: Long? = null,
+    val conditionsSupported: Boolean = true,
+    val diseases: String? = null,
+    val dislikedIngredients: String? = null,
 )

@@ -141,12 +141,23 @@ class HttpAuthRepository private constructor(
         require(id > 0); it.family("Bearer $accessToken", id)
     }) { family(requireNotNull(it.data)).also { f -> require(f.id == id) } }
 
-    override suspend fun createFamily(accessToken: String, input: ProfileSubmission) = request(201,
+    override suspend fun createFamily(accessToken: String, input: FamilySubmission) = request(201,
         { it.createFamily("Bearer $accessToken", input) }) { family(requireNotNull(it.data)) }
 
-    override suspend fun patchFamily(accessToken: String, id: Long, version: Long, patch: ProfilePatch) = request(200, {
+    override suspend fun patchFamily(accessToken: String, id: Long, version: Long, patch: FamilyPatch) = request(200, {
         require(id > 0 && version >= 0)
-        val body = authJson().toJsonTree(patch, ProfilePatch::class.java).asJsonObject.apply { addProperty("version", version) }
+        val body = authJson().toJsonTree(patch.conditions, ProfilePatch::class.java).asJsonObject.apply {
+            addProperty("version", version)
+            fun field(name: String, value: ProfileField) {
+                when (value) {
+                    ProfileField.Unchanged -> Unit
+                    ProfileField.Clear -> add(name, com.google.gson.JsonNull.INSTANCE)
+                    is ProfileField.Value -> addProperty(name, value.value)
+                }
+            }
+            field("relation", patch.relation)
+            field("emoji", patch.emoji)
+        }
         it.patchFamily("Bearer $accessToken", id, body.toString().toRequestBody("application/json".toMediaType()))
     }) { family(requireNotNull(it.data)).also { f -> require(f.id == id && f.version >= version) } }
 
@@ -166,7 +177,7 @@ class HttpAuthRepository private constructor(
     private fun family(body: FamilyBody) = FamilyProfile(
         requireNotNull(body.id).also { require(it > 0) }, requireNotNull(body.nickname).also { require(it.isNotBlank()) },
         body.allergies, body.specialDiet, body.diseases, body.dislikedIngredients,
-        requireNotNull(body.version).also { require(it >= 0) },
+        requireNotNull(body.version).also { require(it >= 0) }, body.relation, body.emoji,
     )
 
     private suspend fun <T, R> request(status: Int, call: suspend (AuthApi) -> Response<T>,

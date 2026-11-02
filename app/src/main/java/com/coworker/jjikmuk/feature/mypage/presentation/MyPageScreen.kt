@@ -77,6 +77,7 @@ fun MyPageScreen(
     myPageViewModel: MyPageViewModel = hiltViewModel(),
     photoViewModel: com.coworker.jjikmuk.feature.auth.photo.ProfilePhotoViewModel = hiltViewModel(),
 ) {
+    val familyState by myPageViewModel.familyState.collectAsStateWithLifecycle()
     val photoState by photoViewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(photoState.generation) { photoViewModel.load() }
     val photoModel = com.coworker.jjikmuk.feature.auth.photo.rememberPrivatePhotoModel(photoState.photo)
@@ -87,6 +88,7 @@ fun MyPageScreen(
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         myPageViewModel.refreshRecentProducts()
         myPageViewModel.refreshFavorites()
+        myPageViewModel.refreshFamilies()
     }
     val viewedProducts = recentState.products
     val recentMessage = when {
@@ -162,6 +164,8 @@ fun MyPageScreen(
                 onProfileEditClick = onProfileEditClick,
             )
             MyPageFamilyShareSection(
+                profiles = familyState.profiles,
+                status = familyState.message ?: if (!familyState.loaded) "가족 정보를 불러오는 중이에요." else null,
                 onSettingClick = onFamilyDietSettingClick,
             )
             MyPageProductSection(
@@ -297,6 +301,8 @@ private fun MyPageProfileSection(
 
 @Composable
 private fun MyPageFamilyShareSection(
+    profiles: List<com.coworker.jjikmuk.domain.model.FamilyProfile>,
+    status: String?,
     onSettingClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -345,9 +351,9 @@ private fun MyPageFamilyShareSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MyPageFamilyAvatars()
+            MyPageFamilyAvatars(profiles)
             Text(
-                text = "나 외 2명 참여 중",
+                text = status ?: if (profiles.none { !it.isMe }) "등록된 가족이 없어요." else "나 외 ${profiles.count { !it.isMe }}명 등록됨",
                 color = JjikmukTheme.colors.textSecondary,
                 style = JjikmukTheme.typography.labelM,
             )
@@ -384,27 +390,12 @@ private fun MyPageSmallButton(
 
 @Composable
 private fun MyPageFamilyAvatars(
-    modifier: Modifier = Modifier,
+    profiles: List<com.coworker.jjikmuk.domain.model.FamilyProfile>, modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .width(92.dp)
-            .height(36.dp),
-    ) {
-        FamilyAvatar(
-            backgroundColor = Color(0xFFE5E7EB),
-            modifier = Modifier.align(Alignment.CenterStart),
-        )
-        FamilyAvatar(
-            emoji = "👨🏻",
-            backgroundColor = Color(0xFFDBEAFE),
-            modifier = Modifier.padding(start = 28.dp),
-        )
-        FamilyAvatar(
-            emoji = "👶🏻",
-            backgroundColor = Color(0xFFFEF9C2),
-            modifier = Modifier.padding(start = 56.dp),
-        )
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        profiles.take(3).forEach { profile ->
+            FamilyAvatar(emoji = profile.emoji, backgroundColor = Color(0xFFE5E7EB))
+        }
     }
 }
 
