@@ -69,6 +69,7 @@ fun ScanTargetButton(
                 emoji = profile.emoji,
                 rightOffset = otherProfiles.size * PROFILE_OVERLAP_OFFSET_DP,
                 emojiOffsetX = 0,
+                isMe = true,
                 modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
@@ -81,6 +82,7 @@ private fun ScanTargetProfileImage(
     emoji: String?,
     rightOffset: Int,
     emojiOffsetX: Int = 0,
+    isMe: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -92,21 +94,23 @@ private fun ScanTargetProfileImage(
             .border(width = 2.dp, color = JjikmukTheme.colors.surface, shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        if (emoji != null) {
-            Text(
-                text = emoji,
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.offset(x = emojiOffsetX.dp),
-            )
-        } else {
-            Image(
-                painter = painterResource(imageResId),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(JjikmukTheme.colors.borderSubtle),
-            )
+        com.coworker.jjikmuk.feature.auth.photo.AccountAvatarContent(isMe) {
+            if (emoji != null) {
+                Text(
+                    text = emoji,
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.offset(x = emojiOffsetX.dp),
+                )
+            } else {
+                Image(
+                    painter = painterResource(imageResId),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(JjikmukTheme.colors.borderSubtle),
+                )
+            }
         }
     }
 }

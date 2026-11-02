@@ -145,6 +145,7 @@ private fun ScanTargetMemberRow(
     ) {
         ScanTargetAvatar(
             emoji = member.emoji,
+            isMe = member.id == "me",
         )
         Spacer(modifier = Modifier.width(12.dp))
         Row(
@@ -178,6 +179,7 @@ private fun ScanTargetMemberRow(
 @Composable
 private fun ScanTargetAvatar(
     emoji: String?,
+    isMe: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -188,11 +190,13 @@ private fun ScanTargetAvatar(
             .border(width = 1.dp, color = JjikmukTheme.colors.borderSubtle, shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        if (emoji != null) {
-            Text(
-                text = emoji,
-                style = MaterialTheme.typography.bodyLarge,
-            )
+        com.coworker.jjikmuk.feature.auth.photo.AccountAvatarContent(isMe) {
+            if (emoji != null) {
+                Text(
+                    text = emoji,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
         }
     }
 }

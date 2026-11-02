@@ -36,6 +36,18 @@ class AuthPhotos @Inject constructor(
 
     suspend fun load(generation: Long = sessions.state.value.generation) = perform(mutation = false, expectedGeneration = generation) { generation -> fetch(generation) }
 
+    /** A negative PHOTO_NOT_FOUND result is cached too; separate consumers do not trigger new GETs. */
+    suspend fun loadIfNeeded(generation: Long = sessions.state.value.generation): AuthResult<ProfilePhoto?> {
+        if (!current(generation)) return changed()
+        val cached = state.value
+        if (cached.generation == generation && cached.loaded && !cached.mustReload) return AuthResult.Success(cached.photo)
+        return perform(mutation = false, expectedGeneration = generation) { owner ->
+            val latest = state.value
+            if (latest.generation == owner && latest.loaded && !latest.mustReload) AuthResult.Success(latest.photo)
+            else fetch(owner)
+        }
+    }
+
     suspend fun upload(photo: ProfilePhoto, generation: Long = sessions.state.value.generation) = perform(mutation = true, expectedGeneration = generation) { generation ->
         when (val result = requests.execute(requireCompletedProfile = false) {
             if (current(generation)) repository.uploadPhoto(it, photo) else changed()

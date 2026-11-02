@@ -79,7 +79,7 @@ fun MyPageScreen(
 ) {
     val familyState by myPageViewModel.familyState.collectAsStateWithLifecycle()
     val photoState by photoViewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(photoState.generation) { photoViewModel.load() }
+    LaunchedEffect(photoState.generation) { photoViewModel.ensureLoaded() }
     val photoModel = com.coworker.jjikmuk.feature.auth.photo.rememberPrivatePhotoModel(photoState.photo)
     val favorites by myPageViewModel.favoriteState.collectAsStateWithLifecycle()
     val likedProducts = favorites.products
@@ -394,7 +394,7 @@ private fun MyPageFamilyAvatars(
 ) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         profiles.take(3).forEach { profile ->
-            FamilyAvatar(emoji = profile.emoji, backgroundColor = Color(0xFFE5E7EB))
+            FamilyAvatar(emoji = profile.emoji, isMe = profile.isMe, backgroundColor = Color(0xFFE5E7EB))
         }
     }
 }
@@ -404,6 +404,7 @@ private fun FamilyAvatar(
     backgroundColor: Color,
     modifier: Modifier = Modifier,
     emoji: String? = null,
+    isMe: Boolean = false,
 ) {
     Surface(
         modifier = modifier.size(36.dp),
@@ -415,12 +416,14 @@ private fun FamilyAvatar(
         ),
         shadowElevation = 2.dp,
     ) {
-        if (emoji != null) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = emoji,
-                    style = JjikmukTheme.typography.bodyL,
-                )
+        com.coworker.jjikmuk.feature.auth.photo.AccountAvatarContent(isMe) {
+            if (emoji != null) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = emoji,
+                        style = JjikmukTheme.typography.bodyL,
+                    )
+                }
             }
         }
     }
