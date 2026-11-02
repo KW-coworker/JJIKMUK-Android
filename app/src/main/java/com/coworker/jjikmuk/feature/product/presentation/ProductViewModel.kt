@@ -46,6 +46,8 @@ class ProductViewModel @Inject constructor(
 
     private var detailOwner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner? = null
     private var detailJob: Job? = null
+    private var searchJob: Job? = null
+    private var lastDetailRequest: Pair<String?, Long?>? = null
     private var alternativeJob: Job? = null
     val scanTargetMembers = targets.state.map { it.toScanTargetMembers() }.stateIn(viewModelScope,
         SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0), emptyList())
@@ -82,24 +84,25 @@ class ProductViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            familyProfileRepository.observeProfiles()
-                .combine(accessTokens.token) { profiles, token ->
-                    profiles.firstOrNull { profile -> profile.isMe }?.toRecommendationConditionKey() to token
+            targets.state.map { it.selection.takeIf { _ -> it.ready } }.distinctUntilChanged().collectLatest { selection ->
+                detailJob?.cancel(); alternativeJob?.cancel(); searchJob?.cancel()
+                recommendationGeneration++; recommendationPageJob?.cancel(); nextRecommendationCursor = null
+                val detailRequest = lastDetailRequest
+                if (detailRequest != null) _detailUiState.value = ProductDetailUiState(isLoading = selection != null,
+                    errorMessage = if (selection == null) "분석 대상을 확인하고 있어요." else null)
+                val search = _searchUiState.value
+                if (search.hasSearched) _searchUiState.update { it.copy(products = emptyList(), isLoading = selection != null,
+                    errorMessage = if (selection == null) "분석 대상을 확인하고 있어요." else null) }
+                if (selection == null) {
+                    _recommendationUiState.value = ProductRecommendationUiState(notice = "분석 대상을 확인하고 있어요.")
+                } else {
+                    if (search.hasSearched && search.submittedQuery.length >= MIN_SEARCH_KEYWORD_LENGTH) searchProducts(search.submittedQuery)
+                    detailRequest?.let { loadDetail(it.first, it.second) }
+                    if (selection.mode == "none") _recommendationUiState.value = ProductRecommendationUiState(
+                        notice = "선택한 대상 없음 · 개인 식이조건 미적용")
+                    else loadSafeRecommendations()
                 }
-                .distinctUntilChanged()
-                .collectLatest { (conditionKey, token) ->
-                    recommendationGeneration++
-                    recommendationPageJob?.cancel()
-                    nextRecommendationCursor = null
-                    if (token == null) {
-                        _recommendationUiState.value = ProductRecommendationUiState(errorMessage = "로그인 상태를 확인해 주세요.")
-                    } else if (conditionKey == null) {
-                        _recommendationUiState.value = ProductRecommendationUiState(
-                            errorMessage = "마이페이지에서 나의 식이 조건을 설정해 주세요.")
-                    } else {
-                        loadSafeRecommendations()
-                    }
-                }
+            }
         }
     }
 
@@ -139,7 +142,8 @@ class ProductViewModel @Inject constructor(
             recentSearchKeywordStore.addKeyword(trimmedKeyword)
         }
 
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             _searchUiState.update { state ->
                 state.copy(
                     query = trimmedKeyword,
@@ -152,7 +156,7 @@ class ProductViewModel @Inject constructor(
 
             productRepository.searchProducts(
                 keyword = trimmedKeyword,
-                allergies = selectedAllergies(),
+                allergies = emptyList(),
             )
                 .onSuccess { products ->
                     _searchUiState.update { state ->
@@ -197,6 +201,7 @@ class ProductViewModel @Inject constructor(
     }
 
     private fun loadDetail(code: String?, productId: Long?) {
+        lastDetailRequest = code to productId
         val viewOwner = recentlyViewedProducts.captureOwner()
         detailOwner = viewOwner
         detailFavoriteAccount = likedProductRepository.captureAccount()
@@ -255,7 +260,7 @@ class ProductViewModel @Inject constructor(
     fun refreshAlternatives() {
         alternativeJob?.cancel()
         val product = _detailUiState.value.product ?: return
-        if (product.safetyStatus != com.coworker.jjikmuk.domain.model.ProductSafetyStatus.Danger) {
+        if (!product.personalConditionsApplied || product.safetyStatus != com.coworker.jjikmuk.domain.model.ProductSafetyStatus.Danger) {
             _detailUiState.update { it.copy(alternativesLoading = false, alternatives = emptyList()) }
             return
         }
@@ -342,6 +347,11 @@ class ProductViewModel @Inject constructor(
     }
 
     private suspend fun loadSafeRecommendations() {
+        val selection = targets.awaitSelection()
+        if (selection == null || selection.mode == "none") {
+            _recommendationUiState.value = ProductRecommendationUiState(notice = if (selection == null) "분석 대상을 확인할 수 없어요." else "선택한 대상 없음 · 개인 식이조건 미적용")
+            return
+        }
         _recommendationUiState.value = ProductRecommendationUiState(isLoading = true)
         try {
             val owner = safeRecommendations.owner()

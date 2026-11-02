@@ -5,9 +5,9 @@ import retrofit2.http.*
 
 interface ProductOptionsApi {
     @GET("api/products/{barcode}/variants")
-    suspend fun variants(@Path("barcode") barcode: String): ProductVariantsResponse
+    suspend fun variants(@Path("barcode") barcode: String, @Query("analysisMode") analysisMode: String? = null, @Query("includeSelf") includeSelf: Boolean? = null, @Query("familyProfileIds") familyProfileIds: List<Long>? = null): ProductVariantsResponse
     @GET("api/recommendations/products/{barcode}")
-    suspend fun alternatives(@Path("barcode") barcode: String, @Query("limit") limit: Int = 20): ProductAlternativesResponse
+    suspend fun alternatives(@Path("barcode") barcode: String, @Query("limit") limit: Int = 20, @Query("analysisMode") analysisMode: String? = null, @Query("includeSelf") includeSelf: Boolean? = null, @Query("familyProfileIds") familyProfileIds: List<Long>? = null): ProductAlternativesResponse
 }
 data class ProductVariantsResponse(val data: ProductVariantsDto? = null)
 data class ProductVariantsDto(val selectedOptionKey: String = "", val options: List<ProductCapacityDto> = emptyList())

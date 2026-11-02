@@ -15,7 +15,8 @@ data class SafeRecommendationPage(
     val notice: String,
 )
 
-class SafeRecommendationRepository @Inject constructor(private val api: SafeRecommendationApi) {
+class SafeRecommendationRepository internal constructor(private val api: SafeRecommendationApi, private val mapper: ProductRepositoryImpl? = null) {
+    @Inject constructor(mapper: ProductRepositoryImpl, api: SafeRecommendationApi) : this(api, mapper)
     /** Opening recommendations must not overwrite the account's saved dietary conditions. */
     suspend fun owner(): RecommendationOwner {
         val me = api.getMe().data ?: error("내 프로필을 확인할 수 없어요.")
@@ -24,8 +25,12 @@ class SafeRecommendationRepository @Inject constructor(private val api: SafeReco
     }
 
     suspend fun page(cursor: String? = null, excluded: List<String> = emptyList()): SafeRecommendationPage {
-        val data = api.getRecommendations(cursor = cursor, excluded = excluded.takeLast(200)).data
+        val chosen = mapper?.selection()
+        check(chosen?.mode != "none") { "개인 식이조건 미적용" }
+        val data = api.getRecommendations(cursor = cursor, excluded = excluded.takeLast(200),
+            analysisMode = chosen?.mode, includeSelf = chosen?.queryIncludeSelf, familyProfileIds = chosen?.queryFamilyIds).data
             ?: error("추천 응답을 확인할 수 없어요.")
+        mapper?.verify(chosen)
         check(data.userId > 0) { "추천 사용자를 확인할 수 없어요." }
         val byBarcode = data.categories.flatMap { it.items }.mapNotNull { item ->
             val product = item.product ?: return@mapNotNull null

@@ -8,19 +8,19 @@ import org.junit.Assert.*
 
 class ProductOptionsRepositoryTest {
     private val mapper = ProductRepositoryImpl(object: ProductApi {
-        override suspend fun getProductDetailById(productId: Long): ProductDetailApiResponse = error("unused")
-        override suspend fun searchProducts(keyword:String,userId:Long?,allergies:List<String>):ProductSearchApiResponse = error("unused")
-        override suspend fun getProductDetail(barcode:String,userId:Long?,allergies:List<String>):ProductDetailApiResponse = error("unused")
+        override suspend fun getProductDetailById(productId: Long, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?): ProductDetailApiResponse = error("unused")
+        override suspend fun searchProducts(keyword:String,userId:Long?,allergies:List<String>, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?):ProductSearchApiResponse = error("unused")
+        override suspend fun getProductDetail(barcode:String,userId:Long?,allergies:List<String>, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?):ProductDetailApiResponse = error("unused")
     })
     @Test fun `capacity options carry their own calories and conservative safety analysis`() = runBlocking {
         val api = object:ProductOptionsApi {
-            override suspend fun variants(barcode:String) = ProductVariantsResponse(ProductVariantsDto("small", listOf(
+            override suspend fun variants(barcode:String, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?) = ProductVariantsResponse(ProductVariantsDto("small", listOf(
                 ProductCapacityDto("small","25g",25.0,"g","a",ProductDetailDataDto(
                     product=ProductDto(barcode="a",productName="상품",energyKcal=140.0,totalWeight="25g"),analysis=ProductAnalysisDto(status="PASS"))),
                 ProductCapacityDto("large","41g",41.0,"g","b",ProductDetailDataDto(
                     product=ProductDto(barcode="b",productName="상품",energyKcal=230.0,totalWeight="41g"),analysis=ProductAnalysisDto(status="DANGER",isDangerous=true)))
             )))
-            override suspend fun alternatives(barcode:String,limit:Int) = error("unused")
+            override suspend fun alternatives(barcode:String,limit:Int, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?) = error("unused")
         }
         val result=ProductOptionsRepository(api,mapper).capacities("a")
         assertEquals("small",result.selectedKey)
@@ -31,8 +31,8 @@ class ProductOptionsRepositoryTest {
     @Test fun `unsafe alternatives and original product are excluded and unknowns require verification`() = runBlocking {
         fun item(code:String,status:String)=AlternativeItemDto(ProductDto(barcode=code,productName=code),AlternativeSafetyDto(status))
         val api=object:ProductOptionsApi {
-            override suspend fun variants(barcode:String)=error("unused")
-            override suspend fun alternatives(barcode:String,limit:Int)=ProductAlternativesResponse(ProductAlternativesDto(
+            override suspend fun variants(barcode:String, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?)=error("unused")
+            override suspend fun alternatives(barcode:String,limit:Int, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?)=ProductAlternativesResponse(ProductAlternativesDto(
                 items=listOf(item("source","PASS"),item("danger","DANGER"),item("safe","PASS")),
                 fallbackItems=listOf(item("safe","PASS"),item("unknown","UNKNOWN"))))
         }

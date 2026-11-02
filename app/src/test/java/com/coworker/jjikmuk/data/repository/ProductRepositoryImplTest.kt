@@ -72,13 +72,13 @@ class ProductRepositoryImplTest {
         var calls = 0
         var allergies: List<String> = emptyList()
         private fun checkRequest() { calls++; error?.let { throw it } }
-        override suspend fun getProductDetailById(productId: Long): ProductDetailApiResponse { checkRequest(); return detail }
-        override suspend fun searchProducts(keyword: String, userId: Long?, allergies: List<String>): ProductSearchApiResponse {
+        override suspend fun getProductDetailById(productId: Long, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?): ProductDetailApiResponse { checkRequest(); return detail }
+        override suspend fun searchProducts(keyword: String, userId: Long?, allergies: List<String>, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?): ProductSearchApiResponse {
             checkRequest()
             this.allergies = allergies
             return ProductSearchApiResponse(data = products)
         }
-        override suspend fun getProductDetail(barcode: String, userId: Long?, allergies: List<String>): ProductDetailApiResponse {
+        override suspend fun getProductDetail(barcode: String, userId: Long?, allergies: List<String>, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?): ProductDetailApiResponse {
             checkRequest()
             return detail
         }
