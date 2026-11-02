@@ -71,14 +71,8 @@ fun SettingsScreen(
                 style = JjikmukTheme.typography.titleM,
             )
             Spacer(modifier = Modifier.height(10.dp))
-            SettingsMenuItem(
-                title = "알림 설정",
-                iconRes = R.drawable.ic_setting_bell,
-            )
-            SettingsMenuItem(
-                title = "자주 묻는 질문",
-                iconRes = R.drawable.ic_setting_help,
-            )
+            // "알림 설정"(ic_setting_bell), "자주 묻는 질문"(ic_setting_help) are hidden until
+            // their features are planned. Re-add them above this item when implemented.
             SettingsMenuItem(
                 title = "계정 및 보안",
                 iconRes = R.drawable.ic_setting_lock,
