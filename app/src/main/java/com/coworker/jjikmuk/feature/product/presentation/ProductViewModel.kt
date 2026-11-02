@@ -85,18 +85,14 @@ class ProductViewModel @Inject constructor(
 
         viewModelScope.launch {
             targets.state.map { it.selection.takeIf { _ -> it.ready } }.distinctUntilChanged().collectLatest { selection ->
-                detailJob?.cancel(); alternativeJob?.cancel(); searchJob?.cancel()
+                detailJob?.cancel(); alternativeJob?.cancel()
                 recommendationGeneration++; recommendationPageJob?.cancel(); nextRecommendationCursor = null
                 val detailRequest = lastDetailRequest
                 if (detailRequest != null) _detailUiState.value = ProductDetailUiState(isLoading = selection != null,
                     errorMessage = if (selection == null) "분석 대상을 확인하고 있어요." else null)
-                val search = _searchUiState.value
-                if (search.hasSearched) _searchUiState.update { it.copy(products = emptyList(), isLoading = selection != null,
-                    errorMessage = if (selection == null) "분석 대상을 확인하고 있어요." else null) }
                 if (selection == null) {
                     _recommendationUiState.value = ProductRecommendationUiState(notice = "분석 대상을 확인하고 있어요.")
                 } else {
-                    if (search.hasSearched && search.submittedQuery.length >= MIN_SEARCH_KEYWORD_LENGTH) searchProducts(search.submittedQuery)
                     detailRequest?.let { loadDetail(it.first, it.second) }
                     if (selection.mode == "none") _recommendationUiState.value = ProductRecommendationUiState(
                         notice = "선택한 대상 없음 · 개인 식이조건 미적용")

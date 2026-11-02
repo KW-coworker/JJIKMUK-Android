@@ -41,13 +41,8 @@ class ProductRepositoryImpl internal constructor(
         allergies: List<String>,
     ): Result<List<ProductSearchResult>> =
         requestResult {
-            val chosen = selection()
-            val response = productApi.searchProducts(
-                keyword = keyword,
-                allergies = if (chosen == null) allergies else emptyList(),
-                analysisMode = chosen?.mode, includeSelf = chosen?.queryIncludeSelf, familyProfileIds = chosen?.queryFamilyIds,
-            )
-            verify(chosen)
+            // Catalog search must remain available even when personal profiles cannot be loaded.
+            val response = productApi.searchProducts(keyword = keyword, analysisMode = "none")
             response.data
                 .orEmpty()
                 .mapNotNull { item -> item.toDomain() }

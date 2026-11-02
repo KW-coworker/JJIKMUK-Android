@@ -15,10 +15,11 @@ class ProductSelectionTest {
         val account = FamilyAccount(5, 1)
         var chosen = AnalysisTargetSelection(account, false, emptyList(), "1")
         var stale = false
+        var unavailable = false
         override val state = MutableStateFlow(AnalysisTargetsState())
         override fun captureAccount() = account
         override suspend fun setSelected(id: String, checked: Boolean, account: FamilyAccount?) = false
-        override suspend fun awaitSelection(account: FamilyAccount?) = chosen
+        override suspend fun awaitSelection(account: FamilyAccount?) = if (unavailable) error("Profiles unavailable") else chosen
         override fun isCurrent(selection: AnalysisTargetSelection) = !stale && selection == chosen
     }
     private val detail = """{"data":{"product":{"productId":123,"barcode":"880","productName":"포키","allergy":"우유"},"analysis":{"status":"DANGER","isDangerous":true,"dangerousIngredients":["우유"]}}}"""
@@ -37,7 +38,7 @@ class ProductSelectionTest {
         assertFalse(product.personalConditionsApplied); assertFalse(product.isDangerous)
         assertTrue(product.dangerousIngredients.isEmpty()); assertEquals(listOf("우유"), product.allergyLabels)
     } }
-    @Test fun `id detail and search send selected server family ids instead of allergy strings`() = checkRequest { server, _, targets, repo -> runBlocking {
+    @Test fun `detail uses selected family ids while catalog search is unrestricted`() = checkRequest { server, _, targets, repo -> runBlocking {
         targets.chosen=targets.chosen.copy(includeSelf=true, familyProfileIds=listOf(31,32))
         server.enqueue(MockResponse.Builder().body(detail).build())
         assertTrue(repo.getProductDetailById(123).getOrThrow().personalConditionsApplied)
@@ -47,7 +48,9 @@ class ProductSelectionTest {
         server.enqueue(MockResponse.Builder().body("""{"data":[]}""").build())
         repo.searchProducts("포키", listOf("우유")).getOrThrow()
         val search=server.takeRequest()
-        assertEquals("true",search.url.queryParameter("includeSelf"))
+        assertEquals("none",search.url.queryParameter("analysisMode"))
+        assertNull(search.url.queryParameter("includeSelf"))
+        assertNull(search.url.queryParameter("familyProfileIds"))
         assertNull(search.url.queryParameter("allergies"))
     } }
     @Test fun `capacity lookup also keeps none and alternatives do not use implicit self`() = checkRequest { server, retrofit, _, repo -> runBlocking {
@@ -57,6 +60,14 @@ class ProductSelectionTest {
         assertEquals("none",server.takeRequest().url.queryParameter("analysisMode"))
         assertTrue(options.alternatives("880").products.isEmpty())
         assertEquals(1,server.requestCount)
+    } }
+    @Test fun `catalog search succeeds even when profiles are unavailable or selection is stale`() = checkRequest { server, _, targets, repo -> runBlocking {
+        targets.unavailable=true; targets.stale=true
+        server.enqueue(MockResponse.Builder().body("""{"data":[{"product":{"barcode":"880","productName":"포키"}}]}""").build())
+        assertEquals("포키",repo.searchProducts("포키").getOrThrow().single().productName)
+        val request=server.takeRequest()
+        assertEquals("none",request.url.queryParameter("analysisMode"))
+        assertNull(request.url.queryParameter("familyProfileIds"))
     } }
     @Test fun `results from old selection are rejected`() = checkRequest { server, _, targets, repo -> runBlocking {
         targets.stale=true

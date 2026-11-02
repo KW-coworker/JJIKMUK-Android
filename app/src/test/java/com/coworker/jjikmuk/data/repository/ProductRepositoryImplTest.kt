@@ -35,7 +35,7 @@ class ProductRepositoryImplTest {
         val product = ProductRepositoryImpl(api).searchProducts("서버", listOf("wheat")).getOrThrow().single()
         assertEquals("server-id", product.barcode)
         assertEquals("서버 상품", product.productName)
-        assertEquals(listOf("wheat"), api.allergies)
+        assertTrue(api.allergies.isEmpty())
     }
 
     @Test fun `cancellation propagates from search and detail`() = runTest {
