@@ -1,5 +1,14 @@
 package com.coworker.jjikmuk.feature.chat.presentation.component
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
+import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +42,28 @@ fun ProductCandidatePicker(
     modifier: Modifier = Modifier,
 ) {
     if (candidates.isEmpty()) return
+    var showAll by rememberSaveable(candidates) { mutableStateOf(false) }
+    BackHandler { if (showAll) showAll = false else onConfirmClick() }
+    if (showAll) {
+        Surface(modifier = modifier.fillMaxSize(), color = JjikmukTheme.colors.surface) {
+            Column(Modifier.fillMaxSize()) {
+                JjikmukTopAppBar(
+                    centerContent = { Text("상품 선택") },
+                    leading = JjikmukTopAppBarLeading.Back { showAll = false },
+                )
+                Text("질문할 상품을 선택해 주세요. (${candidates.size}개)",
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    style = JjikmukTheme.typography.bodyS)
+                LazyColumn(contentPadding = PaddingValues(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(candidates) { candidate ->
+                        ProductCandidateCard(candidate, onClick = { onCandidateClick(candidate) })
+                    }
+                }
+            }
+        }
+        return
+    }
 
     Box(
         modifier = modifier
@@ -43,7 +74,7 @@ fun ProductCandidatePicker(
         ProductCandidateBottomSheet(
             candidates = candidates,
             onCandidateClick = onCandidateClick,
-            onConfirmClick = onConfirmClick,
+            onConfirmClick = { if (candidates.size > MAX_VISIBLE_CANDIDATE_COUNT) showAll = true else onConfirmClick() },
         )
     }
 }
@@ -88,7 +119,7 @@ private fun ProductCandidateBottomSheet(
             }
 
             JjikmukLoginButton(
-                text = "확인",
+                text = if (candidates.size > MAX_VISIBLE_CANDIDATE_COUNT) "더보기" else "확인",
                 onClick = onConfirmClick,
                 modifier = Modifier
                     .fillMaxWidth(),
