@@ -186,6 +186,11 @@ fun JjikmukAppContent(
         if (showScanner) {
             ScannerNavHost(
                 onExitScanner = { showScanner = false },
+                onAskProduct = { prompt ->
+                    showScanner = false
+                    chatConversationId = null
+                    chatMessage = prompt
+                },
                 modifier = Modifier.fillMaxSize(),
             )
         }

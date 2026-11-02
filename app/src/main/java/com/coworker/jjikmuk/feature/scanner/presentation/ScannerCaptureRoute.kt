@@ -67,6 +67,7 @@ fun ScannerMainRoute(
     onBackClick: () -> Unit,
     onCompareListClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onProductClick: (barcode: String) -> Unit = {},
     viewModel: ScannerCaptureViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -132,7 +133,12 @@ fun ScannerMainRoute(
             searchUiState = analysis.search,
             onQueryChange = viewModel::editSearchQuery,
             onSearchSubmit = viewModel::submitSearch,
-            onProductClick = { viewModel.showError("상품 상세 화면은 준비 중이에요.") },
+            onProductClick = { product ->
+                // Open only server-identified products; never fabricate an ID for barcode-less rows.
+                val barcode = product.barcode?.takeIf(String::isNotBlank)
+                if (barcode != null) onProductClick(barcode)
+                else viewModel.showError("이 상품은 상세 정보를 불러올 수 없어요.")
+            },
             onBackClick = viewModel::cancelScan,
             modifier = modifier,
         )
