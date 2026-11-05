@@ -41,6 +41,9 @@ android {
         compose = true
         resValues = true
     }
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
 }
 
 dependencies {

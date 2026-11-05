@@ -24,5 +24,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Lint
+        run: ./gradlew lintDebug
+
+      - name: Unit Test
+        run: ./gradlew testDebugUnitTest
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug

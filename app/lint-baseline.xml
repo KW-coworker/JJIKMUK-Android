@@ -1,0 +1,1085 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.2.1" type="baseline" client="gradle" dependencies="false" name="AGP (9.2.1)" variant="all" version="9.2.1">
+
+    <issue
+        id="OldTargetApi"
+        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
+        errorLine1="        targetSdk = 36"
+        errorLine2="        ~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="19"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="RedundantLabel"
+        message="Redundant label can be removed"
+        errorLine1="            android:label=&quot;@string/app_name&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="38"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="SelectedPhotoAccess"
+        message="Your app is currently not handling Selected Photos Access introduced in Android 14+"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.READ_MEDIA_IMAGES&quot; />"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="9"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="VectorRaster"
+        message="Limit vector icons sizes to 200×200 to keep icon drawing fast; see https://developer.android.com/studio/write/vector-asset-studio#when for more"
+        errorLine1="    android:width=&quot;375dp&quot;"
+        errorLine2="                   ~~~~~">
+        <location
+            file="src/main/res/drawable/scanner_focus_mask.xml"
+            line="2"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of Gradle than 9.4.1 is available: 9.8.2"
+        errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-bin.zip"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/wrapper/gradle-wrapper.properties"
+            line="5"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of com.android.application than 9.2.1 is available: 9.5.0"
+        errorLine1="agp = &quot;9.2.1&quot;"
+        errorLine2="      ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="4"
+            column="7"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of `compileSdk` than 36 is available: 37"
+        errorLine1="        version = release(36) {"
+        errorLine2="                  ^">
+        <location
+            file="build.gradle.kts"
+            line="11"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.core:core-ktx than 1.18.0 is available: 1.19.1"
+        errorLine1="coreKtx = &quot;1.18.0&quot;"
+        errorLine2="          ~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="5"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycleRuntimeKtx = &quot;2.10.0&quot;"
+        errorLine2="                      ~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="9"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycleRuntimeKtx = &quot;2.10.0&quot;"
+        errorLine2="                      ~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="9"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.10.0 is available: 2.11.0"
+        errorLine1="lifecycleRuntimeKtx = &quot;2.10.0&quot;"
+        errorLine2="                      ~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="9"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.compose:compose-bom than 2026.02.01 is available: 2026.09.00"
+        errorLine1="composeBom = &quot;2026.02.01&quot;"
+        errorLine2="             ~~~~~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="12"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.navigation:navigation-compose than 2.9.8 is available: 2.10.2"
+        errorLine1="navigationCompose = &quot;2.9.8&quot;"
+        errorLine2="                    ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="13"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.navigation:navigation-testing than 2.9.8 is available: 2.10.2"
+        errorLine1="navigationCompose = &quot;2.9.8&quot;"
+        errorLine2="                    ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="13"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.hilt:hilt-navigation-compose than 1.3.0 is available: 1.4.0"
+        errorLine1="hiltNavigationCompose = &quot;1.3.0&quot;"
+        errorLine2="                        ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="15"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.datastore:datastore-preferences than 1.2.1 is available: 1.3.0"
+        errorLine1="datastore = &quot;1.2.1&quot;"
+        errorLine2="            ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="22"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.room:room-compiler than 2.8.3 is available: 2.8.5"
+        errorLine1="room = &quot;2.8.3&quot;"
+        errorLine2="       ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="23"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.room:room-ktx than 2.8.3 is available: 2.8.5"
+        errorLine1="room = &quot;2.8.3&quot;"
+        errorLine2="       ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="23"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.room:room-runtime than 2.8.3 is available: 2.8.5"
+        errorLine1="room = &quot;2.8.3&quot;"
+        errorLine2="       ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="23"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.camera:camera-camera2 than 1.5.3 is available: 1.6.2"
+        errorLine1="camera = &quot;1.5.3&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="24"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.camera:camera-lifecycle than 1.5.3 is available: 1.6.2"
+        errorLine1="camera = &quot;1.5.3&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="24"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.camera:camera-view than 1.5.3 is available: 1.6.2"
+        errorLine1="camera = &quot;1.5.3&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="24"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.plugin.compose than 2.4.0 is available: 2.4.21"
+        errorLine1="kotlin = &quot;2.4.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="11"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.10.2 is available: 1.11.0"
+        errorLine1="coroutines = &quot;1.10.2&quot;"
+        errorLine2="             ~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="17"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.10.2 is available: 1.11.0"
+        errorLine1="coroutines = &quot;1.10.2&quot;"
+        errorLine2="             ~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="17"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.squareup.okhttp3:okhttp-bom than 5.4.0 is available: 5.5.1"
+        errorLine1="okhttp = &quot;5.4.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="19"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.google.code.gson:gson than 2.13.2 is available: 2.15.0"
+        errorLine1="gson = &quot;2.13.2&quot;"
+        errorLine2="       ~~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="20"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.coil-kt.coil3:coil-compose than 3.5.0 is available: 3.6.3"
+        errorLine1="coil = &quot;3.5.0&quot;"
+        errorLine2="       ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="21"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.coil-kt.coil3:coil-network-okhttp than 3.5.0 is available: 3.6.3"
+        errorLine1="coil = &quot;3.5.0&quot;"
+        errorLine2="       ~~~~~~~">
+        <location
+            file="$HOME/Desktop/CODE/CAPSTONE/JJIKMUK-Android/.worktrees/auth-api-integration/gradle/libs.versions.toml"
+            line="21"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current"
+        errorLine1="        .firstOrNull { item -> context.getString(item.labelRes) == label }"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/ui/component/JjikmukProductListCard.kt"
+            line="107"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/chat/presentation/ChatHistoryScreen.kt"
+            line="80"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/chat/presentation/ChatScreen.kt"
+            line="49"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/DietConditionManagementScreen.kt"
+            line="265"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/DietConditionManagementScreen.kt"
+            line="416"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/DietConditionManagementScreen.kt"
+            line="645"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/DietConditionManagementScreen.kt"
+            line="914"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/home/presentation/HomeScreen.kt"
+            line="44"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/MyPageScreen.kt"
+            line="76"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/MyPageScreen.kt"
+            line="232"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/MyPageScreen.kt"
+            line="440"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/MyPageScreen.kt"
+            line="672"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/product/presentation/ProductScreen.kt"
+            line="184"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/product/presentation/ProductScreen.kt"
+            line="470"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/product/presentation/ProductScreen.kt"
+            line="553"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/product/presentation/ProductScreen.kt"
+            line="650"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/product/presentation/ProductScreen.kt"
+            line="1554"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/product/presentation/ProductScreen.kt"
+            line="1682"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/product/presentation/component/ProductSearchComponents.kt"
+            line="101"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/product/presentation/component/ProductSearchComponents.kt"
+            line="177"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/ui/component/ScanTargetButton.kt"
+            line="89"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/ui/component/ScanTargetPopup.kt"
+            line="185"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/mypage/presentation/SettingsScreen.kt"
+            line="40"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/presentation/signup/SignUpProfileScreen.kt"
+            line="164"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ViewModelConstructorInComposable"
+        message="Constructing a view model in a composable"
+        errorLine1="                    accountActionViewModel = account, profileCompletionViewModel = ProfileCompletionViewModel(repository, AuthProfiles(repository, sessions, AuthenticatedRequests(sessions, repository)), sessions),"
+        errorLine2="                                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/com/coworker/jjikmuk/feature/auth/navigation/AuthNavHostTest.kt"
+            line="81"
+            column="84"/>
+    </issue>
+
+    <issue
+        id="ViewModelConstructorInComposable"
+        message="Constructing a view model in a composable"
+        errorLine1="                    googleLoginViewModel = GoogleLoginViewModel(repository, sessions),"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/com/coworker/jjikmuk/feature/auth/navigation/AuthNavHostTest.kt"
+            line="82"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="ViewModelConstructorInComposable"
+        message="Constructing a view model in a composable"
+        errorLine1="                    pendingPhotoViewModel = PendingSignupPhotoViewModel(object : PendingSignupPhotoStore {"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/androidTest/java/com/coworker/jjikmuk/feature/auth/navigation/AuthNavHostTest.kt"
+            line="83"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="FrequentlyChangingValue"
+        message="Reading a value annotated with @FrequentlyChangingValue inside composition"
+        errorLine1="                    scrollValue = scrollState.value,"
+        errorLine2="                                              ~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/presentation/signup/SignUpAllergiesScreen.kt"
+            line="132"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="FrequentlyChangingValue"
+        message="Reading a value annotated with @FrequentlyChangingValue inside composition"
+        errorLine1="                    scrollValue = dietScrollState.value,"
+        errorLine2="                                                  ~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/presentation/signup/SignUpVegetarianScreen.kt"
+            line="128"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="    var rowOffsetPx by remember { mutableStateOf(0f) }"
+        errorLine2="                                  ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/chat/presentation/ChatHistoryScreen.kt"
+            line="384"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="    var dragStartOffsetPx by remember { mutableStateOf(0f) }"
+        errorLine2="                                        ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/chat/presentation/ChatHistoryScreen.kt"
+            line="385"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.auth_logo` appears to be unused">
+        <location
+            file="src/main/res/drawable-nodpi/auth_logo.png"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.purple_200` appears to be unused"
+        errorLine1="    &lt;color name=&quot;purple_200&quot;>#FFBB86FC&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="3"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.purple_500` appears to be unused"
+        errorLine1="    &lt;color name=&quot;purple_500&quot;>#FF6200EE&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="4"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.purple_700` appears to be unused"
+        errorLine1="    &lt;color name=&quot;purple_700&quot;>#FF3700B3&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="5"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.teal_200` appears to be unused"
+        errorLine1="    &lt;color name=&quot;teal_200&quot;>#FF03DAC5&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="6"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.teal_700` appears to be unused"
+        errorLine1="    &lt;color name=&quot;teal_700&quot;>#FF018786&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="7"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.black` appears to be unused"
+        errorLine1="    &lt;color name=&quot;black&quot;>#FF000000&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="8"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.white` appears to be unused"
+        errorLine1="    &lt;color name=&quot;white&quot;>#FFFFFFFF&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="9"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_auth_back` appears to be unused">
+        <location
+            file="src/main/res/drawable-nodpi/ic_auth_back.png"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_history` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_history.xml"
+            line="16"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_home` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_home.xml"
+            line="16"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_my` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_my.xml"
+            line="16"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_product` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_product.xml"
+            line="16"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.raw.ic_profile_camera` appears to be unused">
+        <location
+            file="src/main/res/raw/ic_profile_camera.svg"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.raw.ic_profile_default` appears to be unused">
+        <location
+            file="src/main/res/raw/ic_profile_default.svg"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.raw.ic_profile_edit` appears to be unused">
+        <location
+            file="src/main/res/raw/ic_profile_edit.svg"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_setting_bell` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_setting_bell.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_setting_help` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_setting_help.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.img_honey_butter_chip` appears to be unused">
+        <location
+            file="src/main/res/drawable/img_honey_butter_chip.png"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.img_pocky_blueberry` appears to be unused">
+        <location
+            file="src/main/res/drawable/img_pocky_blueberry.png"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.img_shrimp_snack` appears to be unused">
+        <location
+            file="src/main/res/drawable/img_shrimp_snack.png"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.img_soy_milk` appears to be unused">
+        <location
+            file="src/main/res/drawable/img_soy_milk.png"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.logo_jjikmuk` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/logo_jjikmuk.xml"
+            line="16"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.password_reset_otp_resent_message` appears to be unused"
+        errorLine1="    &lt;string name=&quot;password_reset_otp_resent_message&quot;>새로운 인증번호가 전송됐습니다.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="20"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.password_reset_otp_expired_message` appears to be unused"
+        errorLine1="    &lt;string name=&quot;password_reset_otp_expired_message&quot;>인증시간이 만료되었습니다. 인증번호를 재전송해 주세요.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="21"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.sign_up_nickname_duplicate` appears to be unused"
+        errorLine1="    &lt;string name=&quot;sign_up_nickname_duplicate&quot;>이미 사용중인 닉네임입니다&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="44"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseOfNonLambdaOffsetOverload"
+        message="State backed values should use the lambda overload of Modifier.offset"
+        errorLine1="                .offset(y = thumbTravel * scrollFraction)"
+        errorLine2="                 ~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/ui/component/JjikmukVerticalScrollIndicator.kt"
+            line="44"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/img_gluten_free_rice_cookie.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/img_gluten_free_rice_cookie.png"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/img_honey_butter_chip.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/img_honey_butter_chip.png"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/img_organic_apple_puree.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/img_organic_apple_puree.png"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/img_pocky_blueberry.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/img_pocky_blueberry.png"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/img_shrimp_snack.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/img_shrimp_snack.png"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/img_soy_milk.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/img_soy_milk.png"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/img_vegan_choco_cookie.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/img_vegan_choco_cookie.png"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/img_vegan_mayonnaise.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/img_vegan_mayonnaise.png"/>
+    </issue>
+
+    <issue
+        id="IconDuplicates"
+        message="The following unrelated icon files have identical contents: img_scanner_report_danger.jpg, img_scanner_report_safe.jpg">
+        <location
+            file="src/main/res/drawable-nodpi/img_scanner_report_safe.jpg"/>
+        <location
+            file="src/main/res/drawable-nodpi/img_scanner_report_danger.jpg"/>
+    </issue>
+
+    <issue
+        id="IconExtension"
+        message="Misleading file extension; named `.png` but the file format is `JPEG`">
+        <location
+            file="src/debug/res/drawable-nodpi/figma_product_reference.png"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.scale` instead?"
+        errorLine1="    val result = Bitmap.createScaledBitmap(decoded, max(1, decoded.width * 160 / edge), max(1, decoded.height * 160 / edge), true)"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/photo/AccountPhotoPreview.kt"
+            line="59"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="            writeDeadline = { prefs.edit().putLong(&quot;deadline&quot;, it).apply() },"
+        errorLine2="                              ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/di/AuthModule.kt"
+            line="26"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val photo = if (bitmap != null) encoder.encode(bitmap) else encoder.encode(Uri.parse(requireNotNull(uri)))"
+        errorLine2="                                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/photo/PendingSignupPhotos.kt"
+            line="99"
+            column="84"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="    fun complete(context: Context) { prefs(context).edit().putBoolean(&quot;completed&quot;, true).apply() }"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/presentation/permission/PermissionOnboarding.kt"
+            line="13"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.scale` instead?"
+        errorLine1="        var bitmap = Bitmap.createScaledBitmap(source, maxOf(1, (source.width * ratio).toInt()),"
+        errorLine2="                     ^">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/photo/ProfilePhotoEncoder.kt"
+            line="37"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.scale` instead?"
+        errorLine1="                val smaller = Bitmap.createScaledBitmap(bitmap, maxOf(1, bitmap.width / 2), maxOf(1, bitmap.height / 2), true)"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/photo/ProfilePhotoEncoder.kt"
+            line="44"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.scale` instead?"
+        errorLine1="                val smaller = Bitmap.createScaledBitmap(bitmap, maxOf(1, bitmap.width / 2), maxOf(1, bitmap.height / 2), true)"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/auth/photo/ProfilePhotoEncoder.kt"
+            line="74"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX function `createBitmap` instead?"
+        errorLine1="            opaque = Bitmap.createBitmap(oriented.width, oriented.height, Bitmap.Config.ARGB_8888)"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/coworker/jjikmuk/feature/scanner/data/ScannerImagePreparer.kt"
+            line="48"
+            column="22"/>
+    </issue>
+
+</issues>
