@@ -1,8 +1,6 @@
 name: Android CD
 
 on:
-  push:
-    branches: [ develop ]
   workflow_dispatch:
 
 jobs:
@@ -39,4 +37,4 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_CREDENTIALS }}
           groups: testers
           file: app/build/outputs/apk/release/app-release.apk
-          releaseNotes: ${{ github.event.head_commit.message }}
+          releaseNotes: "${{ github.ref_name }} @ ${{ github.sha }}"
