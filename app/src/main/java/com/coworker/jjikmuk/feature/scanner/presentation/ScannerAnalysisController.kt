@@ -25,6 +25,7 @@ internal data class ScannerAnalysisState(
 internal class ScannerAnalysisController(
     private val scope: CoroutineScope,
     private val service: ScannerOcrService,
+    private val listService: ScannerListService? = null,
     private val searchProducts: suspend (String) -> Result<List<ProductSearchResult>>,
 ) {
     private val mutableState = MutableStateFlow(ScannerAnalysisState())
@@ -37,6 +38,10 @@ internal class ScannerAnalysisController(
         val request = ++generation
         mutableState.value = ScannerAnalysisState(phase = ScannerPhase.Recognizing)
         job = scope.launch {
+            if (listService != null) {
+                receiveScanList(photo, request, listService)
+                return@launch
+            }
             val result = try {
                 if (service.available) service.recognize(photo)
                 else OcrResult.Failure(OcrFailure.NotConfigured)
@@ -67,6 +72,29 @@ internal class ScannerAnalysisController(
                 is OcrResult.Failure -> mutableState.value = ScannerAnalysisState(
                     ScannerPhase.OcrError, failure = result, trace = result.trace)
             }
+        }
+    }
+
+    private suspend fun receiveScanList(photo: PreparedScannerPhoto, request: Long, service: ScannerListService) {
+        val result = try {
+            service.scan(photo)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            ScanListResult.Failure(OcrResult.Failure(OcrFailure.OutcomeUnknown))
+        }
+        kotlin.coroutines.coroutineContext.ensureActive()
+        if (request != generation) return
+        mutableState.value = when (result) {
+            is ScanListResult.Products -> ScannerAnalysisState(
+                phase = ScannerPhase.Results,
+                search = ProductSearchUiState(products = result.products, hasSearched = true),
+                trace = result.trace,
+            ) // Empty field; keep server order. Do not perform a second keyword search.
+            is ScanListResult.ManualSearchRequired -> ScannerAnalysisState(
+                phase = ScannerPhase.RecognitionFailure, trace = result.trace)
+            is ScanListResult.Failure -> ScannerAnalysisState(
+                phase = ScannerPhase.OcrError, failure = result.failure, trace = result.failure.trace)
         }
     }
 

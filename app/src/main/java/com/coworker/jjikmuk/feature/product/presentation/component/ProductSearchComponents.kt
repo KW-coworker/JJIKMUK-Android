@@ -192,10 +192,12 @@ private fun ProductSearchResultHeader(
     ) {
         Text(
             text = buildAnnotatedString {
-                withStyle(SpanStyle(color = JjikmukTheme.colors.textPrimary)) {
-                    append("‘")
-                    append(query)
-                    append("' ")
+                if (query.isNotBlank()) {
+                    withStyle(SpanStyle(color = JjikmukTheme.colors.textPrimary)) {
+                        append("‘")
+                        append(query)
+                        append("' ")
+                    }
                 }
                 when {
                     isLoading -> append("검색 중")
