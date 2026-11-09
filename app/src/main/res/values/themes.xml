@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.JJIKMUK" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 앱이 그려지기 전 시작 화면도 스플래시와 같은 흰색으로 보이게 한다. -->
+    <style name="Theme.JJIKMUK" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
 </resources>
