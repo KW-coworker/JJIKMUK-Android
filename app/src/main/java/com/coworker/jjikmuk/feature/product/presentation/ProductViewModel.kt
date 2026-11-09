@@ -3,6 +3,7 @@ package com.coworker.jjikmuk.feature.product.presentation
 import com.coworker.jjikmuk.data.remote.auth.AccessTokenStore
 import com.coworker.jjikmuk.data.repository.SafeRecommendationRepository
 import com.coworker.jjikmuk.data.repository.recommendationMessage
+import com.coworker.jjikmuk.data.repository.catalogLoadMessage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.ViewModel
@@ -41,12 +42,50 @@ class ProductViewModel @Inject constructor(
     private val safeRecommendations: SafeRecommendationRepository,
     private val accessTokens: AccessTokenStore,
     private val recentlyViewedProducts: com.coworker.jjikmuk.data.local.preference.RecentlyViewedProductStore,
+    private val catalog: com.coworker.jjikmuk.data.repository.ProductCatalogRepository,
     private val productOptions: com.coworker.jjikmuk.data.repository.ProductOptionsRepository,
 ) : ViewModel() {
 
     private var detailOwner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner? = null
     private var detailJob: Job? = null
     private var searchJob: Job? = null
+    private var categoryPageJob: Job? = null
+    private var searchGeneration = 0L
+    private val _categories = MutableStateFlow(CategoryUiState())
+    val categories = _categories.asStateFlow()
+    private var categoriesJob: Job? = null
+
+    fun loadCategories() {
+        if (categoriesJob?.isActive == true) return
+        categoriesJob = viewModelScope.launch {
+            _categories.value = CategoryUiState(loading = true)
+            try { _categories.value = CategoryUiState(categories = catalog.categories()) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { _categories.value = CategoryUiState(error = error.catalogLoadMessage()) }
+        }
+    }
+    fun selectCategory(category: com.coworker.jjikmuk.data.repository.ProductCategory) {
+        resetSearchState()
+        _searchUiState.value = ProductSearchUiState(categoryId = category.id, categoryLabel = category.label)
+        searchProducts("")
+    }
+    fun loadMoreCategoryProducts() {
+        val before = _searchUiState.value
+        val id = before.categoryId ?: return
+        if (before.isLoading || before.isLoadingMore || !before.hasNext) return
+        val generation = searchGeneration
+        _searchUiState.update { it.copy(isLoadingMore = true, nextPageError = null) }
+        categoryPageJob = viewModelScope.launch {
+            try {
+                val page = catalog.page(id, before.submittedQuery, before.page + 1)
+                if (generation != searchGeneration) return@launch
+                _searchUiState.update { it.copy(products = (it.products + page.products).distinctBy { p -> p.barcode to p.productName },
+                    page = page.page, hasNext = page.hasNext, totalCount = page.total, isLoadingMore = false) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { if (generation == searchGeneration) _searchUiState.update {
+                it.copy(isLoadingMore = false, nextPageError = error.catalogLoadMessage()) } }
+        }
+    }
     private var lastDetailRequest: Pair<String?, Long?>? = null
     private var alternativeJob: Job? = null
     val scanTargetMembers = targets.state.map { it.toScanTargetMembers() }.stateIn(viewModelScope,
@@ -73,6 +112,7 @@ class ProductViewModel @Inject constructor(
     val recentSearchKeywords: StateFlow<List<String>> = _recentSearchKeywords.asStateFlow()
 
     init {
+        loadCategories()
         viewModelScope.launch {
             familyProfileRepository.ensureDefaultProfiles()
         }
@@ -115,63 +155,39 @@ class ProductViewModel @Inject constructor(
     }
 
     fun resetSearchState() {
+        searchGeneration++; searchJob?.cancel(); categoryPageJob?.cancel()
         _searchUiState.value = ProductSearchUiState()
     }
 
     fun searchProducts(keyword: String = _searchUiState.value.query) {
         val trimmedKeyword = keyword.trim()
-        if (trimmedKeyword.length < MIN_SEARCH_KEYWORD_LENGTH) {
-            _searchUiState.update { state ->
-                state.copy(
-                    query = trimmedKeyword,
-                    submittedQuery = trimmedKeyword,
-                    products = emptyList(),
-                    isLoading = false,
-                    errorMessage = "검색어는 2글자 이상 입력해주세요.",
-                    hasSearched = true,
-                )
-            }
+        val category = _searchUiState.value.categoryId
+        searchGeneration++; searchJob?.cancel(); categoryPageJob?.cancel()
+        val generation = searchGeneration
+        if (trimmedKeyword.isNotEmpty() && trimmedKeyword.length < MIN_SEARCH_KEYWORD_LENGTH ||
+            category == null && trimmedKeyword.isEmpty()) {
+            _searchUiState.update { it.copy(query = trimmedKeyword, submittedQuery = trimmedKeyword,
+                products = emptyList(), isLoading = false, isLoadingMore = false, hasNext = false,
+                errorMessage = "검색어는 2글자 이상 입력해주세요.", hasSearched = true) }
             return
         }
-
-        viewModelScope.launch {
-            recentSearchKeywordStore.addKeyword(trimmedKeyword)
-        }
-
-        searchJob?.cancel()
+        if (trimmedKeyword.isNotEmpty()) viewModelScope.launch { recentSearchKeywordStore.addKeyword(trimmedKeyword) }
+        _searchUiState.update { it.copy(query = trimmedKeyword, submittedQuery = trimmedKeyword,
+            products = emptyList(), isLoading = true, errorMessage = null, hasSearched = true,
+            totalCount = null, page = 0, hasNext = false, isLoadingMore = false, nextPageError = null) }
         searchJob = viewModelScope.launch {
-            _searchUiState.update { state ->
-                state.copy(
-                    query = trimmedKeyword,
-                    submittedQuery = trimmedKeyword,
-                    isLoading = true,
-                    errorMessage = null,
-                    hasSearched = true,
-                )
-            }
-
-            productRepository.searchProducts(
-                keyword = trimmedKeyword,
-                allergies = emptyList(),
-            )
-                .onSuccess { products ->
-                    _searchUiState.update { state ->
-                        state.copy(
-                            products = products,
-                            isLoading = false,
-                            errorMessage = null,
-                        )
-                    }
+            try {
+                if (category != null) {
+                    val page = catalog.page(category, trimmedKeyword, 0)
+                    if (generation == searchGeneration) _searchUiState.update { it.copy(products = page.products,
+                        totalCount = page.total, page = page.page, hasNext = page.hasNext, isLoading = false) }
+                } else {
+                    val products = productRepository.searchProducts(trimmedKeyword).getOrThrow()
+                    if (generation == searchGeneration) _searchUiState.update { it.copy(products = products, isLoading = false) }
                 }
-                .onFailure { throwable ->
-                    _searchUiState.update { state ->
-                        state.copy(
-                            products = emptyList(),
-                            isLoading = false,
-                            errorMessage = throwable.message ?: "상품 검색에 실패했어요.",
-                        )
-                    }
-                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { if (generation == searchGeneration) _searchUiState.update {
+                it.copy(products = emptyList(), isLoading = false, errorMessage = error.catalogLoadMessage()) } }
         }
     }
 
@@ -424,3 +440,7 @@ private fun String.toAllergyKey(): String? {
         else -> null
     }
 }
+
+
+data class CategoryUiState(val categories: List<com.coworker.jjikmuk.data.repository.ProductCategory> = emptyList(),
+    val loading: Boolean = false, val error: String? = null)

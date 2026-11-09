@@ -75,6 +75,8 @@ class ProductRepositoryImpl internal constructor(
         Result.failure(error)
     }
 
+    internal fun mapSearchItem(item: ProductSearchItemDto): ProductSearchResult? = item.toDomain()
+
     private fun ProductSearchItemDto.toDomain(): ProductSearchResult? {
         val product = product ?: return null
         val productName = product.productName?.takeIf(String::isNotBlank) ?: return null

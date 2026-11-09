@@ -144,7 +144,7 @@ private fun CapacityPicker(state: ProductDetailUiState, onSelect: (String) -> Un
         if (expanded && selectable) Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
             color = JjikmukTheme.colors.surface, border = BorderStroke(0.672.dp, Color(0xFFB8EAB5))) {
             Column(Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) {
-                Text("같은 상품, 다른 용량 1개씩 비교해 보세요", Modifier.padding(10.dp),
+                Text("같은 상품의 다른 용량을 선택해 보세요", Modifier.padding(10.dp),
                     style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
                 state.capacities.forEach { option ->
                     val active = option.key == state.selectedCapacityKey
@@ -160,6 +160,8 @@ private fun CapacityPicker(state: ProductDetailUiState, onSelect: (String) -> Un
                 }
             }
         }
+        if (product.nutrition.energyKcal != null) Text("열량의 기준량이 확인되지 않아 선택한 중량의 총열량으로 환산할 수 없어요.",
+            style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
         if (state.capacityError != null) Text(state.capacityError, style = JjikmukTheme.typography.caption,
             color = JjikmukTheme.colors.textSecondary)
     }
@@ -179,7 +181,7 @@ private fun CapacityDescription(label: String, product: ProductDetail, amount: D
                     else Brush.horizontalGradient(listOf(Color(0xFFB8EAB5), Color(0xFFB8EAB5)))))
         }
         Spacer(Modifier.height(6.dp))
-        Text(product.nutrition.energyKcal?.let { "열량 약 ${"%.1f".format(java.util.Locale.ROOT,it)}kcal" } ?: "열량 정보 없음",
+        Text(product.nutrition.energyKcal?.let { "열량 ${"%.1f".format(java.util.Locale.ROOT,it)}kcal (기준량 미확인)" } ?: "열량 정보 없음",
             style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
     }
 }

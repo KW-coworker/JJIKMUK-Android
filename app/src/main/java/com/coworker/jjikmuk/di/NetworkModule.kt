@@ -71,6 +71,19 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @PublicCatalogRetrofit
+    fun providePublicCatalogRetrofit(okHttpClient: OkHttpClient, @ApplicationContext context: Context): Retrofit =
+        publicCatalogRetrofit(backendBaseUrl(context), okHttpClient)
+
+    /** Public, non-personalized GETs: no account token and safe reconnection after a stale socket. */
+    internal fun publicCatalogRetrofit(baseUrl: String, client: OkHttpClient): Retrofit = Retrofit.Builder()
+        .baseUrl(baseUrl)
+        .client(client.newBuilder().retryOnConnectionFailure(true).build())
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    @Provides
+    @Singleton
     fun provideChatApi(
         @BackendRetrofit
         retrofit: Retrofit,
@@ -115,3 +128,7 @@ object NetworkModule {
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class BackendRetrofit
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class PublicCatalogRetrofit

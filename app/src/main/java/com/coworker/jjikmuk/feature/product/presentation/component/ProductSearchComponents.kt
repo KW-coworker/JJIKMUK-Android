@@ -25,7 +25,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
@@ -53,6 +55,7 @@ internal fun ProductSearchTopBar(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     scannerResult: Boolean = false,
+    autoFocus: Boolean = true,
 ) {
     Surface(
         modifier = modifier
@@ -82,7 +85,7 @@ internal fun ProductSearchTopBar(
             JjikmukSearchField(
                 value = query,
                 placeholder = "어떤 안심 상품을 찾으시나요?",
-                autoFocus = !scannerResult,
+                autoFocus = autoFocus && !scannerResult,
                 clearIconResId = if (scannerResult) R.drawable.ic_scan_search_clear else null,
                 onValueChange = onQueryChange,
                 onClearClick = onClearClick,
@@ -101,6 +104,8 @@ internal fun ProductSearchResultContent(
     modifier: Modifier = Modifier,
     decoratedImages: Boolean = true,
     emptyBottomPadding: Dp = 80.dp,
+    onMoreProducts: () -> Unit = {},
+    onRetry: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -108,8 +113,8 @@ internal fun ProductSearchResultContent(
             .background(JjikmukTheme.colors.surface),
     ) {
         ProductSearchResultHeader(
-            query = searchUiState.submittedQuery,
-            productCount = searchUiState.products.size,
+            query = listOfNotNull(searchUiState.categoryLabel, searchUiState.submittedQuery.takeIf { it.isNotBlank() }).joinToString(" · "),
+            productCount = searchUiState.totalCount ?: searchUiState.products.size,
             isLoading = searchUiState.isLoading,
             hasError = searchUiState.errorMessage != null,
             onFilterClick = onFilterClick.takeUnless { searchUiState.isEmptyResult },
@@ -134,6 +139,7 @@ internal fun ProductSearchResultContent(
                 ) {
                     Text(
                         text = searchUiState.errorMessage,
+                        modifier = Modifier.clickable(onClick = onRetry),
                         color = JjikmukTheme.colors.textSecondary,
                         style = JjikmukTheme.typography.bodyM,
                     )
@@ -160,7 +166,15 @@ internal fun ProductSearchResultContent(
                             product = product.toProductListCardUiModel(),
                             onClick = { onProductClick(product) },
                             decoratedImage = decoratedImages,
+                            modifier = Modifier.testTag("catalog-product-${product.barcode ?: product.productName}"),
                         )
+                    }
+                    if (searchUiState.categoryId != null && (searchUiState.hasNext || searchUiState.nextPageError != null)) {
+                        item {
+                            Text(if (searchUiState.isLoadingMore) "상품을 불러오는 중이에요." else searchUiState.nextPageError ?: "더보기",
+                                modifier = Modifier.fillMaxWidth().clickable(enabled = !searchUiState.isLoadingMore, onClick = onMoreProducts).padding(20.dp),
+                                color = JjikmukTheme.colors.brand)
+                        }
                     }
                 }
             }
@@ -213,6 +227,9 @@ private fun ProductSearchResultHeader(
             },
             color = JjikmukTheme.colors.textSecondary,
             style = JjikmukTheme.typography.labelM,
+            modifier = Modifier.weight(1f).padding(end = 8.dp),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
 
         if (onFilterClick != null) {

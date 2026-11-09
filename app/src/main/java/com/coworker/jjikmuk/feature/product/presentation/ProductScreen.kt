@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -107,6 +108,7 @@ fun ProductScreen(
     productViewModel: ProductViewModel = hiltViewModel(),
 ) {
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
+    val categoryUiState by productViewModel.categories.collectAsStateWithLifecycle()
     val detailUiState by productViewModel.detailUiState.collectAsStateWithLifecycle()
     val recommendationUiState by productViewModel.recommendationUiState.collectAsStateWithLifecycle()
     val favorites by productViewModel.favoriteState.collectAsStateWithLifecycle()
@@ -117,6 +119,10 @@ fun ProductScreen(
     val scanTargetMembers by productViewModel.scanTargetMembers.collectAsStateWithLifecycle()
 
     ProductScreenContent(
+        categoryUiState = categoryUiState,
+        onCategoryClick = productViewModel::selectCategory,
+        onRetryCategories = productViewModel::loadCategories,
+        onMoreCategoryProducts = productViewModel::loadMoreCategoryProducts,
         selectedTab = selectedTab,
         onTabClick = onTabClick,
         onScannerClick = onScannerClick,
@@ -181,6 +187,10 @@ private fun ProductScreenContent(
     onAskProduct: (String) -> Unit = {},
     productIdToOpen: Long? = null,
     onLoadProductDetailById: (Long) -> Unit = {},
+    categoryUiState: CategoryUiState = CategoryUiState(),
+    onCategoryClick: (com.coworker.jjikmuk.data.repository.ProductCategory) -> Unit = {},
+    onRetryCategories: () -> Unit = {},
+    onMoreCategoryProducts: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
@@ -233,6 +243,9 @@ private fun ProductScreenContent(
         onProductBarcodeOpenHandled()
     }
 
+    BackHandler(enabled = currentDestination == ProductDestination.Search) {
+        currentDestination = ProductDestination.Overview
+    }
     BackHandler(enabled = currentDestination == ProductDestination.AlternativeList) {
         currentDestination = ProductDestination.Detail
     }
@@ -271,6 +284,7 @@ private fun ProductScreenContent(
 
                 ProductDestination.Search -> {
                     ProductSearchTopBar(
+                        autoFocus = searchUiState.categoryId == null,
                         query = searchUiState.query,
                         onQueryChange = onSearchQueryChange,
                         onClearClick = onClearSearchQuery,
@@ -318,6 +332,12 @@ private fun ProductScreenContent(
             when (currentDestination) {
                 ProductDestination.Overview -> {
                     ProductContent(
+                        categoryUiState = categoryUiState,
+                        onRetryCategories = onRetryCategories,
+                        onCategoryClick = { category ->
+                            onCategoryClick(category)
+                            currentDestination = ProductDestination.Search
+                        },
                         recommendationUiState = recommendationUiState,
                         onProductClick = ::openRecommendedProduct,
                         onRetry = onRetryRecommendations,
@@ -363,6 +383,8 @@ private fun ProductScreenContent(
 
                 ProductDestination.Search -> {
                     ProductSearchContent(
+                        onMoreCategoryProducts = onMoreCategoryProducts,
+                        onRetrySearch = { onSearchSubmit(searchUiState.submittedQuery) },
                         personalConditionsApplied = scanTargetMembers.isEmpty() || scanTargetMembers.any { it.isSelected },
                         searchUiState = searchUiState,
                         recentKeywords = recentSearchKeywords,
@@ -462,6 +484,9 @@ private fun ProductScreenContent(
 
 @Composable
 private fun ProductContent(
+    categoryUiState: CategoryUiState,
+    onCategoryClick: (com.coworker.jjikmuk.data.repository.ProductCategory) -> Unit,
+    onRetryCategories: () -> Unit,
     recommendationUiState: ProductRecommendationUiState,
     onSearchClick: () -> Unit,
     onRecommendationMoreClick: () -> Unit,
@@ -475,7 +500,7 @@ private fun ProductContent(
             .verticalScroll(rememberScrollState()),
     ) {
         ProductHeader(onSearchClick = onSearchClick)
-        CategorySection()
+        com.coworker.jjikmuk.feature.product.presentation.component.ProductCategorySection(categoryUiState, onCategoryClick, onRetryCategories)
         Spacer(
             modifier = Modifier
                 .fillMaxWidth()
@@ -542,6 +567,8 @@ private fun ProductSearchBar(
 
 @Composable
 private fun ProductSearchContent(
+    onMoreCategoryProducts: () -> Unit,
+    onRetrySearch: () -> Unit,
     searchUiState: ProductSearchUiState,
     recentKeywords: List<String>,
     onKeywordClick: (String) -> Unit,
@@ -558,6 +585,8 @@ private fun ProductSearchContent(
             style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary)
         if (searchUiState.hasSearched) {
             ProductSearchResultContent(
+                onMoreProducts = onMoreCategoryProducts,
+                onRetry = onRetrySearch,
                 searchUiState = searchUiState,
                 onFilterClick = onFilterClick,
                 emptyBottomPadding = 0.dp,
@@ -1251,7 +1280,9 @@ internal fun ProductNutritionRows(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ProductNutritionRow("총 칼로리", product.nutrition.energyKcal.toAmountText("kcal"))
+        Text("영양성분 기준량 미확인 · 제품 전체 기준 수치가 아닐 수 있어요.",
+            style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
+        ProductNutritionRow("열량", product.nutrition.energyKcal.toAmountText("kcal"))
         ProductNutritionRow("단백질", product.nutrition.proteinG.toAmountText("g"))
         ProductNutritionRow("지방", product.nutrition.fatG.toAmountText("g"))
         ProductNutritionRow("탄수화물", product.nutrition.carbsG.toAmountText("g"))
@@ -1304,7 +1335,7 @@ internal fun ProductRawMaterialsBox(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(100.dp),
+            .heightIn(min = 56.dp),
         color = JjikmukTheme.colors.disabled,
         shape = RoundedCornerShape(14.dp),
     ) {
@@ -1316,8 +1347,6 @@ internal fun ProductRawMaterialsBox(
                 text = product.rawMaterials?.takeIf(String::isNotBlank) ?: "원재료 정보가 없어요.",
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.bodyM.copy(lineHeight = 22.sp, letterSpacing = (-0.58).sp),
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -1462,84 +1491,6 @@ private fun ProductPopularSearchRow(
             text = keyword,
             color = JjikmukTheme.colors.textPrimary,
             style = JjikmukTheme.typography.bodyM,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun CategorySection(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(285.dp)
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-    ) {
-        Text(
-            text = "카테고리별 찾기",
-            color = JjikmukTheme.colors.textPrimary,
-            style = JjikmukTheme.typography.titleL,
-        )
-
-        Column(
-            modifier = Modifier.padding(top = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
-            ProductCategoryRow(categories = ProductCategoryUiModel.samples.take(4))
-            ProductCategoryRow(categories = ProductCategoryUiModel.samples.drop(4))
-        }
-    }
-}
-
-@Composable
-private fun ProductCategoryRow(
-    categories: List<ProductCategoryUiModel>,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        categories.forEach { category ->
-            ProductCategoryButton(category = category)
-        }
-    }
-}
-
-@Composable
-private fun ProductCategoryButton(
-    category: ProductCategoryUiModel,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .width(72.dp)
-            .clickable(onClick = {}),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .shadow(
-                    elevation = 2.dp,
-                    shape = RoundedCornerShape(20.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.1f),
-                    spotColor = Color.Black.copy(alpha = 0.1f),
-                )
-                .size(64.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(category.backgroundColor),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = category.emoji,
-                style = JjikmukTheme.typography.h1,
-            )
-        }
-        Text(
-            text = category.label,
-            color = JjikmukTheme.colors.textPrimary,
-            style = JjikmukTheme.typography.caption,
             maxLines = 1,
         )
     }
@@ -2161,25 +2112,6 @@ private fun ProductFilterSheetActions(
                 )
             }
         }
-    }
-}
-
-private data class ProductCategoryUiModel(
-    val label: String,
-    val emoji: String,
-    val backgroundColor: Color,
-) {
-    companion object {
-        val samples = listOf(
-            ProductCategoryUiModel("과자/디저트", "🍪", Color(0xFFFFF7ED)),
-            ProductCategoryUiModel("간편/즉석식품", "🍱", Color(0xFFFEF2F2)),
-            ProductCategoryUiModel("음료/유제품", "🥛", Color(0xFFEFF6FF)),
-            ProductCategoryUiModel("베이커리/떡", "🥐", Color(0xFFFFFBEB)),
-            ProductCategoryUiModel("면류", "🍜", Color(0xFFFEFCE8)),
-            ProductCategoryUiModel("정육/가공육", "🥓", Color(0xFFFFF1F2)),
-            ProductCategoryUiModel("소스/조미료", "🥫", Color(0xFFECFDF5)),
-            ProductCategoryUiModel("특수/건강식", "🥗", Color(0xFFF0FDF4)),
-        )
     }
 }
 
