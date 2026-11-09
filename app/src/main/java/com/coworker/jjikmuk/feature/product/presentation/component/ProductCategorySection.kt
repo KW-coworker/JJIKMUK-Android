@@ -1,5 +1,12 @@
 package com.coworker.jjikmuk.feature.product.presentation.component
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -84,5 +91,73 @@ internal fun ProductCategorySection(state: CategoryUiState, onSelect: (ProductCa
                 }
             }
         }
+    }
+}
+
+
+/** Keep the overview order; bring the selected category to the leading viewport edge. */
+@Composable
+internal fun ProductCategoryStrip(
+    state: CategoryUiState,
+    selectedId: String,
+    onSelect: (ProductCategory) -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val categories = state.categories.distinctBy { it.id }.sortedBy { category ->
+        styles.indexOfFirst { it.id == category.id }.takeIf { it >= 0 } ?: Int.MAX_VALUE
+    }
+    val selectedIndex = categories.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    LaunchedEffect(selectedId, categories.map { it.id }) {
+        if (categories.isNotEmpty()) listState.animateScrollToItem(selectedIndex)
+    }
+    Column(modifier.fillMaxWidth().background(JjikmukTheme.colors.surface)) {
+        when {
+            categories.isNotEmpty() -> BoxWithConstraints(Modifier.fillMaxWidth()) {
+                // Leave enough trailing space for even the last category to align left.
+                val trailingSpace = (maxWidth - 18.dp - 52.dp).coerceAtLeast(18.dp)
+                LazyRow(
+                    state = listState,
+                    modifier = Modifier.fillMaxWidth().height(108.dp).testTag("category-result-strip"),
+                    contentPadding = PaddingValues(start = 18.dp, end = trailingSpace, top = 14.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    items(categories, key = { it.id }) { category ->
+                        val style = styles.firstOrNull { it.id == category.id }
+                        val selected = category.id == selectedId
+                        Column(
+                            modifier = Modifier.width(52.dp).fillMaxHeight()
+                                .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(category) })
+                                .testTag("category-result-${category.id}")
+                                .semantics { contentDescription = "${category.label} 카테고리" },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            val shape = RoundedCornerShape(16.dp)
+                            Box(Modifier.size(52.dp)
+                                .shadow(if (selected) 0.dp else 1.dp, shape)
+                                .clip(shape).background(Color(style?.background ?: 0xFFF3F4F6))
+                                .then(if (selected) Modifier.border(1.dp, JjikmukTheme.colors.brand, shape) else Modifier),
+                                contentAlignment = Alignment.Center) {
+                                Text(style?.emoji ?: "📦", fontSize = 24.sp, lineHeight = 36.sp)
+                            }
+                            Text(style?.caption ?: category.label,
+                                style = JjikmukTheme.typography.caption,
+                                color = if (selected) JjikmukTheme.colors.brand else JjikmukTheme.colors.textTertiary,
+                                textAlign = TextAlign.Center, maxLines = 2,
+                                modifier = Modifier.width(56.dp))
+                        }
+                    }
+                }
+            }
+            state.loading -> Box(Modifier.fillMaxWidth().height(108.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(Modifier.size(24.dp), color = JjikmukTheme.colors.brand)
+            }
+            else -> Text("카테고리를 다시 불러오기", Modifier.fillMaxWidth().clickable(onClick = onRetry).padding(20.dp),
+                color = JjikmukTheme.colors.brand, style = JjikmukTheme.typography.bodyM)
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(JjikmukTheme.colors.borderSubtle))
     }
 }

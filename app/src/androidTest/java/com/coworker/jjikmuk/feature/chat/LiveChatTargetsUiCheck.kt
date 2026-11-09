@@ -77,7 +77,7 @@ class LiveChatTargetsUiCheck {
         rule.onNodeWithText(milk).performScrollTo().performClick()
         rule.onNodeWithText(peanut).performScrollTo().performClick()
         shot("03-selected-families")
-        rule.onNodeWithText("×").performClick()
+        rule.onNodeWithContentDescription("닫기").performClick()
         waitFor { exists(milk,true) && exists(peanut,true) }
         question()
         assertTrue("Milk profile missing from response", exists("[$milk]", true))
@@ -87,13 +87,13 @@ class LiveChatTargetsUiCheck {
         rule.onNodeWithText("나").performScrollTo().performClick()
         rule.onNodeWithText(milk).performScrollTo().performClick()
         rule.onNodeWithText(peanut).performScrollTo().performClick()
-        rule.onNodeWithText("×").performClick()
+        rule.onNodeWithContentDescription("닫기").performClick()
         waitFor { exists("분석 대상 없음 · 개인 조건 없이 조회해요.") }
         question()
         shot("05-none-answer")
         rule.onNodeWithContentDescription("분석 대상 선택").performClick()
         rule.onNodeWithText("나").performScrollTo().performClick()
-        rule.onNodeWithText("×").performClick()
+        rule.onNodeWithContentDescription("닫기").performClick()
         waitFor { !exists("분석 대상 없음 · 개인 조건 없이 조회해요.") }
     }
 }

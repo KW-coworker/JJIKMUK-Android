@@ -65,10 +65,22 @@ class ProductViewModel @Inject constructor(
         }
     }
     fun selectCategory(category: com.coworker.jjikmuk.data.repository.ProductCategory) {
+        val current = _searchUiState.value
+        if (current.categoryId == category.id && current.hasSearched && current.errorMessage == null) return
         resetSearchState()
         _searchUiState.value = ProductSearchUiState(categoryId = category.id, categoryLabel = category.label)
         searchProducts("")
     }
+    private suspend fun categoryAllergyFilter(): com.coworker.jjikmuk.data.repository.CategoryAllergyFilter {
+        if (targets.captureAccount() == null) return com.coworker.jjikmuk.data.repository.CategoryAllergyFilter(emptySet())
+        val selection = targets.awaitSelection() ?: error("분석 대상을 확인하지 못했어요.")
+        val state = targets.state.value
+        check(state.ready && targets.isCurrent(selection))
+        val allergies = state.profiles.filter { it.id in state.selectedProfileIds }
+            .flatMap { it.allergies }.toSet()
+        return com.coworker.jjikmuk.data.repository.CategoryAllergyFilter(allergies)
+    }
+
     fun loadMoreCategoryProducts() {
         val before = _searchUiState.value
         val id = before.categoryId ?: return
@@ -77,10 +89,12 @@ class ProductViewModel @Inject constructor(
         _searchUiState.update { it.copy(isLoadingMore = true, nextPageError = null) }
         categoryPageJob = viewModelScope.launch {
             try {
+                val filter = categoryAllergyFilter()
                 val page = catalog.page(id, before.submittedQuery, before.page + 1)
                 if (generation != searchGeneration) return@launch
-                _searchUiState.update { it.copy(products = (it.products + page.products).distinctBy { p -> p.barcode to p.productName },
-                    page = page.page, hasNext = page.hasNext, totalCount = page.total, isLoadingMore = false) }
+                _searchUiState.update { it.copy(products = (it.products + page.products.filter(filter::allows)).distinctBy { p -> p.barcode to p.productName },
+                    page = page.page, hasNext = page.hasNext, totalCount = page.total.takeUnless { filter.applied },
+                    categoryAllergyFilterApplied = filter.applied, isLoadingMore = false) }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { if (generation == searchGeneration) _searchUiState.update {
                 it.copy(isLoadingMore = false, nextPageError = error.catalogLoadMessage()) } }
@@ -127,6 +141,9 @@ class ProductViewModel @Inject constructor(
             targets.state.map { it.selection.takeIf { _ -> it.ready } }.distinctUntilChanged().collectLatest { selection ->
                 detailJob?.cancel(); alternativeJob?.cancel()
                 recommendationGeneration++; recommendationPageJob?.cancel(); nextRecommendationCursor = null
+                if (_searchUiState.value.categoryId != null && _searchUiState.value.hasSearched) {
+                    searchProducts(_searchUiState.value.submittedQuery)
+                }
                 val detailRequest = lastDetailRequest
                 if (detailRequest != null) _detailUiState.value = ProductDetailUiState(isLoading = selection != null,
                     errorMessage = if (selection == null) "분석 대상을 확인하고 있어요." else null)
@@ -178,9 +195,10 @@ class ProductViewModel @Inject constructor(
         searchJob = viewModelScope.launch {
             try {
                 if (category != null) {
+                    val filter = categoryAllergyFilter()
                     val page = catalog.page(category, trimmedKeyword, 0)
-                    if (generation == searchGeneration) _searchUiState.update { it.copy(products = page.products,
-                        totalCount = page.total, page = page.page, hasNext = page.hasNext, isLoading = false) }
+                    if (generation == searchGeneration) _searchUiState.update { it.copy(products = page.products.filter(filter::allows),
+                        categoryAllergyFilterApplied = filter.applied, totalCount = page.total.takeUnless { filter.applied }, page = page.page, hasNext = page.hasNext, isLoading = false) }
                 } else {
                     val products = productRepository.searchProducts(trimmedKeyword).getOrThrow()
                     if (generation == searchGeneration) _searchUiState.update { it.copy(products = products, isLoading = false) }
