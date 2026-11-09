@@ -46,6 +46,16 @@ class ProfileEditViewModelTest {
         assertEquals("egg", sessions.state.value.profile!!.allergies)
     }
 
+    @Test fun `save button only appears when nickname differs from saved one`() = runTest {
+        val vm = model(); runCurrent()
+        assertFalse(vm.state.value.hasNicknameChange)
+        vm.updateNickname(" User "); assertFalse(vm.state.value.hasNicknameChange)
+        vm.updateNickname("NewName"); assertTrue(vm.state.value.hasNicknameChange)
+        vm.save(); runCurrent()
+        assertEquals("저장했어요", vm.state.value.message)
+        assertFalse(vm.state.value.hasNicknameChange)
+    }
+
     @Test fun `duplicate error keeps draft and can be corrected without losing email`() = runTest {
         val vm = model(); runCurrent()
         result = AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 409, "NICKNAME_ALREADY_EXISTS"))
