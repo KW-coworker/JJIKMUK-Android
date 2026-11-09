@@ -6,4 +6,5 @@ data class ProductSearchResult(
     val brandName: String,
     val imageUrl: String?,
     val allergyLabels: List<String>,
+    val allergyText: String? = null,
 )

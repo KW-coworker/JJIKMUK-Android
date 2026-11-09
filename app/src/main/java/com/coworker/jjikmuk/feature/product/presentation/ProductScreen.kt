@@ -283,8 +283,14 @@ private fun ProductScreenContent(
                 }
 
                 ProductDestination.Search -> {
-                    ProductSearchTopBar(
-                        autoFocus = searchUiState.categoryId == null,
+                    if (searchUiState.categoryId != null) {
+                        JjikmukTopAppBar(
+                            leading = JjikmukTopAppBarLeading.Back { currentDestination = ProductDestination.Overview },
+                            centerContent = { Text(searchUiState.categoryLabel.orEmpty(),
+                                color = JjikmukTheme.colors.textPrimary, style = JjikmukTheme.typography.labelL) },
+                        )
+                    } else ProductSearchTopBar(
+                        autoFocus = true,
                         query = searchUiState.query,
                         onQueryChange = onSearchQueryChange,
                         onClearClick = onClearSearchQuery,
@@ -315,7 +321,7 @@ private fun ProductScreenContent(
         },
         bottomBar = {
             if (!showProductFilterSheet && currentDestination != ProductDestination.AlternativeList &&
-                (currentDestination != ProductDestination.Search || searchUiState.isEmptyResult)) {
+                (currentDestination != ProductDestination.Search || searchUiState.categoryId != null || searchUiState.isEmptyResult)) {
                 JjikmukBottomNavigationBar(
                     selectedTab = selectedTab,
                     onTabClick = onTabClick,
@@ -383,6 +389,9 @@ private fun ProductScreenContent(
 
                 ProductDestination.Search -> {
                     ProductSearchContent(
+                        categoryUiState = categoryUiState,
+                        onCategoryClick = onCategoryClick,
+                        onRetryCategories = onRetryCategories,
                         onMoreCategoryProducts = onMoreCategoryProducts,
                         onRetrySearch = { onSearchSubmit(searchUiState.submittedQuery) },
                         personalConditionsApplied = scanTargetMembers.isEmpty() || scanTargetMembers.any { it.isSelected },
@@ -402,7 +411,7 @@ private fun ProductScreenContent(
                             currentDestination = ProductDestination.Detail
                         },
                     )
-                    if (searchUiState.isEmptyResult) {
+                    if (searchUiState.categoryId != null || searchUiState.isEmptyResult) {
                         JjikmukDraggableScannerFab(
                             onClick = onScannerClick,
                             modifier = Modifier.align(Alignment.BottomEnd)
@@ -567,6 +576,9 @@ private fun ProductSearchBar(
 
 @Composable
 private fun ProductSearchContent(
+    categoryUiState: CategoryUiState,
+    onCategoryClick: (com.coworker.jjikmuk.data.repository.ProductCategory) -> Unit,
+    onRetryCategories: () -> Unit,
     onMoreCategoryProducts: () -> Unit,
     onRetrySearch: () -> Unit,
     searchUiState: ProductSearchUiState,
@@ -580,6 +592,10 @@ private fun ProductSearchContent(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxSize()) {
+        searchUiState.categoryId?.let { selected ->
+            com.coworker.jjikmuk.feature.product.presentation.component.ProductCategoryStrip(
+                categoryUiState, selected, onCategoryClick, onRetryCategories)
+        }
         if (!personalConditionsApplied) Text("선택한 대상 없음 · 개인 식이조건 미적용",
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary)

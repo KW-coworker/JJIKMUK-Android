@@ -117,9 +117,15 @@ internal fun ProductSearchResultContent(
             productCount = searchUiState.totalCount ?: searchUiState.products.size,
             isLoading = searchUiState.isLoading,
             hasError = searchUiState.errorMessage != null,
+            loadedCountOnly = searchUiState.categoryAllergyFilterApplied,
             onFilterClick = onFilterClick.takeUnless { searchUiState.isEmptyResult },
         )
 
+        if (searchUiState.categoryAllergyFilterApplied && !searchUiState.isLoading && searchUiState.errorMessage == null) {
+            Text("선택한 대상의 알레르기와 겹치거나 표시 정보가 불명확한 상품은 제외했어요. 현재 불러온 목록 기준이에요.",
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyM)
+        }
         when {
             searchUiState.isLoading -> {
                 Box(
@@ -146,7 +152,7 @@ internal fun ProductSearchResultContent(
                 }
             }
 
-            searchUiState.isEmptyResult -> {
+            searchUiState.isEmptyResult && !searchUiState.hasNext -> {
                 ProductSearchEmptyState(
                     modifier = Modifier.fillMaxSize().padding(bottom = emptyBottomPadding),
                 )
@@ -158,6 +164,10 @@ internal fun ProductSearchResultContent(
                     contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    if (searchUiState.products.isEmpty() && searchUiState.hasNext) {
+                        item { Text("현재 목록에 조건에 맞는 상품이 없어요. 더보기로 다음 상품을 확인해 주세요.",
+                            color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyM) }
+                    }
                     itemsIndexed(
                         items = searchUiState.products,
                         key = { index, product -> "${product.barcode ?: product.productName}:$index" },
@@ -187,7 +197,9 @@ private fun ProductSearchResultHeader(
     query: String,
     productCount: Int,
     isLoading: Boolean,
-    hasError: Boolean,    onFilterClick: (() -> Unit)? = null,
+    hasError: Boolean,
+    loadedCountOnly: Boolean = false,
+    onFilterClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -215,7 +227,7 @@ private fun ProductSearchResultHeader(
                     isLoading -> append("검색 중")
                     hasError -> append("검색 실패")
                     else -> {
-                        append("검색 결과 ")
+                        append(if (loadedCountOnly) "현재 표시 " else "검색 결과 ")
                         withStyle(SpanStyle(color = JjikmukTheme.colors.brand)) {
                             append(productCount.toString())
                             append("건")

@@ -87,6 +87,7 @@ class ProductRepositoryImpl internal constructor(
             brandName = product.manufacturer.toDisplayManufacturer(),
             imageUrl = product.imageUrl,
             allergyLabels = product.allergy.toAllergyLabels(),
+            allergyText = product.allergy,
         )
     }
 

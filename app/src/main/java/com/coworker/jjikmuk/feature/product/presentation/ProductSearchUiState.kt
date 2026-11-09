@@ -12,6 +12,7 @@ data class ProductSearchUiState(
     val categoryId: String? = null,
     val categoryLabel: String? = null,
     val totalCount: Int? = null,
+    val categoryAllergyFilterApplied: Boolean = false,
     val page: Int = 0,
     val hasNext: Boolean = false,
     val isLoadingMore: Boolean = false,
