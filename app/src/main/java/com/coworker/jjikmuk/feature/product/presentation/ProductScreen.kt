@@ -1279,7 +1279,9 @@ internal fun ProductNutritionRows(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ProductNutritionRow("총 칼로리", product.nutrition.energyKcal.toAmountText("kcal"))
+        Text("영양성분 기준량 미확인 · 제품 전체 기준 수치가 아닐 수 있어요.",
+            style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
+        ProductNutritionRow("열량", product.nutrition.energyKcal.toAmountText("kcal"))
         ProductNutritionRow("단백질", product.nutrition.proteinG.toAmountText("g"))
         ProductNutritionRow("지방", product.nutrition.fatG.toAmountText("g"))
         ProductNutritionRow("탄수화물", product.nutrition.carbsG.toAmountText("g"))
