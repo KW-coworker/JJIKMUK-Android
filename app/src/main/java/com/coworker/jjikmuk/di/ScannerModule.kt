@@ -16,6 +16,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object ScannerModule {
     @Provides @Singleton
+    fun provideScannerListService(operations: AuthorizedOperations): com.coworker.jjikmuk.feature.scanner.domain.ScannerListService =
+        com.coworker.jjikmuk.feature.scanner.data.AuthenticatedScannerListService(
+            com.coworker.jjikmuk.feature.scanner.data.HttpScannerListService.create(BackendServer.BASE_URL.toHttpUrl()), operations)
+
+    @Provides @Singleton
     fun provideScannerOcrService(operations: AuthorizedOperations): ScannerOcrService =
         AuthenticatedScannerOcrService(HttpScannerOcrService.create(BackendServer.BASE_URL.toHttpUrl()), operations)
 }

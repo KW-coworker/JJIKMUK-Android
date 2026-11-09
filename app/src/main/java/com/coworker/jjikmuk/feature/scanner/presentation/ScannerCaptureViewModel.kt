@@ -35,8 +35,10 @@ class ScannerCaptureViewModel @Inject constructor(
     private val imagePreparer: ScannerImagePreparer,
     ocrService: ScannerOcrService,
     productRepository: ProductRepository,
+    scanListService: com.coworker.jjikmuk.feature.scanner.domain.ScannerListService,
 ) : ViewModel() {
-    private val analysis = ScannerAnalysisController(viewModelScope, ocrService) { keyword ->
+    private val analysis = ScannerAnalysisController(viewModelScope, ocrService,
+        if (context.resources.getBoolean(com.coworker.jjikmuk.R.bool.scan_list_enabled)) scanListService else null) { keyword ->
         // Identify a product first. Personalized judgement/detail is a separate, pending contract.
         productRepository.searchProducts(keyword)
     }
