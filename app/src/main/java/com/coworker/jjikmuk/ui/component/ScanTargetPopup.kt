@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.ui.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.background
@@ -27,6 +28,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.unit.sp
+import com.coworker.jjikmuk.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -109,10 +116,10 @@ private fun ScanTargetPopupHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = "♧",
-                color = JjikmukTheme.colors.edit,
-                style = MaterialTheme.typography.labelMedium,
+            Image(
+                painter = painterResource(R.drawable.ic_scan_target_people),
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
             )
             Text(
                 text = "스캔 대상 설정",
@@ -121,12 +128,14 @@ private fun ScanTargetPopupHeader(
                 fontWeight = FontWeight.Bold,
             )
         }
-        Text(
-            text = "×",
-            color = JjikmukTheme.colors.textSecondary,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.clickable(onClick = onDismissRequest),
-        )
+        Box(
+            modifier = Modifier.size(16.dp).clickable(onClick = onDismissRequest)
+                .semantics { contentDescription = "닫기" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(painterResource(R.drawable.ic_scan_target_close_first), null, Modifier.size(9.33333.dp))
+            Image(painterResource(R.drawable.ic_scan_target_close_second), null, Modifier.size(9.33333.dp))
+        }
     }
 }
 
@@ -197,6 +206,8 @@ private fun ScanTargetAvatar(
                 Text(
                     text = emoji,
                     style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 20.sp,
+                    lineHeight = 28.sp,
                 )
             }
         }
@@ -214,7 +225,7 @@ private fun ScanTargetSwitch(
 
     Box(
         modifier = modifier
-            .size(width = 44.dp, height = 24.dp)
+            .size(width = 42.dp, height = 24.dp)
             .clip(CircleShape)
             .background(trackColor)
             .clickable { onCheckedChange(!checked) }
@@ -224,6 +235,7 @@ private fun ScanTargetSwitch(
         Box(
             modifier = Modifier
                 .size(20.dp)
+                .shadow(1.dp, CircleShape)
                 .clip(CircleShape)
                 .background(JjikmukTheme.colors.surface),
         )
