@@ -1,0 +1,40 @@
+package com.coworker.jjikmuk.data.repository
+
+import com.coworker.jjikmuk.data.remote.dto.ProductSearchItemDto
+import com.coworker.jjikmuk.di.BackendRetrofit
+import com.coworker.jjikmuk.domain.model.ProductSearchResult
+import javax.inject.Inject
+import retrofit2.Retrofit
+import retrofit2.http.GET
+import retrofit2.http.Query
+
+data class ProductCategory(val id: String, val label: String)
+data class CategoryPage(val products: List<ProductSearchResult>, val page: Int, val total: Int, val hasNext: Boolean)
+internal data class ClassificationsEnvelope(val data: ClassificationsData? = null)
+internal data class ClassificationsData(val foodCategories: List<ProductCategory>? = null)
+internal data class CategoryProductsEnvelope(val data: CategoryProductsData? = null)
+internal data class CategoryProductsData(val items: List<ProductSearchItemDto>? = null, val page: Int? = null,
+    val totalElements: Int? = null, val hasNext: Boolean? = null)
+internal interface ProductCatalogApi {
+    @GET("api/products/classifications") suspend fun classifications(): ClassificationsEnvelope
+    @GET("api/products/filter") suspend fun filter(@Query("categories") category: String,
+        @Query("keyword") keyword: String?, @Query("page") page: Int, @Query("size") size: Int = 20,
+        @Query("analysisMode") mode: String = "none"): CategoryProductsEnvelope
+}
+
+class ProductCatalogRepository internal constructor(private val api: ProductCatalogApi, private val mapper: ProductRepositoryImpl) {
+    @Inject constructor(@BackendRetrofit retrofit: Retrofit, mapper: ProductRepositoryImpl) : this(retrofit.create(ProductCatalogApi::class.java), mapper)
+    suspend fun categories(): List<ProductCategory> {
+        val values = api.classifications().data?.foodCategories ?: error("카테고리를 불러오지 못했어요.")
+        check(values.all { it.id.isNotBlank() && it.label.isNotBlank() })
+        return values.distinctBy { it.id }
+    }
+    suspend fun page(category: String, keyword: String, page: Int): CategoryPage {
+        val data = api.filter(category, keyword.trim().takeIf { it.isNotEmpty() }, page).data
+            ?: error("상품 목록을 불러오지 못했어요.")
+        check(data.page == page && data.totalElements != null && data.totalElements >= 0 && data.hasNext != null)
+        val items = requireNotNull(data.items).mapNotNull { mapper.mapSearchItem(it) }
+        check(!data.hasNext || items.isNotEmpty()) { "다음 상품 목록을 확인할 수 없어요." }
+        return CategoryPage(items, page, data.totalElements, data.hasNext)
+    }
+}
