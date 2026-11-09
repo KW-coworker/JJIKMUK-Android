@@ -125,15 +125,19 @@ fun ProfileEditScreen(
                     Text(it, color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyM)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
-                JjikmukPrimaryButton(
-                    text = when {
-                        state.busy -> "확인 중…"
-                        state.mustReload || !state.loaded -> "최신 정보 확인"
-                        else -> "저장"
-                    },
-                    onClick = if (state.mustReload || !state.loaded) onReload else onSave,
-                    enabled = !state.busy,
-                )
+                val needsReload = state.mustReload || !state.loaded
+                // 다시 불러와야 할 때나 닉네임을 바꿨을 때만 버튼을 보여 준다.
+                if (needsReload || state.hasNicknameChange) {
+                    JjikmukPrimaryButton(
+                        text = when {
+                            state.busy -> "확인 중…"
+                            needsReload -> "최신 정보 확인"
+                            else -> "저장"
+                        },
+                        onClick = if (needsReload) onReload else onSave,
+                        enabled = !state.busy,
+                    )
+                }
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
