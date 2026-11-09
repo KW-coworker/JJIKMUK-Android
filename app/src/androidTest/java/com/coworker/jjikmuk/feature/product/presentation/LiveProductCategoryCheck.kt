@@ -45,20 +45,26 @@ class LiveProductCategoryCheck {
         rule.onNodeWithContentDescription("Product").performClick()
         waitFor { exists("과자·스낵") }
         shot("live-page-1")
-        rule.onNodeWithTag("category-pager").performTouchInput { swipeLeft() }
-        rule.onNodeWithText("유제품").assertIsDisplayed()
-        shot("live-page-2")
-        rule.onNodeWithText("유제품").performClick()
+        val args=InstrumentationRegistry.getArguments()
+        val categoryLabel=args.getString("categoryLabel") ?: "유제품"
+        val query=args.getString("query") ?: "우유"
+        if (runCatching { rule.onNodeWithText(categoryLabel).assertIsDisplayed() }.isFailure)
+            rule.onNodeWithTag("category-pager").performTouchInput { swipeLeft() }
+        rule.onNodeWithText(categoryLabel).assertIsDisplayed()
+        shot("live-category-page")
+        rule.onNodeWithText(categoryLabel).performClick()
         val card=SemanticsMatcher("catalog product card") {
             it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("catalog-product-") == true
         }
         waitFor { rule.onAllNodes(card).fetchSemanticsNodes().isNotEmpty() }
         shot("live-dairy-results")
-        rule.onNode(hasSetTextAction()).performTextInput("우유")
-        rule.onNode(hasSetTextAction()).performImeAction(); closeSoftKeyboard()
-        waitFor { exists("유제품 · 우유",true) && !exists("검색 중",true) }
-        waitFor { rule.onAllNodes(card).fetchSemanticsNodes().isNotEmpty() }
-        shot("live-dairy-milk-results")
+        if (query.isNotEmpty()) {
+            rule.onNode(hasSetTextAction()).performTextInput(query)
+            rule.onNode(hasSetTextAction()).performImeAction(); closeSoftKeyboard()
+            waitFor { exists("$categoryLabel · $query",true) && !exists("검색 중",true) }
+            waitFor { rule.onAllNodes(card).fetchSemanticsNodes().isNotEmpty() }
+            shot("live-category-keyword-results")
+        }
         rule.onAllNodes(card).onFirst().performClick()
         waitFor { exists("이 상품 물어보기") }
         shot("live-product-detail")

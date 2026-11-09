@@ -3,6 +3,7 @@ package com.coworker.jjikmuk.feature.product.presentation
 import com.coworker.jjikmuk.data.remote.auth.AccessTokenStore
 import com.coworker.jjikmuk.data.repository.SafeRecommendationRepository
 import com.coworker.jjikmuk.data.repository.recommendationMessage
+import com.coworker.jjikmuk.data.repository.catalogLoadMessage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.ViewModel
@@ -60,7 +61,7 @@ class ProductViewModel @Inject constructor(
             _categories.value = CategoryUiState(loading = true)
             try { _categories.value = CategoryUiState(categories = catalog.categories()) }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { _categories.value = CategoryUiState(error = "카테고리를 불러오지 못했어요. 다시 시도해 주세요.") }
+            catch (error: Exception) { _categories.value = CategoryUiState(error = error.catalogLoadMessage()) }
         }
     }
     fun selectCategory(category: com.coworker.jjikmuk.data.repository.ProductCategory) {
@@ -81,8 +82,8 @@ class ProductViewModel @Inject constructor(
                 _searchUiState.update { it.copy(products = (it.products + page.products).distinctBy { p -> p.barcode to p.productName },
                     page = page.page, hasNext = page.hasNext, totalCount = page.total, isLoadingMore = false) }
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { if (generation == searchGeneration) _searchUiState.update {
-                it.copy(isLoadingMore = false, nextPageError = "다음 상품을 불러오지 못했어요. 다시 시도해 주세요.") } }
+            catch (error: Exception) { if (generation == searchGeneration) _searchUiState.update {
+                it.copy(isLoadingMore = false, nextPageError = error.catalogLoadMessage()) } }
         }
     }
     private var lastDetailRequest: Pair<String?, Long?>? = null
@@ -185,8 +186,8 @@ class ProductViewModel @Inject constructor(
                     if (generation == searchGeneration) _searchUiState.update { it.copy(products = products, isLoading = false) }
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { if (generation == searchGeneration) _searchUiState.update {
-                it.copy(products = emptyList(), isLoading = false, errorMessage = "상품을 불러오지 못했어요. 다시 시도해 주세요.") } }
+            catch (error: Exception) { if (generation == searchGeneration) _searchUiState.update {
+                it.copy(products = emptyList(), isLoading = false, errorMessage = error.catalogLoadMessage()) } }
         }
     }
 

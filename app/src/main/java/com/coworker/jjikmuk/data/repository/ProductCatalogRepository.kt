@@ -1,7 +1,7 @@
 package com.coworker.jjikmuk.data.repository
 
 import com.coworker.jjikmuk.data.remote.dto.ProductSearchItemDto
-import com.coworker.jjikmuk.di.BackendRetrofit
+import com.coworker.jjikmuk.di.PublicCatalogRetrofit
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import javax.inject.Inject
 import retrofit2.Retrofit
@@ -23,7 +23,7 @@ internal interface ProductCatalogApi {
 }
 
 class ProductCatalogRepository internal constructor(private val api: ProductCatalogApi, private val mapper: ProductRepositoryImpl) {
-    @Inject constructor(@BackendRetrofit retrofit: Retrofit, mapper: ProductRepositoryImpl) : this(retrofit.create(ProductCatalogApi::class.java), mapper)
+    @Inject constructor(@PublicCatalogRetrofit retrofit: Retrofit, mapper: ProductRepositoryImpl) : this(retrofit.create(ProductCatalogApi::class.java), mapper)
     suspend fun categories(): List<ProductCategory> {
         val values = api.classifications().data?.foodCategories ?: error("카테고리를 불러오지 못했어요.")
         check(values.all { it.id.isNotBlank() && it.label.isNotBlank() })
@@ -37,4 +37,16 @@ class ProductCatalogRepository internal constructor(private val api: ProductCata
         check(!data.hasNext || items.isNotEmpty()) { "다음 상품 목록을 확인할 수 없어요." }
         return CategoryPage(items, page, data.totalElements, data.hasNext)
     }
+}
+
+
+internal fun Throwable.catalogLoadMessage(): String = when (this) {
+    is java.net.SocketTimeoutException -> "서버 응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요."
+    is retrofit2.HttpException -> when (code()) {
+        401, 403 -> "상품 조회 권한을 확인하지 못했어요. 다시 시도해 주세요."
+        in 500..599 -> "서버 오류로 상품을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."
+        else -> "상품 요청을 처리하지 못했어요. 다시 시도해 주세요."
+    }
+    is java.io.IOException -> "서버 연결이 끊어졌어요. 연결을 확인한 뒤 다시 시도해 주세요."
+    else -> "상품 응답을 확인하지 못했어요. 다시 시도해 주세요."
 }
