@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -1334,7 +1335,7 @@ internal fun ProductRawMaterialsBox(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(100.dp),
+            .heightIn(min = 56.dp),
         color = JjikmukTheme.colors.disabled,
         shape = RoundedCornerShape(14.dp),
     ) {
@@ -1346,8 +1347,6 @@ internal fun ProductRawMaterialsBox(
                 text = product.rawMaterials?.takeIf(String::isNotBlank) ?: "원재료 정보가 없어요.",
                 color = JjikmukTheme.colors.textPrimary,
                 style = JjikmukTheme.typography.bodyM.copy(lineHeight = 22.sp, letterSpacing = (-0.58).sp),
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }
