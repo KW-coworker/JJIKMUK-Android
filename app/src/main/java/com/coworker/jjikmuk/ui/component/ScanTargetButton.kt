@@ -19,7 +19,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
@@ -50,7 +53,7 @@ fun ScanTargetButton(
             ScanTargetProfileImage(
                 imageResId = R.drawable.ic_launcher_foreground,
                 emoji = null,
-                rightOffset = 0,
+                rightOffset = 0.dp,
                 modifier = Modifier.align(Alignment.CenterEnd),
             )
             return@Box
@@ -60,7 +63,7 @@ fun ScanTargetButton(
             ScanTargetProfileImage(
                 imageResId = profile.imageResId,
                 emoji = profile.emoji,
-                rightOffset = index * PROFILE_OVERLAP_OFFSET_DP,
+                rightOffset = (index * PROFILE_OVERLAP_OFFSET_DP).dp,
                 emojiOffsetX = COVERED_PROFILE_EMOJI_OFFSET_DP,
                 modifier = Modifier.align(Alignment.CenterEnd),
             )
@@ -70,8 +73,53 @@ fun ScanTargetButton(
             ScanTargetProfileImage(
                 imageResId = profile.imageResId,
                 emoji = profile.emoji,
-                rightOffset = otherProfiles.size * PROFILE_OVERLAP_OFFSET_DP,
+                rightOffset = (otherProfiles.size * PROFILE_OVERLAP_OFFSET_DP).dp,
                 emojiOffsetX = 0,
+                isMe = true,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
+        }
+    }
+}
+
+/**
+ * 선택된 분석 대상 프로필을 작게 겹쳐 보여 준다. ScanTargetButton과 같은 순서(나는 맨 왼쪽·맨 위)로 그린다.
+ * 선택된 대상이 없으면 아무것도 그리지 않는다.
+ */
+@Composable
+fun ScanTargetProfileStack(
+    selectedProfiles: List<ScanTargetProfileUiModel>,
+    modifier: Modifier = Modifier,
+    avatarSize: Dp = 28.dp,
+    overlapStep: Dp = 20.dp,
+) {
+    val displayProfiles = selectedProfiles.take(MAX_VISIBLE_PROFILE_COUNT)
+    if (displayProfiles.isEmpty()) return
+    val myProfile = displayProfiles.firstOrNull { profile -> profile.id == ME_PROFILE_ID }
+    val otherProfiles = displayProfiles.filterNot { profile -> profile.id == ME_PROFILE_ID }
+
+    Box(
+        modifier = modifier
+            .size(width = avatarSize + overlapStep * (displayProfiles.size - 1), height = avatarSize)
+            .semantics { contentDescription = "선택한 분석 대상 ${displayProfiles.size}명" },
+    ) {
+        otherProfiles.asReversed().forEachIndexed { index, profile ->
+            ScanTargetProfileImage(
+                imageResId = profile.imageResId,
+                emoji = profile.emoji,
+                rightOffset = overlapStep * index,
+                avatarSize = avatarSize,
+                emojiFontSize = STACK_EMOJI_FONT_SIZE,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
+        }
+        myProfile?.let { profile ->
+            ScanTargetProfileImage(
+                imageResId = profile.imageResId,
+                emoji = profile.emoji,
+                rightOffset = overlapStep * otherProfiles.size,
+                avatarSize = avatarSize,
+                emojiFontSize = STACK_EMOJI_FONT_SIZE,
                 isMe = true,
                 modifier = Modifier.align(Alignment.CenterEnd),
             )
@@ -83,15 +131,17 @@ fun ScanTargetButton(
 private fun ScanTargetProfileImage(
     @DrawableRes imageResId: Int,
     emoji: String?,
-    rightOffset: Int,
+    rightOffset: Dp,
     emojiOffsetX: Int = 0,
     isMe: Boolean = false,
+    avatarSize: Dp = 40.dp,
+    emojiFontSize: TextUnit? = null,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
-            .offset(x = (-rightOffset).dp)
-            .size(40.dp)
+            .offset(x = -rightOffset)
+            .size(avatarSize)
             .clip(CircleShape)
             .background(JjikmukTheme.colors.brandSubtlest)
             .border(width = 2.dp, color = JjikmukTheme.colors.surface, shape = CircleShape),
@@ -101,7 +151,8 @@ private fun ScanTargetProfileImage(
             if (emoji != null) {
                 Text(
                     text = emoji,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = emojiFontSize?.let { MaterialTheme.typography.headlineMedium.copy(fontSize = it, lineHeight = it) }
+                        ?: MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.offset(x = emojiOffsetX.dp),
                 )
             } else {
@@ -109,7 +160,7 @@ private fun ScanTargetProfileImage(
                     painter = painterResource(imageResId),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(avatarSize - 4.dp)
                         .clip(CircleShape)
                         .background(JjikmukTheme.colors.borderSubtle),
                 )
@@ -148,3 +199,4 @@ private const val ME_PROFILE_ID = "me"
 private const val MAX_VISIBLE_PROFILE_COUNT = 5
 private const val PROFILE_OVERLAP_OFFSET_DP = 12
 private const val COVERED_PROFILE_EMOJI_OFFSET_DP = 8
+private val STACK_EMOJI_FONT_SIZE = 18.sp
