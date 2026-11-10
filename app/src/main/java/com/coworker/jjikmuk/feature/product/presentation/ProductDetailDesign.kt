@@ -38,6 +38,7 @@ internal fun ProductDetailDesign(
     favoriteEnabled: Boolean = true,
     favoriteMessage: String? = null,
     onRetryFavorite: () -> Unit = {},
+    targetProfiles: List<com.coworker.jjikmuk.ui.component.ScanTargetProfileUiModel> = emptyList(),
 ) {
     val product = state.product ?: return
     Column(modifier.fillMaxSize().background(JjikmukTheme.colors.surface)
@@ -85,7 +86,7 @@ internal fun ProductDetailDesign(
                     ProductSafetyStatus.Danger -> "사용자 맞춤 위험 성분 감지"
                 }, modifier = Modifier.size(81.dp))
             }
-            ProductDetailRiskWarningCard(product)
+            ProductDetailRiskWarningCard(product, targetProfiles = targetProfiles)
             ProductDetailAllergySection(product)
             CapacityPicker(state, onCapacity)
             Surface(onClick = { onAsk("${product.productName}의 성분과 알레르기 주의사항을 알려줘") },
@@ -108,7 +109,7 @@ internal fun ProductDetailDesign(
             ProductDetailNutritionCard(product)
             Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 ProductNutritionRows(product)
-                Text("1일 영양성분 기준치에 대한 비율(%)은 2,000kcal 기준이므로 개인의 필요열량에 따라 다를 수 있습니다",
+                Text("위 그래프는 이 제품에 포함된 탄수화물·단백질·지방 구성 비율을 보여줍니다.",
                     style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textPrimary)
             }
             ProductRawMaterialsBox(product)
