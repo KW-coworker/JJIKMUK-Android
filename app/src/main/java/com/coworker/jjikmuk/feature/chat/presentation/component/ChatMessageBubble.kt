@@ -1,5 +1,6 @@
 package com.coworker.jjikmuk.feature.chat.presentation.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,13 +16,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.ui.theme.InterFontFamily
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import com.coworker.jjikmuk.ui.theme.PretendardFontFamily
@@ -85,13 +89,12 @@ fun ChatMessageBubble(
 internal fun ChatBotProfile(
     modifier: Modifier = Modifier,
 ) {
-    Box(
+    Image(
+        painter = painterResource(R.drawable.ic_chat_bot_avatar),
+        contentDescription = null,
         modifier = modifier
             .size(26.dp)
-            .background(
-                color = JjikmukTheme.colors.textDisabled,
-                shape = CircleShape,
-            ),
+            .clip(CircleShape),
     )
 }
 
