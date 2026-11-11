@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma 1812:4580 RefreshIcon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp"
+    android:height="18dp"
+    android:viewportWidth="18"
+    android:viewportHeight="18">
+    <path
+        android:pathData="M15,9C14.9989,10.3881 14.5166,11.7328 13.6352,12.8052C12.7538,13.8775 11.5279,14.611 10.1663,14.8808C8.80466,15.1507 7.39163,14.94 6.16792,14.2848C4.94421,13.6296 3.98552,12.5704 3.45519,11.2877C2.92485,10.0049 2.85569,8.57793 3.25948,7.24989C3.66327,5.92184 4.51503,4.77488 5.66964,4.00442C6.82425,3.23396 8.21029,2.88766 9.5916,3.02452C10.9729,3.16138 12.264,3.77294 13.245,4.755"
+        android:strokeWidth="1.65"
+        android:strokeLineCap="round"
+        android:strokeColor="#101825" />
+    <path
+        android:pathData="M15,3V6.375H11.625"
+        android:strokeWidth="1.65"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeColor="#101825" />
+</vector>

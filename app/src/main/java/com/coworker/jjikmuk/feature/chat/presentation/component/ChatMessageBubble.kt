@@ -82,7 +82,7 @@ fun ChatMessageBubble(
 }
 
 @Composable
-private fun ChatBotProfile(
+internal fun ChatBotProfile(
     modifier: Modifier = Modifier,
 ) {
     Box(

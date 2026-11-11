@@ -46,7 +46,8 @@ class ChatRepositoryImpl @Inject constructor(
                 "FAMILY_NOT_FOUND" -> "선택한 가족을 확인할 수 없어요. 가족 목록을 새로고침해 주세요."
                 "CHAT_ANALYSIS_SELECTION_UNSUPPORTED", "ANALYSIS_SELECTION_INVALID" -> "서버에서 선택한 대상을 처리하지 못했어요. 분석 대상과 서버 배포 상태를 확인해 주세요."
                 else -> result.error.userMessage()
-            }, errorCode = result.error.code ?: "CHAT_REQUEST_FAILED")
+            }, errorCode = result.error.code
+                ?: if (result.error.kind == AuthFailureKind.Network) "NETWORK_UNAVAILABLE" else "CHAT_REQUEST_FAILED")
         }
     }
     private fun changed() = ChatResponse("분석 대상이나 계정이 바뀌었어요. 다시 질문해 주세요.", errorCode = "ANALYSIS_SELECTION_CHANGED")
