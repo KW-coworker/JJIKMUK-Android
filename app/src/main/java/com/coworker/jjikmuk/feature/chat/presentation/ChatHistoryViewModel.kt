@@ -27,7 +27,12 @@ class ChatHistoryViewModel @Inject constructor(
     private val chatHistoryRepository: ChatHistoryRepository,
 ) : ViewModel() {
 
+    fun refreshTargets() { viewModelScope.launch { targets.refresh(confirmChanges = true) } }
+    fun syncTargets() { viewModelScope.launch { targets.refresh() } }
     val targetState = targets.state
+    val historyState = chatHistoryRepository.state
+    fun refreshHistory() { viewModelScope.launch { chatHistoryRepository.refresh() } }
+    fun loadMore() { viewModelScope.launch { chatHistoryRepository.loadMore() } }
     fun selectTarget(id: String, selected: Boolean) {
         val account = targets.captureAccount()
         viewModelScope.launch { targets.setSelected(id, selected, account) }
@@ -51,12 +56,16 @@ class ChatHistoryViewModel @Inject constructor(
             }
             .stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
+                started = SharingStarted.Eagerly,
                 initialValue = emptyList(),
             )
 
     fun updateSearchQuery(query: String) {
         _searchQuery.update { query }
+    }
+
+    fun rename(history: ChatHistoryUiModel, title: String) {
+        viewModelScope.launch { chatHistoryRepository.updateTitle(history.id, title) }
     }
 
     fun togglePinned(history: ChatHistoryUiModel) {

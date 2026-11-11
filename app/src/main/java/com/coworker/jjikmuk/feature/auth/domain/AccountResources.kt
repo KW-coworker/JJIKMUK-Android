@@ -2,7 +2,8 @@ package com.coworker.jjikmuk.feature.auth.domain
 
 /** Full submission, unlike PATCH: absent optional conditions are cleared by the server. */
 class ProfileSubmission(val nickname: String, val allergies: String? = null,
-    val specialDiet: String? = null, val diseases: String? = null, val dislikedIngredients: String? = null)
+    val specialDiet: String? = null, val diseases: String? = null, val dislikedIngredients: String? = null,
+    val version: Long? = null)
 
 data class FamilyProfile(val id: Long, val nickname: String, val allergies: String?,
     val specialDiet: String?, val diseases: String?, val dislikedIngredients: String?, val version: Long,

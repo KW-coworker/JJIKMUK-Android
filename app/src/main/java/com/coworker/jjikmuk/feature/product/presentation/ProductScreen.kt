@@ -108,8 +108,10 @@ fun ProductScreen(
     onProductBarcodeOpenHandled: () -> Unit = {},
     onReturnToMyFromDetail: () -> Unit = {},
     onAskProduct: (String) -> Unit = {},
+    onAskProductWithBarcode: (String, String?) -> Unit = { prompt, _ -> onAskProduct(prompt) },
     productViewModel: ProductViewModel = hiltViewModel(),
 ) {
+    val targetState by productViewModel.targetState.collectAsStateWithLifecycle()
     val searchUiState by productViewModel.searchUiState.collectAsStateWithLifecycle()
     val categoryUiState by productViewModel.categories.collectAsStateWithLifecycle()
     val detailUiState by productViewModel.detailUiState.collectAsStateWithLifecycle()
@@ -117,11 +119,13 @@ fun ProductScreen(
     val favorites by productViewModel.favoriteState.collectAsStateWithLifecycle()
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         productViewModel.retryFavorites()
+        productViewModel.syncTargets()
     }
     val recentSearchKeywords by productViewModel.recentSearchKeywords.collectAsStateWithLifecycle()
     val scanTargetMembers by productViewModel.scanTargetMembers.collectAsStateWithLifecycle()
 
     ProductScreenContent(
+        analysisTargetsState = targetState, onRefreshTargets = productViewModel::refreshTargets,
         categoryUiState = categoryUiState,
         onCategoryClick = productViewModel::selectCategory,
         onRetryCategories = productViewModel::loadCategories,
@@ -151,6 +155,7 @@ fun ProductScreen(
         onSelectCapacity = productViewModel::selectProductCapacity,
         onRetryAlternatives = productViewModel::refreshAlternatives,
         onAskProduct = onAskProduct,
+        onAskProductWithBarcode = onAskProductWithBarcode,
         onScanTargetCheckedChange = productViewModel::updateScanTargetSelection,
         productBarcodeToOpen = productBarcodeToOpen,
         onProductBarcodeOpenHandled = onProductBarcodeOpenHandled,
@@ -188,6 +193,7 @@ private fun ProductScreenContent(
     onSelectCapacity: (String) -> Unit = {},
     onRetryAlternatives: () -> Unit = {},
     onAskProduct: (String) -> Unit = {},
+    onAskProductWithBarcode: (String, String?) -> Unit = { prompt, _ -> onAskProduct(prompt) },
     productIdToOpen: Long? = null,
     onLoadProductDetailById: (Long) -> Unit = {},
     categoryUiState: CategoryUiState = CategoryUiState(),
@@ -195,6 +201,8 @@ private fun ProductScreenContent(
     onRetryCategories: () -> Unit = {},
     onMoreCategoryProducts: () -> Unit = {},
     modifier: Modifier = Modifier,
+    analysisTargetsState: com.coworker.jjikmuk.domain.repository.AnalysisTargetsState = com.coworker.jjikmuk.domain.repository.AnalysisTargetsState(),
+    onRefreshTargets: () -> Unit = {},
 ) {
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
         defaultImageResId = R.drawable.ic_launcher_foreground,
@@ -438,6 +446,7 @@ private fun ProductScreenContent(
                         onToggleLikedProduct = onToggleLikedProduct,
                         onSelectCapacity = onSelectCapacity,
                         onAskProduct = onAskProduct,
+        onAskProductWithBarcode = onAskProductWithBarcode,
                         onAlternative = ::openRecommendedProduct,
                         onMoreAlternatives = {
                             alternativeListSource = detailUiState
@@ -457,6 +466,7 @@ private fun ProductScreenContent(
 
             if (showScanTargetPopup) {
                 ScanTargetPopup(
+                    statusMessage = analysisTargetsState.message, enabled = analysisTargetsState.ready, onRefresh = onRefreshTargets,
                     members = scanTargetMembers,
                     onMemberCheckedChange = onScanTargetCheckedChange,
                     onDismissRequest = { showScanTargetPopup = false },
@@ -694,6 +704,7 @@ private fun ProductDetailContent(
     onRetryFavorite: () -> Unit = {},
     onSelectCapacity: (String) -> Unit = {},
     onAskProduct: (String) -> Unit = {},
+    onAskProductWithBarcode: (String, String?) -> Unit = { prompt, _ -> onAskProduct(prompt) },
     onAlternative: (String?) -> Unit = {},
     onMoreAlternatives: () -> Unit = {},
     onRetryAlternatives: () -> Unit = {},
@@ -735,7 +746,7 @@ private fun ProductDetailContent(
                 onRetryFavorite = onRetryFavorite,
                 onFavorite = { onToggleLikedProduct(detailUiState.product) },
                 onCapacity = onSelectCapacity,
-                onAsk = onAskProduct,
+                onAsk = { prompt -> onAskProductWithBarcode(prompt, detailUiState.product.barcode) },
                 onAlternative = onAlternative,
                 onMoreAlternatives = onMoreAlternatives,
                 onRetryAlternatives = onRetryAlternatives,
@@ -1313,7 +1324,7 @@ internal fun ProductNutritionRows(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("영양성분 기준량 미확인 · 제품 전체 기준 수치가 아닐 수 있어요.",
+        Text(product.nutrition.basisLabel,
             style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
         ProductNutritionRow("열량", product.nutrition.energyKcal.toAmountText("kcal"))
         ProductNutritionRow("단백질", product.nutrition.proteinG.toAmountText("g"))

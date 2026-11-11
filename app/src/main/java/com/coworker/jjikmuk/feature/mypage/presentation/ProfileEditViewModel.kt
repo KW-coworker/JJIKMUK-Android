@@ -39,10 +39,12 @@ class ProfileEditViewModel @Inject constructor(
     private var request: Job? = null
     private var generation = -1L
     private var revision = 0L
+    private var profileVersion: Long? = null
 
     fun open() {
         close()
         generation = sessions.state.value.generation
+        profileVersion = null
         mutableState.value = ProfileEditState()
         reload()
     }
@@ -64,6 +66,7 @@ class ProfileEditViewModel @Inject constructor(
             if (!isCurrent(currentRevision)) return@launch
             when (result) {
                 is AuthResult.Success -> {
+                    profileVersion = result.value.version
                     mutableState.update { it.copy(nickname = if (keepDraft) it.nickname else result.value.nickname,
                         savedNickname = result.value.nickname,
                         email = result.value.email, loaded = true, busy = false, mustReload = false,
@@ -87,15 +90,17 @@ class ProfileEditViewModel @Inject constructor(
         val currentRevision = revision
         mutableState.update { it.copy(busy = true, message = null) }
         request = viewModelScope.launch {
-            when (val result = profiles.patch(ProfilePatch(nickname = nickname))) {
+            when (val result = profiles.patch(ProfilePatch(nickname = nickname, version = profileVersion))) {
                 is AuthResult.Success -> if (isCurrent(currentRevision)) {
+                    profileVersion = result.value.version
                     mutableState.update { it.copy(nickname = result.value.nickname, savedNickname = result.value.nickname,
                         busy = false, message = "저장했어요") }
                 }
                 is AuthResult.Failure -> if (isCurrent(currentRevision)) {
-                    val unknown = result.error.outcomeUnknown || result.error.code == "AUTH_REFRESHED_RETRY_REQUIRED"
+                    val unknown = result.error.outcomeUnknown || result.error.code in setOf("AUTH_REFRESHED_RETRY_REQUIRED", "PROFILE_VERSION_CONFLICT")
                     mutableState.update { it.copy(busy = false, mustReload = unknown,
-                        message = if (unknown) "저장 결과를 확인해야 해요. 최신 정보를 확인한 뒤 다시 저장해 주세요"
+                        message = if (result.error.code == "PROFILE_VERSION_CONFLICT") "다른 기기에서 정보가 변경됐어요. 입력은 보관했으니 최신 정보를 확인한 뒤 다시 저장해 주세요."
+                            else if (unknown) "저장 결과를 확인해야 해요. 최신 정보를 확인한 뒤 다시 저장해 주세요"
                             else result.error.userMessage()) }
                 }
             }

@@ -18,6 +18,7 @@ fun ScannerNavHost(
     onExitScanner: () -> Unit,
     modifier: Modifier = Modifier,
     onAskProduct: (String) -> Unit = {},
+    onAskProductWithBarcode: (String, String?) -> Unit = { prompt, _ -> onAskProduct(prompt) },
     navController: NavHostController = rememberNavController(),
 ) {
     NavHost(
@@ -55,6 +56,7 @@ fun ScannerNavHost(
                     if (navController.currentBackStackEntry == entry) navController.popBackStack()
                 },
                 onAskProduct = onAskProduct,
+                onAskProductWithBarcode = onAskProductWithBarcode,
             )
         }
 

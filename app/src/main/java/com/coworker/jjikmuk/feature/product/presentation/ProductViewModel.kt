@@ -45,6 +45,9 @@ class ProductViewModel @Inject constructor(
     private val catalog: com.coworker.jjikmuk.data.repository.ProductCatalogRepository,
     private val productOptions: com.coworker.jjikmuk.data.repository.ProductOptionsRepository,
 ) : ViewModel() {
+    fun refreshTargets() { viewModelScope.launch { targets.refresh(confirmChanges = true) } }
+    fun syncTargets() { viewModelScope.launch { targets.refresh() } }
+    val targetState = targets.state
 
     private var detailOwner: com.coworker.jjikmuk.data.local.preference.ProductViewOwner? = null
     private var detailJob: Job? = null

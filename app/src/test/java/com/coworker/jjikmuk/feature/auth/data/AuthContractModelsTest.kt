@@ -154,7 +154,7 @@ class AuthContractModelsTest {
     @Test fun `profile fields decode id capability CSV and private photo path`() {
         val json = """{"id":17,"email":"a@example.com","nickname":"테스트","allergies":"egg,wheat",
             "specialDiet":"lowSugar","role":"USER","authProvider":"LOCAL","profileCompleted":true,
-            "hasPassword":true,"photoUrl":"/api/users/me/photo"}"""
+            "hasPassword":true,"photoUrl":"/api/users/me/photo","version":3}"""
         val profile = AuthResponseMapper.profile(authJson().fromJson(json, ProfileBody::class.java))
         assertEquals(17L, profile.id); assertEquals("egg,wheat", profile.allergies)
         assertNull(profile.diseases); assertEquals("/api/users/me/photo", profile.photoUrl)

@@ -12,6 +12,7 @@ interface FamilyProfileRepository {
     fun observeProfiles(): Flow<List<FamilyProfile>>
     fun observeState(): Flow<FamilyProfilesState> = observeProfiles().map { FamilyProfilesState(profiles = it) }
     fun captureAccount(): FamilyAccount? = null
+    fun currentState(): FamilyProfilesState? = null
     suspend fun ensureDefaultProfiles()
     suspend fun refresh(account: FamilyAccount? = captureAccount()) { ensureDefaultProfiles() }
     suspend fun addProfile(name: String, emoji: String, relation: String, account: FamilyAccount? = captureAccount()): Boolean

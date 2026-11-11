@@ -32,6 +32,7 @@ fun JjikmukAppContent(
     onPasswordChangeClick: (() -> Unit)? = null, onWithdrawalClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    var chatBarcode by rememberSaveable { mutableStateOf<String?>(null) }
     var chatMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var chatConversationId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
@@ -97,8 +98,10 @@ fun JjikmukAppContent(
                         selectedTab = selectedTab,
                         onTabClick = ::handleMainTabClick,
                         onScannerClick = { showScanner = true },
-                        onAskProduct = { prompt ->
+                        onAskProductWithBarcode = { prompt, barcode ->
+                            chatBarcode = null
                             chatConversationId = null
+                            chatBarcode = barcode
                             chatMessage = prompt
                         },
                         productBarcodeToOpen = productBarcodeToOpen,
@@ -118,10 +121,12 @@ fun JjikmukAppContent(
                         onTabClick = ::handleMainTabClick,
                         onBackClick = { selectedTab = MainTab.Home },
                         onChatClick = { history ->
+                            chatBarcode = null
                             chatConversationId = history.id
                             chatMessage = history.title
                         },
                         onNewChatClick = {
+                            chatBarcode = null
                             chatConversationId = null
                             chatMessage = ""
                         },
@@ -175,6 +180,7 @@ fun JjikmukAppContent(
                         onTabClick = ::handleMainTabClick,
                         onChatHistoryClick = { selectedTab = MainTab.History },
                         onSendMessage = { message ->
+                            chatBarcode = null
                             chatConversationId = null
                             chatMessage = message
                         },
@@ -186,7 +192,9 @@ fun JjikmukAppContent(
             ChatRoute(
                 conversationId = chatConversationId,
                 initialMessage = chatMessage.orEmpty(),
+                initialBarcode = chatBarcode,
                 onBackClick = {
+                    chatBarcode = null
                     chatConversationId = null
                     chatMessage = null
                 },
@@ -196,9 +204,11 @@ fun JjikmukAppContent(
         if (showScanner) {
             ScannerNavHost(
                 onExitScanner = { showScanner = false },
-                onAskProduct = { prompt ->
+                onAskProductWithBarcode = { prompt, barcode ->
                     showScanner = false
+                    chatBarcode = null
                     chatConversationId = null
+                    chatBarcode = barcode
                     chatMessage = prompt
                 },
                 modifier = Modifier.fillMaxSize(),

@@ -1,11 +1,15 @@
 package com.coworker.jjikmuk.feature.chat.presentation
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -46,6 +51,7 @@ import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 fun ChatRoute(
     conversationId: String? = null,
     initialMessage: String,
+    initialBarcode: String? = null,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = hiltViewModel(),
@@ -53,23 +59,27 @@ fun ChatRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val targetState by viewModel.targetState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(conversationId, initialMessage) {
+    LaunchedEffect(conversationId, initialMessage, initialBarcode) {
         viewModel.start(
             conversationId = conversationId,
             initialMessage = initialMessage,
+            initialBarcode = initialBarcode,
         )
     }
 
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { viewModel.syncTargets() }
     ChatScreen(
-        title = createChatTitle(initialMessage),
+        onRefreshTargets = viewModel::refreshTargets,
+        title = uiState.title ?: createChatTitle(initialMessage),
         uiState = uiState,
         onBackClick = onBackClick,
         onSendMessage = viewModel::sendMessage,
+        onRetry = viewModel::retry,
+        onFinishTyping = viewModel::finishTyping,
         targetState = targetState,
         onTargetCheckedChange = viewModel::selectTarget,
         onProductCandidateClick = viewModel::selectProductCandidate,
         onDismissProductCandidates = viewModel::dismissProductCandidates,
-        onRetryClick = viewModel::retry,
         modifier = modifier,
     )
 }
@@ -86,8 +96,23 @@ fun ChatScreen(
     onDismissProductCandidates: () -> Unit = {},
     targetState: com.coworker.jjikmuk.domain.repository.AnalysisTargetsState = com.coworker.jjikmuk.domain.repository.AnalysisTargetsState(),
     onTargetCheckedChange: (String, Boolean) -> Unit = { _, _ -> },
-    onRetryClick: () -> Unit = {},
+    onRefreshTargets: () -> Unit = {},
+    onRetry: () -> Unit = {},
+    onFinishTyping: () -> Unit = {},
 ) {
+    val messageListState = rememberLazyListState()
+    val isDragging by messageListState.interactionSource.collectIsDraggedAsState()
+    var followLatest by remember { mutableStateOf(true) }
+    LaunchedEffect(isDragging) {
+        if (!isDragging) followLatest = !messageListState.canScrollForward ||
+            (messageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= messageListState.layoutInfo.totalItemsCount - 2
+    }
+    val typing = uiState.messages.lastOrNull { it.isTyping }
+    LaunchedEffect(uiState.messages.size, uiState.isLoading, typing?.displayedText?.length, uiState.productCandidates.size, uiState.error, followLatest) {
+        if (followLatest && !isDragging && !messageListState.isScrollInProgress && messageListState.layoutInfo.totalItemsCount > 0) {
+            messageListState.scrollToItem(messageListState.layoutInfo.totalItemsCount - 1)
+        }
+    }
     var showTargets by rememberSaveable { mutableStateOf(false) }
     val members = targetState.toScanTargetMembers()
     var inputMessage by rememberSaveable { mutableStateOf("") }
@@ -115,6 +140,7 @@ fun ChatScreen(
                 .padding(innerPadding),
         ) {
             LazyColumn(
+                state = messageListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 20.dp,
@@ -125,10 +151,15 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {
                 items(uiState.messages, key = { message -> message.id }) { message ->
-                    ChatMessageBubble(
-                        text = message.text,
-                        isMine = message.isMine,
-                    )
+                    Column {
+                        ChatMessageBubble(
+                            text = (message.displayedText ?: message.text) + if (message.isTyping) "▍" else "",
+                            isMine = message.isMine,
+                        )
+                        if (message.isTyping) Text("전체 보기",
+                            modifier = Modifier.padding(start = 36.dp, top = 6.dp).clickable(onClick = onFinishTyping).padding(vertical = 6.dp),
+                            color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyS)
+                    }
                 }
                 item {
                     Text(targetState.message ?: if (!targetState.ready) "분석 대상을 확인하고 있어요."
@@ -136,19 +167,21 @@ fun ChatScreen(
                         else "분석 대상: " + members.filter { it.isSelected }.joinToString { it.name },
                         style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary)
                 }
+                uiState.notice?.takeIf { uiState.error == null }?.let { message ->
+                    item { Text(message, style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary) }
+                    if (uiState.canRetry && !uiState.isLoading) item {
+                        Text("다시 확인·재시도", Modifier.clickable(onClick = onRetry).padding(vertical = 12.dp),
+                            color = JjikmukTheme.colors.brand, style = JjikmukTheme.typography.bodyM)
+                    }
+                }
+                uiState.error?.let { error ->
+                    item(key = "chat-error") { ChatErrorBubble(error, onRetry) }
+                }
                 if (uiState.isLoading && uiState.error?.isRetrying != true) {
                     item {
                         ChatMessageBubble(
                             text = "답변을 준비 중이에요.",
                             isMine = false,
-                        )
-                    }
-                }
-                uiState.error?.let { error ->
-                    item(key = "chat-error") {
-                        ChatErrorBubble(
-                            error = error,
-                            onRetryClick = onRetryClick,
                         )
                     }
                 }
@@ -182,6 +215,7 @@ fun ChatScreen(
                 )
             }
             if (showTargets) ScanTargetPopup(members = members,
+                statusMessage = targetState.message, enabled = targetState.ready, onRefresh = onRefreshTargets,
                 onMemberCheckedChange = onTargetCheckedChange,
                 onDismissRequest = { showTargets = false },
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 20.dp))

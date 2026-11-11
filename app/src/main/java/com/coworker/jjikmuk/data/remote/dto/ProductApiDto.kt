@@ -42,6 +42,7 @@ data class ProductDto(
     val allergyWarning: String? = null,
     val cleanProductName: String? = null,
     val totalWeight: String? = null,
+    val nutrition: ProductNutritionDto? = null,
     val carbsPercent: Double? = null,
     val proteinPercent: Double? = null,
     val fatPercent: Double? = null,
@@ -69,3 +70,34 @@ data class ProductAnalysisDto(
     val verificationRequired: Boolean? = null,
     val message: String? = null,
 )
+
+/** nutrition-v1: all numbers below are already converted by the server. */
+data class ProductNutritionDto(
+    val sourceBasis: ProductNutritionBasisDto? = null,
+    val sourceValues: ProductNutrientValuesDto? = null,
+    val packageQuantity: ProductNutritionQuantityDto? = null,
+    val per100g: ProductNutritionPortionDto? = null,
+    val per100ml: ProductNutritionPortionDto? = null,
+    val perPackage: ProductNutritionPortionDto? = null,
+    val packageCalculationStatus: String? = null,
+    val packageCalculationReason: String? = null,
+)
+
+data class ProductNutritionPortionDto(
+    val amount: Double? = null,
+    val unit: String? = null,
+    val values: ProductNutrientValuesDto? = null,
+)
+
+data class ProductNutrientValuesDto(
+    val energyKcal: Double? = null,
+    val carbsG: Double? = null,
+    val proteinG: Double? = null,
+    val fatG: Double? = null,
+    val sugarG: Double? = null,
+    val sodiumMg: Double? = null,
+    val cholesterolMg: Double? = null,
+)
+
+data class ProductNutritionBasisDto(val status: String? = null)
+data class ProductNutritionQuantityDto(val amount: Double? = null, val unit: String? = null)

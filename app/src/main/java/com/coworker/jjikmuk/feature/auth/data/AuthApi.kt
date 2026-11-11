@@ -69,4 +69,4 @@ internal class LoginResponse(val token: String?, val tokenType: String?, val use
 internal class ProfileBody(val id: Long?, val email: String?, val nickname: String?,
     val allergies: String?, val diseases: String?, val specialDiet: String?, val dislikedIngredients: String?,
     val role: String?, val authProvider: String?, val profileCompleted: Boolean?,
-    val hasPassword: Boolean?, val photoUrl: String?)
+    val hasPassword: Boolean?, val photoUrl: String?, val version: Long?)

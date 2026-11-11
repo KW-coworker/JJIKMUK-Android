@@ -19,6 +19,9 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+    @Binds @Singleton
+    abstract fun bindStoredChat(impl: com.coworker.jjikmuk.data.repository.HttpStoredChatStore): com.coworker.jjikmuk.domain.repository.StoredChatStore
+
     @Binds
     @Singleton
     abstract fun bindAnalysisTargets(impl: com.coworker.jjikmuk.data.repository.AnalysisTargetRepositoryImpl): com.coworker.jjikmuk.domain.repository.AnalysisTargetRepository

@@ -53,6 +53,7 @@ class SelfDietConditionViewModel @Inject constructor(
     val state = mutable.asStateFlow()
     private var owner: Long? = null
     private var revision = 0L
+    private var profileVersion: Long? = null
 
     init {
         viewModelScope.launch { sessions.state.collect { if (owner != null && owner != it.generation) leave() } }
@@ -65,7 +66,7 @@ class SelfDietConditionViewModel @Inject constructor(
         leave(); owner = session.generation; reload()
     }
 
-    fun leave() { revision++; owner = null; mutable.value = SelfDietConditionState() }
+    fun leave() { revision++; owner = null; profileVersion = null; mutable.value = SelfDietConditionState() }
     private fun current(generation: Long, ticket: Long) = owner == generation && revision == ticket &&
         sessions.state.value.generation == generation && sessions.state.value.canEnterHome
 
@@ -93,6 +94,7 @@ class SelfDietConditionViewModel @Inject constructor(
                 if (!current(generation, ticket)) return@launch
                 when (result) {
                     is AuthResult.Success -> {
+                        profileVersion = result.value.version
                         val server = SelfConditions.decode(result.value)
                         if (server == null) unsupported(result.value.nickname)
                         else {
@@ -129,6 +131,7 @@ class SelfDietConditionViewModel @Inject constructor(
             else -> ProfileField.Value(value)
         }
         val patch = ProfilePatch(
+            version = profileVersion,
             allergies = field(input.draft.allergies != saved.allergies, encoded.allergies),
             specialDiet = field(input.draft.vegetarian != saved.vegetarian || input.draft.nutrition != saved.nutrition, encoded.specialDiet),
         )
@@ -139,14 +142,16 @@ class SelfDietConditionViewModel @Inject constructor(
                 if (!current(generation, ticket)) return@launch
                 when (result) {
                     is AuthResult.Success -> {
+                        profileVersion = result.value.version
                         val server = SelfConditions.decode(result.value)
                         if (server == null) unsupported(result.value.nickname)
                         else mutable.value = SelfDietConditionState(result.value.nickname, server, server, message = "식이조건을 저장했어요.")
                     }
                     is AuthResult.Failure -> {
-                        val uncertain = result.error.outcomeUnknown || result.error.code == "AUTH_REFRESHED_RETRY_REQUIRED"
+                        val uncertain = result.error.outcomeUnknown || result.error.code in setOf("AUTH_REFRESHED_RETRY_REQUIRED", "PROFILE_VERSION_CONFLICT")
                         mutable.update { it.copy(busy = false, needsReadback = uncertain,
-                            message = if (uncertain) "저장 결과를 확인해야 해요. 서버 정보를 다시 확인해 주세요." else result.error.userMessage()) }
+                            message = if (result.error.code == "PROFILE_VERSION_CONFLICT") "다른 기기에서 정보가 변경됐어요. 선택한 조건은 보관했으니 최신 정보를 확인해 주세요."
+                                else if (uncertain) "저장 결과를 확인해야 해요. 서버 정보를 다시 확인해 주세요." else result.error.userMessage()) }
                     }
                 }
             } catch (cancelled: CancellationException) {

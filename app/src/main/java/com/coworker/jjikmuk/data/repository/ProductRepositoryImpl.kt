@@ -5,7 +5,6 @@ import com.coworker.jjikmuk.data.remote.dto.ProductDetailDataDto
 import com.coworker.jjikmuk.data.remote.dto.ProductSearchItemDto
 import com.coworker.jjikmuk.domain.model.ProductDetail
 import com.coworker.jjikmuk.domain.model.ProductMacroPercents
-import com.coworker.jjikmuk.domain.model.ProductNutrition
 import com.coworker.jjikmuk.domain.model.ProductSafetyStatus
 import com.coworker.jjikmuk.domain.model.ProductSearchResult
 import com.coworker.jjikmuk.domain.repository.ProductRepository
@@ -99,6 +98,8 @@ class ProductRepositoryImpl internal constructor(
             ?: product.cleanProductName?.takeIf(String::isNotBlank)
             ?: error("상품명이 없는 상품이에요.")
 
+        val displayedNutrition = product.toDisplayedNutrition()
+
         return ProductDetail(
             productId = product.productId?.takeIf { it > 0 },
             barcode = product.barcode.orEmpty(),
@@ -109,15 +110,7 @@ class ProductRepositoryImpl internal constructor(
             allergyWarning = product.allergyWarning,
             rawMaterials = product.rawMaterials,
             totalWeight = product.totalWeight,
-            nutrition = ProductNutrition(
-                energyKcal = product.energyKcal,
-                carbsG = product.carbsG,
-                proteinG = product.proteinG,
-                fatG = product.fatG,
-                sugarG = product.sugarG,
-                sodiumMg = product.sodiumMg,
-                cholesterolMg = product.cholesterolMg,
-            ),
+            nutrition = displayedNutrition,
             macroPercents = ProductMacroPercents(
                 carbs = nutrientPercents?.carbsMacroPercent ?: product.carbsPercent,
                 protein = nutrientPercents?.proteinMacroPercent ?: product.proteinPercent,

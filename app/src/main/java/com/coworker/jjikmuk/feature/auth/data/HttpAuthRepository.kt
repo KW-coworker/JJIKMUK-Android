@@ -88,10 +88,10 @@ class HttpAuthRepository private constructor(
         { it.me("Bearer $accessToken") }) { AuthResponseMapper.profile(requireNotNull(it.data)) }
 
     override suspend fun patchProfile(accessToken: String, patch: ProfilePatch) = request(200,
-        { it.patchProfile("Bearer $accessToken", patch) }) { AuthResponseMapper.profile(requireNotNull(it.data)) }
+        { require(patch.version != null && patch.version >= 0); it.patchProfile("Bearer $accessToken", patch) }) { AuthResponseMapper.profile(requireNotNull(it.data)) }
 
     override suspend fun completeProfile(accessToken: String, input: ProfileSubmission) = request(200,
-        { it.complete("Bearer $accessToken", input) }) {
+        { require(input.version != null && input.version >= 0); it.complete("Bearer $accessToken", input) }) {
         AuthResponseMapper.profile(requireNotNull(it.data)).also { profile -> require(profile.profileCompleted) }
     }
 

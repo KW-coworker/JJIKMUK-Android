@@ -48,6 +48,7 @@ internal fun ScannerProductDetailRoute(
     barcode: String,
     onBackClick: () -> Unit,
     onAskProduct: (String) -> Unit,
+    onAskProductWithBarcode: (String, String?) -> Unit = { prompt, _ -> onAskProduct(prompt) },
     viewModel: ProductViewModel = hiltViewModel(),
 ) {
     val detail by viewModel.detailUiState.collectAsStateWithLifecycle()
@@ -78,7 +79,7 @@ internal fun ScannerProductDetailRoute(
         onRetry = { viewModel.loadProductDetail(detail.referenceBarcode ?: barcode) },
         onFavorite = { detail.product?.let(viewModel::toggleLikedProduct) },
         onCapacity = viewModel::selectProductCapacity,
-        onAsk = onAskProduct,
+        onAsk = { prompt -> onAskProductWithBarcode(prompt, detail.product?.barcode) },
         onAlternative = { code ->
             if (code != null) {
                 showAlternatives = false

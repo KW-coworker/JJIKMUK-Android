@@ -4,7 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import com.coworker.jjikmuk.domain.model.FamilyProfile
 import com.coworker.jjikmuk.domain.repository.*
-import com.coworker.jjikmuk.feature.auth.domain.AuthLogin
+import com.coworker.jjikmuk.feature.auth.domain.*
 import com.coworker.jjikmuk.feature.auth.session.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -17,7 +17,6 @@ import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnalysisTargetRepositoryTest {
-    @get:Rule val temporary = TemporaryFolder()
     private val sessions = AuthSessionManager(MemorySessionStore()) { 1000L }
     private class Families : FamilyProfileRepository {
         val values = MutableStateFlow(FamilyProfilesState(loaded = false))
@@ -38,92 +37,87 @@ class AnalysisTargetRepositoryTest {
         val me = FamilyProfile("me", "나$id", "🙂", "본인", true, "해당 없음", emptySet(), emptySet())
         families.values.value = FamilyProfilesState(FamilyAccount(id, sessions.state.value.generation), listOf(me, member(41), member(42)))
     }
-    private fun TestScope.storage() = PreferenceDataStoreFactory.create(scope = backgroundScope) {
-        temporary.newFolder().resolve("selection.preferences_pb")
+    private class Remote : AnalysisSelectionRemote {
+        val values = mutableMapOf<Long, SavedAnalysisSelection>()
+        var failGet = false
+        var conflict = false
+        var putCount = 0
+        val versions = mutableListOf<Long>()
+        override suspend fun get(account: FamilyAccount): AuthResult<SavedAnalysisSelection> =
+            if (failGet) AuthResult.Failure(AuthFailure(AuthFailureKind.Network))
+            else AuthResult.Success(values.getOrPut(account.userId) { SavedAnalysisSelection(true, emptyList(), 0, false, "self") })
+        override suspend fun put(account: FamilyAccount, version: Long, includeSelf: Boolean, ids: List<Long>): AuthResult<SavedAnalysisSelection> {
+            putCount++; versions += version
+            if (conflict) return AuthResult.Failure(AuthFailure(AuthFailureKind.Server, 409, "ANALYSIS_SELECTION_VERSION_CONFLICT"))
+            val value = SavedAnalysisSelection(includeSelf, ids, version + 1, true,
+                if (ids.isNotEmpty()) "selected" else if (includeSelf) "self" else "none")
+            values[account.userId] = value
+            return AuthResult.Success(value)
+        }
     }
+    private val remote = Remote()
     private suspend fun ready(repo: AnalysisTargetRepository) = repo.state.first { it.ready }
 
-    @Test fun `first use selects only self and maps to self query without selected-only arguments`() = runTest {
-        login()
-        val repo = AnalysisTargetRepositoryImpl(storage(), sessions, families, backgroundScope)
-        val state = ready(repo)
-        assertEquals(setOf("me"), state.selectedProfileIds)
-        assertEquals("self", state.selection!!.mode)
-        assertNull(state.selection!!.queryIncludeSelf); assertNull(state.selection!!.queryFamilyIds)
+    @Test fun `successful initial server read supplies the default not the device`() = runTest {
+        login(); val repo = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope)
+        assertEquals(setOf("me"), ready(repo).selectedProfileIds)
+        assertEquals(0L, repo.state.value.serverVersion)
+        assertEquals(0, remote.putCount)
     }
-    @Test fun `selected families are all included and self is independently controlled`() = runTest {
-        login()
-        val repo = AnalysisTargetRepositoryImpl(storage(), sessions, families, backgroundScope); ready(repo)
-        assertTrue(repo.setSelected("me", false)); assertTrue(repo.setSelected("42", true)); assertTrue(repo.setSelected("41", true))
-        val selected = repo.awaitSelection()!!
-        assertEquals("selected", selected.mode); assertEquals(listOf(41L, 42L), selected.familyProfileIds)
-        assertEquals(false, selected.queryIncludeSelf)
-        assertTrue(repo.setSelected("me", true)); assertEquals(true, repo.awaitSelection()!!.queryIncludeSelf)
+    @Test fun `sequential writes use accepted server versions and all off survives a new reader`() = runTest {
+        login(); val repo = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope); ready(repo)
+        assertTrue(repo.setSelected("me", false)); assertTrue(repo.setSelected("41", true)); assertTrue(repo.setSelected("41", false))
+        assertEquals(listOf(0L, 1L, 2L), remote.versions)
+        val restarted = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope)
+        assertEquals("none", ready(restarted).selection!!.mode)
     }
-    @Test fun `all off is explicit none and survives a new reader`() = runTest {
-        login(); val data = storage()
-        val repo = AnalysisTargetRepositoryImpl(data, sessions, families, backgroundScope); ready(repo)
-        repo.setSelected("me", false)
-        assertEquals("none", repo.awaitSelection()!!.mode)
-        val restarted = AnalysisTargetRepositoryImpl(data, sessions, families, backgroundScope)
-        val result = ready(restarted).selection!!
-        assertEquals("none", result.mode); assertNull(result.queryIncludeSelf); assertNull(result.queryFamilyIds)
+    @Test fun `a new device restores family ids from the server`() = runTest {
+        login(); remote.values[1] = SavedAnalysisSelection(false, listOf(42), 7, true, "selected")
+        val repo = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope)
+        assertEquals(setOf("42"), ready(repo).selectedProfileIds)
+        assertEquals(0, remote.putCount)
     }
-    @Test fun `account selection is isolated and returning account restores its own IDs`() = runTest {
-        login(); val repo = AnalysisTargetRepositoryImpl(storage(), sessions, families, backgroundScope); ready(repo)
+    @Test fun `failed read does not invent self or all off`() = runTest {
+        login(); remote.failGet = true
+        val repo = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope)
+        runCurrent()
+        assertFalse(repo.state.value.ready); assertNull(repo.awaitSelection())
+        assertEquals(0, remote.putCount)
+    }
+    @Test fun `conflict reads latest state without replay and requires explicit confirmation`() = runTest {
+        login(); val repo = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope); ready(repo)
+        remote.values[1] = SavedAnalysisSelection(false, listOf(42), 1, true, "selected"); remote.conflict = true
+        assertFalse(repo.setSelected("41", true)); runCurrent()
+        assertTrue(repo.state.value.needsConfirmation); assertFalse(repo.state.value.ready)
+        assertEquals(setOf("42"), repo.state.value.selectedProfileIds)
+        assertEquals(1, remote.putCount)
+        assertFalse(repo.setSelected("41", true)); assertEquals(1, remote.putCount)
+        repo.refresh(confirmChanges = true); ready(repo)
+        assertEquals(1, remote.putCount)
+    }
+    @Test fun `account and generation isolate late snapshots`() = runTest {
+        login(); val repo = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope); ready(repo)
         repo.setSelected("me", false); repo.setSelected("41", true)
+        val first = repo.awaitSelection()!!
         login(2); repo.state.first { it.ready && it.account?.userId == 2L }
         assertEquals(setOf("me"), repo.state.value.selectedProfileIds)
+        assertFalse(repo.isCurrent(first)); assertFalse(repo.setSelected("41", true, first.account))
         login(1); repo.state.first { it.ready && it.account?.userId == 1L }
-        assertEquals(setOf("41"), repo.state.value.selectedProfileIds)
+        assertFalse(repo.isCurrent(first)); assertEquals(setOf("41"), repo.state.value.selectedProfileIds)
     }
-    @Test fun `deleting sole selected family persists none and never enables self`() = runTest {
-        login(); val repo = AnalysisTargetRepositoryImpl(storage(), sessions, families, backgroundScope); ready(repo)
+    @Test fun `server deletion selection is reloaded after family changes`() = runTest {
+        login(); val repo = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope); ready(repo)
         repo.setSelected("me", false); repo.setSelected("41", true)
+        remote.values[1] = SavedAnalysisSelection(false, emptyList(), 3, true, "none")
         families.values.value = families.values.value.copy(profiles = families.values.value.profiles.filterNot { it.serverId == 41L })
-        repo.state.first { it.ready && it.selection?.mode == "none" }
-        runCurrent()
-        families.values.value = families.values.value.copy(profiles = families.values.value.profiles + member(41))
-        runCurrent()
-        assertEquals("none", repo.awaitSelection()!!.mode)
+        repo.state.first { it.ready && it.serverVersion == 3L }
+        assertEquals("none", repo.state.value.selection!!.mode)
     }
-    @Test fun `snapshot and old account toggle are rejected after account change`() = runTest {
-        login(); val repo = AnalysisTargetRepositoryImpl(storage(), sessions, families, backgroundScope); ready(repo)
-        val previous = repo.awaitSelection()!!
-        login(2); repo.state.first { it.ready && it.account?.userId == 2L }
-        assertFalse(repo.isCurrent(previous)); assertFalse(repo.setSelected("41", true, previous.account))
-        assertNull(repo.awaitSelection(previous.account))
+    @Test fun `analysis waits for a preceding server toggle write`() = runTest {
+        login(); val repo = AnalysisTargetRepositoryImpl(remote, sessions, families, backgroundScope); ready(repo)
+        val write = async(start = CoroutineStart.UNDISPATCHED) { repo.setSelected("41", true) }
+        val result = repo.awaitSelection()
+        assertTrue(write.await()); assertEquals(listOf(41L), result!!.familyProfileIds)
     }
-    @Test fun `selected profile revision invalidates snapshot while unselected edits do not`() = runTest {
-        login(); val repo = AnalysisTargetRepositoryImpl(storage(), sessions, families, backgroundScope); ready(repo)
-        repo.setSelected("41", true)
-        val snapshot = repo.awaitSelection()!!
-        families.values.value = families.values.value.copy(profiles = families.values.value.profiles.map { if (it.serverId == 42L) it.copy(version = 1) else it })
-        runCurrent(); assertTrue(repo.isCurrent(snapshot))
-        families.values.value = families.values.value.copy(profiles = families.values.value.profiles.map { if (it.serverId == 41L) it.copy(version = 1, allergies = setOf("땅콩")) else it })
-        repo.state.first { it.ready && it.selection != snapshot }
-        assertFalse(repo.isCurrent(snapshot))
-    }
-    @Test fun `query waits for an immediately preceding toggle commit`() = runTest {
-        login(); val repo = AnalysisTargetRepositoryImpl(storage(), sessions, families, backgroundScope); ready(repo)
-        val toggle = async(start = CoroutineStart.UNDISPATCHED) { repo.setSelected("41", true) }
-        val selected = repo.awaitSelection()!!
-        assertTrue(toggle.await()); assertEquals(listOf(41L), selected.familyProfileIds)
-    }
-    @Test fun `storage failure never silently substitutes self or none`() = runTest {
-        login()
-        val broken = object : DataStore<Preferences> {
-            override val data: Flow<Preferences> = flow { throw IOException("unavailable") }
-            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences = throw IOException()
-        }
-        val repo = AnalysisTargetRepositoryImpl(broken, sessions, families, backgroundScope)
-        repo.state.first { it.message != null }
-        assertFalse(repo.state.value.ready); assertNull(repo.awaitSelection())
-    }
-    @Test fun `failed server family read blocks dispatch until targets can be verified`() = runTest {
-        login(); families.values.value = families.values.value.copy(loaded = false, needsReload = true, message = "서버 오류")
-        val repo = AnalysisTargetRepositoryImpl(storage(), sessions, families, backgroundScope)
-        repo.state.first { it.message != null }
-        assertNull(repo.awaitSelection())
-    }
+
 }

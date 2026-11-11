@@ -16,9 +16,9 @@ class ProductOptionsRepositoryTest {
         val api = object:ProductOptionsApi {
             override suspend fun variants(barcode:String, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?) = ProductVariantsResponse(ProductVariantsDto("small", listOf(
                 ProductCapacityDto("small","25g",25.0,"g","a",ProductDetailDataDto(
-                    product=ProductDto(barcode="a",productName="상품",energyKcal=140.0,totalWeight="25g"),analysis=ProductAnalysisDto(status="PASS"))),
+                    product=ProductDto(barcode="a",productName="상품",energyKcal=560.0,totalWeight="25g",nutrition=ProductNutritionDto(perPackage=ProductNutritionPortionDto(25.0,"g",ProductNutrientValuesDto(energyKcal=140.0)),packageCalculationStatus="CALCULATED")),analysis=ProductAnalysisDto(status="PASS"))),
                 ProductCapacityDto("large","41g",41.0,"g","b",ProductDetailDataDto(
-                    product=ProductDto(barcode="b",productName="상품",energyKcal=230.0,totalWeight="41g"),analysis=ProductAnalysisDto(status="DANGER",isDangerous=true)))
+                    product=ProductDto(barcode="b",productName="상품",energyKcal=560.0,totalWeight="41g",nutrition=ProductNutritionDto(perPackage=ProductNutritionPortionDto(41.0,"g",ProductNutrientValuesDto(energyKcal=230.0)),packageCalculationStatus="CALCULATED")),analysis=ProductAnalysisDto(status="DANGER",isDangerous=true)))
             )))
             override suspend fun alternatives(barcode:String,limit:Int, analysisMode: String?, includeSelf: Boolean?, familyProfileIds: List<Long>?) = error("unused")
         }

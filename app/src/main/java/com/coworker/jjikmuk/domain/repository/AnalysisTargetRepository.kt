@@ -11,11 +11,13 @@ data class AnalysisTargetSelection(val account: FamilyAccount, val includeSelf: 
 }
 data class AnalysisTargetsState(val account: FamilyAccount? = null, val profiles: List<FamilyProfile> = emptyList(),
     val selectedProfileIds: Set<String> = emptySet(), val selection: AnalysisTargetSelection? = null,
-    val ready: Boolean = false, val message: String? = null)
+    val ready: Boolean = false, val message: String? = null,
+    val serverVersion: Long? = null, val needsConfirmation: Boolean = false)
 
 interface AnalysisTargetRepository {
     val state: StateFlow<AnalysisTargetsState>
     fun captureAccount(): FamilyAccount?
+    suspend fun refresh(account: FamilyAccount? = captureAccount(), confirmChanges: Boolean = false) {}
     suspend fun setSelected(id: String, checked: Boolean, account: FamilyAccount? = captureAccount()): Boolean
     suspend fun awaitSelection(account: FamilyAccount? = captureAccount()): AnalysisTargetSelection?
     fun isCurrent(selection: AnalysisTargetSelection): Boolean

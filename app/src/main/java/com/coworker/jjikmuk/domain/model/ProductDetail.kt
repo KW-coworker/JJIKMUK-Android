@@ -33,7 +33,24 @@ data class ProductNutrition(
     val sugarG: Double?,
     val sodiumMg: Double?,
     val cholesterolMg: Double?,
-)
+    val basis: ProductNutritionBasis = ProductNutritionBasis.Unknown,
+) {
+    val packageBasisKnown: Boolean get() = basis == ProductNutritionBasis.Package
+    val basisLabel: String get() = when (basis) {
+        ProductNutritionBasis.Package -> "상품 전체 용량 기준"
+        ProductNutritionBasis.Per100g -> "100g 기준"
+        ProductNutritionBasis.Per100ml -> "100ml 기준"
+        ProductNutritionBasis.Unknown -> "영양정보 기준량 확인 불가"
+    }
+    val energyLabel: String get() = when (basis) {
+        ProductNutritionBasis.Package -> "총열량"
+        ProductNutritionBasis.Per100g -> "100g 기준 열량"
+        ProductNutritionBasis.Per100ml -> "100ml 기준 열량"
+        ProductNutritionBasis.Unknown -> "열량"
+    }
+}
+
+enum class ProductNutritionBasis { Package, Per100g, Per100ml, Unknown }
 
 data class ProductMacroPercents(
     val carbs: Double?,
