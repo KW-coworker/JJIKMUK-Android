@@ -161,7 +161,7 @@ private fun CapacityPicker(state: ProductDetailUiState, onSelect: (String) -> Un
                 }
             }
         }
-        if (product.nutrition.energyKcal != null) Text("열량의 기준량이 확인되지 않아 선택한 중량의 총열량으로 환산할 수 없어요.",
+        if (!product.nutrition.packageBasisKnown) Text("${product.nutrition.basisLabel} · 상품 전체 용량의 총열량 정보는 없어요.",
             style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
         if (state.capacityError != null) Text(state.capacityError, style = JjikmukTheme.typography.caption,
             color = JjikmukTheme.colors.textSecondary)
@@ -182,7 +182,7 @@ private fun CapacityDescription(label: String, product: ProductDetail, amount: D
                     else Brush.horizontalGradient(listOf(Color(0xFFB8EAB5), Color(0xFFB8EAB5)))))
         }
         Spacer(Modifier.height(6.dp))
-        Text(product.nutrition.energyKcal?.let { "열량 ${"%.1f".format(java.util.Locale.ROOT,it)}kcal (기준량 미확인)" } ?: "열량 정보 없음",
+        Text(product.nutrition.energyKcal?.let { "${product.nutrition.energyLabel} ${"%.1f".format(java.util.Locale.ROOT,it)}kcal" } ?: if (product.nutrition.packageBasisKnown) "총열량 정보 없음" else "열량 정보 없음",
             style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
     }
 }

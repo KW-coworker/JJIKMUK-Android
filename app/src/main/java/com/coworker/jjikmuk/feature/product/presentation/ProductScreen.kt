@@ -1324,7 +1324,7 @@ internal fun ProductNutritionRows(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("영양성분 기준량 미확인 · 제품 전체 기준 수치가 아닐 수 있어요.",
+        Text(product.nutrition.basisLabel,
             style = JjikmukTheme.typography.caption, color = JjikmukTheme.colors.textSecondary)
         ProductNutritionRow("열량", product.nutrition.energyKcal.toAmountText("kcal"))
         ProductNutritionRow("단백질", product.nutrition.proteinG.toAmountText("g"))
