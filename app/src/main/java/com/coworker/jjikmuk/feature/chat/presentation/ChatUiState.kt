@@ -6,6 +6,7 @@ data class ChatUiState(
     val messages: List<ChatMessageUiModel> = emptyList(),
     val isLoading: Boolean = false,
     val productCandidates: List<ChatProductCandidate> = emptyList(),
+    val error: ChatErrorUiModel? = null,
     val title: String? = null,
     val notice: String? = null,
     val canRetry: Boolean = false,

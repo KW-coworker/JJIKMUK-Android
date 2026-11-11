@@ -32,6 +32,9 @@ internal object JjikmukPalette {
     val Pin = Color(0xFF7DAA64)
     val Error = Color(0xFFFF6B6B)
     val Edit = Color(0xFF4D84FF)
+    val Alert = Color(0xFFFFD66D)
+    val AlertAction = Color(0x99FFFFFF)
+    val AlertActionDisabled = Color(0x66FFFFFF)
 }
 
 // 기존 화면과의 소스 호환용 원시 토큰입니다. 신규 UI는 JjikmukTheme.colors를 사용합니다.
@@ -79,6 +82,12 @@ data class JjikmukColors(
     val error: Color,
     val pin: Color,
     val edit: Color,
+    /** Figma 찍먹/semantic/pin(#FFD66D): 챗봇 오류 말풍선 배경 */
+    val alert: Color,
+    /** 오류 말풍선 안 원형 버튼 배경(흰색 60%) */
+    val alertAction: Color,
+    /** 재시도 중 원형 버튼 배경(흰색 40%) */
+    val alertActionDisabled: Color,
 )
 
 internal val LightJjikmukColors = JjikmukColors(
@@ -103,4 +112,7 @@ internal val LightJjikmukColors = JjikmukColors(
     error = JjikmukPalette.Error,
     pin = JjikmukPalette.Pin,
     edit = JjikmukPalette.Edit,
+    alert = JjikmukPalette.Alert,
+    alertAction = JjikmukPalette.AlertAction,
+    alertActionDisabled = JjikmukPalette.AlertActionDisabled,
 )

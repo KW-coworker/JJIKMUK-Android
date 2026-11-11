@@ -52,6 +52,8 @@ class ChatTargetsViewModelTest {
         var gate: CompletableDeferred<Unit>? = null
         var ignoreCancellation = false
         var sendFailure: AuthFailure? = null
+        var lookupFailure: AuthFailure? = null
+        var lookups = 0
         var recovered: StoredChatTurn? = null
         var roomFailure = false
         var createGate: CompletableDeferred<Unit>? = null
@@ -66,8 +68,11 @@ class ChatTargetsViewModelTest {
         override suspend fun rooms(account: FamilyAccount, page: Int) = AuthResult.Success(StoredChatRooms(emptyList(),page,false))
         override suspend fun room(account: FamilyAccount, id: Long) = AuthResult.Success(ChatConversation(id.toString(),"서버 대화","",false,0))
         override suspend fun turns(account: FamilyAccount, id: Long, after: Long) = AuthResult.Success(StoredChatTurns(oldTurns, oldTurns.lastOrNull()?.id ?: after,false))
-        override suspend fun turn(account: FamilyAccount, id: Long, clientId: String) = AuthResult.Success(
-            recovered?.copy(clientMessageId = clientId) ?: StoredChatTurn(9,clientId,"질문",null,"SUCCEEDED",ChatResponse("복구한 답변")))
+        override suspend fun turn(account: FamilyAccount, id: Long, clientId: String): AuthResult<StoredChatTurn> {
+            lookups++
+            return lookupFailure?.let { AuthResult.Failure(it) } ?: AuthResult.Success(
+                recovered?.copy(clientMessageId = clientId) ?: StoredChatTurn(9,clientId,"질문",null,"SUCCEEDED",ChatResponse("복구한 답변")))
+        }
         override suspend fun send(account: FamilyAccount, question: StoredChatQuestion): AuthResult<StoredChatTurn> {
             calls += question
             if (ignoreCancellation) withContext(NonCancellable) { gate?.await() } else gate?.await()
@@ -277,6 +282,63 @@ class ChatTargetsViewModelTest {
         assertEquals(1,targets.refreshCount);assertTrue(store.calls.isEmpty());assertTrue(store.creates.isEmpty())
         assertTrue(vm.uiState.value.canRetry);assertTrue(vm.uiState.value.messages.single().isMine)
         vm.retry();runCurrent();assertEquals(2,targets.refreshCount);assertTrue(store.calls.isEmpty())
+    }
+
+    @Test fun `definite failure uses error bubble and never writes local history`() = runTest {
+        val targets=Targets(); val history=History(); val store=Store(targets).apply {
+            sendFailure=AuthFailure(AuthFailureKind.Server,400,"FAMILY_NOT_FOUND")
+        }
+        val vm=ChatViewModel(store,history,targets)
+        vm.start(null,"질문");runCurrent()
+        assertEquals("선택한 가족을 찾을 수 없어요",vm.uiState.value.error!!.title)
+        assertFalse(vm.uiState.value.error!!.retryable)
+        assertEquals(listOf("질문"),vm.uiState.value.messages.map { it.text })
+        assertTrue(history.saved.isEmpty())
+        vm.retry();runCurrent();assertEquals(1,store.calls.size)
+        vm.sendMessage("새 질문");runCurrent();assertEquals(2,store.calls.size)
+    }
+    @Test fun `unknown outcome retry checks stored turn without duplicate paid send`() = runTest {
+        val targets=Targets(); val store=Store(targets).apply {
+            sendFailure=AuthFailure(AuthFailureKind.Network)
+            lookupFailure=AuthFailure(AuthFailureKind.Network)
+        }
+        val vm=ChatViewModel(store,History(),targets)
+        vm.start(null,"질문");runCurrent()
+        assertEquals("인터넷에 연결되지 않았어요",vm.uiState.value.error!!.title)
+        assertEquals(1,vm.uiState.value.messages.size)
+        store.lookupFailure=null
+        vm.retry();runCurrent()
+        assertNull(vm.uiState.value.error)
+        assertEquals(1,store.calls.size);assertEquals(2,store.lookups)
+        assertEquals(1,vm.uiState.value.messages.count { it.isMine })
+    }
+    @Test fun `retry spinner ignores repeated taps and clears after success`() = runTest {
+        val targets=Targets();val store=Store(targets).apply { roomFailure=true }
+        val vm=ChatViewModel(store,History(),targets)
+        vm.start(null,"질문");runCurrent()
+        store.roomFailure=false;store.gate=CompletableDeferred()
+        vm.retry();vm.retry();runCurrent()
+        assertTrue(vm.uiState.value.error!!.isRetrying)
+        assertEquals(1,store.calls.size)
+        store.gate!!.complete(Unit);runCurrent()
+        assertNull(vm.uiState.value.error)
+        assertEquals(1,vm.uiState.value.messages.count { it.isMine })
+    }
+    @Test fun `target change clears previous error while preserving safe pending recovery`() = runTest {
+        val targets=Targets();val store=Store(targets).apply { roomFailure=true }
+        val vm=ChatViewModel(store,History(),targets)
+        vm.start(null,"질문");runCurrent();assertNotNull(vm.uiState.value.error)
+        targets.choose(false,listOf(41));runCurrent()
+        assertNull(vm.uiState.value.error)
+    }
+    @Test fun `restored failed turn is not a normal bot answer`() = runTest {
+        val targets=Targets();val store=Store(targets)
+        store.oldTurns=listOf(StoredChatTurn(9,"failed","질문",null,"FAILED",errorCode="CHAT_REQUEST_INTERRUPTED"))
+        val vm=ChatViewModel(store,History(),targets)
+        vm.start("12","");runCurrent()
+        assertNotNull(vm.uiState.value.error)
+        assertEquals(listOf("질문"),vm.uiState.value.messages.map { it.text })
+        assertTrue(store.calls.isEmpty())
     }
 
 }

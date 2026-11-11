@@ -32,6 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.domain.model.ChatProductCandidate
+import com.coworker.jjikmuk.feature.chat.presentation.component.ChatErrorBubble
 import com.coworker.jjikmuk.feature.chat.presentation.component.ChatMessageBubble
 import com.coworker.jjikmuk.feature.chat.presentation.component.ProductCandidatePicker
 import com.coworker.jjikmuk.ui.component.ImageSourceBottomSheet
@@ -107,7 +108,7 @@ fun ChatScreen(
             (messageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= messageListState.layoutInfo.totalItemsCount - 2
     }
     val typing = uiState.messages.lastOrNull { it.isTyping }
-    LaunchedEffect(uiState.messages.size, uiState.isLoading, typing?.displayedText?.length, uiState.productCandidates.size, followLatest) {
+    LaunchedEffect(uiState.messages.size, uiState.isLoading, typing?.displayedText?.length, uiState.productCandidates.size, uiState.error, followLatest) {
         if (followLatest && !isDragging && !messageListState.isScrollInProgress && messageListState.layoutInfo.totalItemsCount > 0) {
             messageListState.scrollToItem(messageListState.layoutInfo.totalItemsCount - 1)
         }
@@ -166,14 +167,17 @@ fun ChatScreen(
                         else "분석 대상: " + members.filter { it.isSelected }.joinToString { it.name },
                         style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary)
                 }
-                uiState.notice?.let { message ->
+                uiState.notice?.takeIf { uiState.error == null }?.let { message ->
                     item { Text(message, style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary) }
                     if (uiState.canRetry && !uiState.isLoading) item {
                         Text("다시 확인·재시도", Modifier.clickable(onClick = onRetry).padding(vertical = 12.dp),
                             color = JjikmukTheme.colors.brand, style = JjikmukTheme.typography.bodyM)
                     }
                 }
-                if (uiState.isLoading) {
+                uiState.error?.let { error ->
+                    item(key = "chat-error") { ChatErrorBubble(error, onRetry) }
+                }
+                if (uiState.isLoading && uiState.error?.isRetrying != true) {
                     item {
                         ChatMessageBubble(
                             text = "답변을 준비 중이에요.",

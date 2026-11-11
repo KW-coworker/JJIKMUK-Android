@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.coworker.jjikmuk.domain.model.ChatProductCandidate
 import com.coworker.jjikmuk.domain.repository.*
 import com.coworker.jjikmuk.feature.auth.domain.*
-import com.coworker.jjikmuk.feature.auth.presentation.common.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -56,7 +55,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                 } else if (state.account == owner && state.selection != null && selection != null && state.selection != selection) {
                     cancelCandidatePresentation()
                     selectedProduct = null; candidateQuestion = null
-                    _uiState.update { it.copy(productCandidates = emptyList(), notice = "분석 대상이 바뀌었어요. 새 질문부터 변경한 조건을 적용해요.") }
+                    _uiState.update { it.copy(error = null, canRetry = false, productCandidates = emptyList(), notice = "분석 대상이 바뀌었어요. 새 질문부터 변경한 조건을 적용해요.") }
                 }
                 if (state.account == owner && state.selection != null) selection = state.selection
             }
@@ -98,11 +97,13 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
         dispatch(candidateQuestion ?: "이 상품 먹어도 돼?", product)
     }
     private fun dispatch(message: String, product: ChatProductCandidate?) {
+        val retryError = _uiState.value.error?.takeIf { it.isRetrying }
+        _uiState.update { it.copy(error = retryError) }
         cancelCandidatePresentation(); candidateQuestion = null
         finishTyping()
         unsent = message to product
         render()
-        val account = store.captureAccount() ?: run { _uiState.update { it.copy(notice = "로그인 상태를 확인해 주세요.") }; return }
+        val account = store.captureAccount() ?: run { showError(ChatErrorCodes.AUTHENTICATION_REQUIRED); return }
         owner = account; val ticket = revision
         _uiState.update { it.copy(isLoading = true, productCandidates = emptyList(), notice = null, canRetry = false) }
         job = viewModelScope.launch {
@@ -116,7 +117,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                     chosen = targets.awaitSelection(account)
                 }
                 if (!current(ticket, account)) return@launch
-                if (chosen == null) { notice("분석 대상을 확인하지 못했어요. 최신 선택을 확인한 뒤 다시 시도해 주세요."); return@launch }
+                if (chosen == null) { showError(ChatErrorCodes.ANALYSIS_SELECTION_UNAVAILABLE); return@launch }
                 selection = chosen
                 if (roomId == null) {
                     roomTitle = createChatTitle(message)
@@ -125,14 +126,14 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                             roomId = created.value.id.toLong()
                             watchTitle(account, ticket, created.value.title)
                         }
-                        is AuthResult.Failure -> { notice(created.error.userMessage()); return@launch }
+                        is AuthResult.Failure -> { showFailure(created.error); return@launch }
                     }
                 }
                 if (!current(ticket, account)) return@launch
                 // A background GET can temporarily mark the same selection unready. Wait for it before comparing.
                 val confirmed = targets.awaitSelection(account)
                 if (!current(ticket, account)) return@launch
-                if (confirmed != chosen) { notice("분석 대상을 다시 확인해야 해요. 최신 선택을 확인한 뒤 재시도해 주세요."); return@launch }
+                if (confirmed != chosen) { showError(ChatErrorCodes.ANALYSIS_SELECTION_CHANGED); return@launch }
                 val request = StoredChatQuestion(roomId!!, UUID.randomUUID().toString(), message, product?.barcode)
                 pending = Pending(request, chosen); unsent = null; failed = null
                 turns[request.clientMessageId] = StoredChatTurn(0, request.clientMessageId, message, request.barcode, "PENDING")
@@ -140,7 +141,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                 submit(account, ticket, pending!!)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { if (current(ticket, account)) notice("처리 결과를 확인하지 못했어요. 상태를 다시 확인해 주세요.") }
-            finally { if (current(ticket, account)) _uiState.update { it.copy(isLoading = false) } }
+            finally { if (current(ticket, account)) _uiState.update { it.copy(isLoading = false, error = it.error?.copy(isRetrying = false)) } }
         }
     }
     private suspend fun submit(account: FamilyAccount, ticket: Long, value: Pending) {
@@ -154,7 +155,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                     pending = null; failed = value.question.message to selectedProduct
                     turns[value.question.clientMessageId] = StoredChatTurn(0, value.question.clientMessageId,
                         value.question.message, value.question.barcode, "FAILED", errorCode = result.error.code)
-                    render(); notice(result.error.userMessage())
+                    render(); showFailure(result.error)
                 }
             }
         }
@@ -166,7 +167,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
         pending = null
         if (turn.status == "FAILED") {
             failed = turn.message to selectedProduct
-            render(); notice("답변 처리에 실패했어요. 다시 시도하면 새 질문으로 전송해요. (${turn.errorCode ?: "처리 실패"})")
+            render(); showError(turn.errorCode, "다시 시도하면 새 질문으로 전송해요.".takeIf { chatErrorFor(turn.errorCode).retryable })
             return
         }
         failed = null
@@ -178,7 +179,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
         if (candidates.isNotEmpty()) selectedProduct = null
         render()
         if (freshAnswer) startTyping(turn.id * 2 + 1, turn.response!!.answer) else scheduleCandidatePresentation()
-        _uiState.update { it.copy(productCandidates = emptyList(), canRetry = false,
+        _uiState.update { it.copy(error = null, productCandidates = emptyList(), canRetry = false,
             notice = if (sameConditions) null else "이 답변은 질문 당시의 조건으로 작성됐어요. 현재 조건은 새 질문에 적용돼요.") }
     }
     private suspend fun resolve(account: FamilyAccount, ticket: Long, value: Pending, resendAfterMissing: Boolean, retrySeconds: Long = 2) {
@@ -201,14 +202,15 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                     if (result.error.status == 404 && resendAfterMissing && value.canResend && value.selection?.let(targets::isCurrent) == true) {
                         submit(account, ticket, value); return // Same UUID and body, only after explicit user retry.
                     }
-                    notice("질문의 저장·처리 상태를 확인하지 못했어요. 다시 확인해 주세요."); return
+                    showFailure(result.error, "질문의 저장·처리 상태를 확인하지 못했어요. 다시 시도하면 기존 질문의 상태부터 확인해요."); return
                 }
             }
         }
         notice("아직 처리 결과를 확인하지 못했어요. 상태를 다시 확인해 주세요.")
     }
     fun retry() {
-        if (_uiState.value.isLoading) return
+        if (_uiState.value.isLoading || _uiState.value.error?.retryable == false) return
+        _uiState.update { it.copy(error = it.error?.copy(isRetrying = true)) }
         val value = pending
         if (value == null) {
             val draft = unsent ?: failed
@@ -219,7 +221,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
         _uiState.update { it.copy(isLoading = true, notice = "기존 질문의 처리 상태를 확인하고 있어요.", canRetry = false) }
         job = viewModelScope.launch {
             try { resolve(account, ticket, value, resendAfterMissing = true) }
-            finally { if (current(ticket, account)) _uiState.update { it.copy(isLoading = false) } }
+            finally { if (current(ticket, account)) _uiState.update { it.copy(isLoading = false, error = it.error?.copy(isRetrying = false)) } }
         }
     }
     fun reloadConversation() {
@@ -228,21 +230,22 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
         finishTyping()
         val id = roomId ?: return
         val account = owner ?: return; val ticket = revision
-        _uiState.update { it.copy(isLoading = true, notice = null, canRetry = false) }
+        _uiState.update { it.copy(isLoading = true, error = it.error?.takeIf { error -> error.isRetrying }, notice = null, canRetry = false) }
         job = viewModelScope.launch {
             try {
                 when (val room = store.room(account, id)) {
                     is AuthResult.Success -> if (current(ticket, account)) { roomTitle = room.value.title; watchTitle(account, ticket, room.value.title) } else return@launch
-                    is AuthResult.Failure -> { if (current(ticket, account)) notice(room.error.userMessage()); return@launch }
+                    is AuthResult.Failure -> { if (current(ticket, account)) showFailure(room.error); return@launch }
                 }
                 val restored = linkedMapOf<String, StoredChatTurn>(); var after = 0L
                 do {
                     val result = store.turns(account, id, after)
                     if (!current(ticket, account)) return@launch
-                    if (result !is AuthResult.Success) { notice((result as AuthResult.Failure).error.userMessage()); return@launch }
+                    if (result !is AuthResult.Success) { showFailure((result as AuthResult.Failure).error); return@launch }
                     result.value.items.forEach { restored[it.clientMessageId] = it }
                     after = result.value.nextAfterId
                 } while (result.value.hasNext)
+                _uiState.update { it.copy(error = null) }
                 if (restored.isEmpty()) {
                     render()
                     _uiState.update { it.copy(
@@ -257,7 +260,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                 selectedProduct = last?.barcode?.let { ChatProductCandidate("선택한 상품", "", it, null, emptyList(), null) }
                 if (last?.status == "FAILED") {
                     failed = last.message to selectedProduct
-                    notice("마지막 질문의 답변 처리에 실패했어요. 다시 시도하면 새 질문으로 전송해요.")
+                    showError(last.errorCode, "다시 시도하면 새 질문으로 전송해요.".takeIf { chatErrorFor(last.errorCode).retryable })
                 }
                 last?.takeIf { it.status == "SUCCEEDED" }?.response?.productCandidates?.let { candidates ->
                     candidateQuestion = last.message
@@ -268,7 +271,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                     val value = Pending(StoredChatQuestion(id, active.clientMessageId, active.message, active.barcode), null, canResend = false)
                     pending = value; resolve(account, ticket, value, resendAfterMissing = false)
                 }
-            } finally { if (current(ticket, account)) _uiState.update { it.copy(isLoading = false) } }
+            } finally { if (current(ticket, account)) _uiState.update { it.copy(isLoading = false, error = it.error?.copy(isRetrying = false)) } }
         }
     }
     private fun watchTitle(account: FamilyAccount, ticket: Long, serverTitle: String) {
@@ -327,13 +330,25 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
             listOf(ChatMessageUiModel(base, turn.message, true)) + when (turn.status) {
                 "SUCCEEDED" -> listOf(ChatMessageUiModel(base + 1, turn.response!!.answer, false,
                     displayedText = typingText.takeIf { typingMessageId == base + 1 }, isTyping = typingMessageId == base + 1))
-                "FAILED" -> listOf(ChatMessageUiModel(base + 1, "답변 실패 · ${turn.errorCode ?: "처리 실패"}", false))
+                "FAILED" -> emptyList()
                 else -> emptyList()
             }
         }
         val displayed = messages + unsent?.let { listOf(ChatMessageUiModel(Long.MIN_VALUE, it.first, true)) }.orEmpty()
         _uiState.update { it.copy(messages = displayed, title = roomTitle) }
     }
-    private fun notice(message: String) { _uiState.update { it.copy(notice = message, canRetry = true) } }
+    private fun showFailure(failure: AuthFailure, description: String? = null) {
+        val code = when {
+            failure.status == 401 -> ChatErrorCodes.AUTHENTICATION_REQUIRED
+            failure.kind == AuthFailureKind.Network -> ChatErrorCodes.NETWORK_UNAVAILABLE
+            else -> failure.code
+        }
+        showError(code, description)
+    }
+    private fun showError(code: String?, description: String? = null) {
+        val error = chatErrorFor(code).let { if (description == null) it else it.copy(description = description) }
+        _uiState.update { it.copy(error = error, notice = null, canRetry = error.retryable) }
+    }
+    private fun notice(message: String) { showError(ChatErrorCodes.CHAT_REQUEST_FAILED, message) }
 }
 fun createChatTitle(message: String): String = message.trim().replace(Regex("\\s+"), " ").let { if (it.isEmpty()) "새 대화" else it.take(100) }
