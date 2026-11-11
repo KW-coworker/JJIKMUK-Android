@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma 1812:4825 Spinner -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp"
+    android:height="18dp"
+    android:viewportWidth="18"
+    android:viewportHeight="18">
+    <path
+        android:pathData="M15,9C15,12.3137 12.3137,15 9,15C5.68629,15 3,12.3137 3,9C3,5.68629 5.68629,3 9,3C12.3137,3 15,5.68629 15,9Z"
+        android:strokeWidth="1.95"
+        android:strokeColor="#33101825" />
+    <path
+        android:pathData="M15,9C15,7.4087 14.3679,5.88258 13.2426,4.75736C12.1174,3.63214 10.5913,3 9,3"
+        android:strokeWidth="1.95"
+        android:strokeLineCap="round"
+        android:strokeColor="#101825" />
+</vector>

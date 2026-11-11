@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.domain.model.ChatProductCandidate
+import com.coworker.jjikmuk.feature.chat.presentation.component.ChatErrorBubble
 import com.coworker.jjikmuk.feature.chat.presentation.component.ChatMessageBubble
 import com.coworker.jjikmuk.feature.chat.presentation.component.ProductCandidatePicker
 import com.coworker.jjikmuk.ui.component.ImageSourceBottomSheet
@@ -68,6 +69,7 @@ fun ChatRoute(
         onTargetCheckedChange = viewModel::selectTarget,
         onProductCandidateClick = viewModel::selectProductCandidate,
         onDismissProductCandidates = viewModel::dismissProductCandidates,
+        onRetryClick = viewModel::retry,
         modifier = modifier,
     )
 }
@@ -84,6 +86,7 @@ fun ChatScreen(
     onDismissProductCandidates: () -> Unit = {},
     targetState: com.coworker.jjikmuk.domain.repository.AnalysisTargetsState = com.coworker.jjikmuk.domain.repository.AnalysisTargetsState(),
     onTargetCheckedChange: (String, Boolean) -> Unit = { _, _ -> },
+    onRetryClick: () -> Unit = {},
 ) {
     var showTargets by rememberSaveable { mutableStateOf(false) }
     val members = targetState.toScanTargetMembers()
@@ -133,11 +136,19 @@ fun ChatScreen(
                         else "분석 대상: " + members.filter { it.isSelected }.joinToString { it.name },
                         style = JjikmukTheme.typography.bodyS, color = JjikmukTheme.colors.textSecondary)
                 }
-                if (uiState.isLoading) {
+                if (uiState.isLoading && uiState.error?.isRetrying != true) {
                     item {
                         ChatMessageBubble(
                             text = "답변을 준비 중이에요.",
                             isMine = false,
+                        )
+                    }
+                }
+                uiState.error?.let { error ->
+                    item(key = "chat-error") {
+                        ChatErrorBubble(
+                            error = error,
+                            onRetryClick = onRetryClick,
                         )
                     }
                 }
