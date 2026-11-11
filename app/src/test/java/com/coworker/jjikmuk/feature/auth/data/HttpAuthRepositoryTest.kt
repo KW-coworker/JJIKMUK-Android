@@ -17,7 +17,7 @@ class HttpAuthRepositoryTest {
     private fun enqueue(body: String, status: Int = 200) {
         server.enqueue(MockResponse.Builder().code(status).body(body).build())
     }
-    private val profileJson = """{"data":{"id":7,"email":"user@example.com","nickname":"사용자","allergies":"egg,wheat","specialDiet":"lowSugar","role":"USER","authProvider":"LOCAL","profileCompleted":true,"hasPassword":true}}"""
+    private val profileJson = """{"data":{"id":7,"email":"user@example.com","nickname":"사용자","allergies":"egg,wheat","specialDiet":"lowSugar","role":"USER","authProvider":"LOCAL","profileCompleted":true,"hasPassword":true,"version":3}}"""
 
     @Test fun `me uses explicit bearer and maps nested profile id`() = runBlocking {
         val repo = HttpAuthRepository.create(server.url("/"))
@@ -34,21 +34,21 @@ class HttpAuthRepositoryTest {
     @Test fun `nickname PATCH omits every untouched field and explicit clear is JSON null`() = runBlocking {
         val repo = HttpAuthRepository.create(server.url("/"))
         enqueue(profileJson)
-        assertTrue(repo.patchProfile("access", ProfilePatch(nickname = " 수정 ")) is AuthResult.Success)
+        assertTrue(repo.patchProfile("access", ProfilePatch(nickname = " 수정 ", version = 2)) is AuthResult.Success)
         val request = server.takeRequest()
         assertEquals("PATCH", request.method)
         assertEquals("/api/users/me", request.url.encodedPath)
         assertEquals("Bearer access", request.headers["Authorization"])
-        assertEquals("""{"nickname":"수정"}""", request.body!!.utf8())
+        assertEquals("""{"version":2,"nickname":"수정"}""", request.body!!.utf8())
         enqueue(profileJson)
-        repo.patchProfile("access", ProfilePatch(allergies = ProfileField.Clear))
-        assertEquals("""{"allergies":null}""", server.takeRequest().body!!.utf8())
+        repo.patchProfile("access", ProfilePatch(allergies = ProfileField.Clear, version = 3))
+        assertEquals("""{"version":3,"allergies":null}""", server.takeRequest().body!!.utf8())
     }
 
     @Test fun `profile patch is never replayed on retry-after zero`() = runBlocking {
         val repo = HttpAuthRepository.create(server.url("/"))
         server.enqueue(MockResponse.Builder().code(503).addHeader("Retry-After", "0").body("{}").build())
-        assertTrue(repo.patchProfile("access", ProfilePatch(nickname = "수정")) is AuthResult.Failure)
+        assertTrue(repo.patchProfile("access", ProfilePatch(nickname = "수정", version = 2)) is AuthResult.Failure)
         assertEquals(1, server.requestCount)
     }
 
@@ -296,4 +296,15 @@ class HttpAuthRepositoryTest {
         assertEquals(AuthResult.Success(false), repo.nicknameAvailable("Name"))
         assertNull(server.takeRequest().headers["Authorization"])
     }
+    @Test fun `me rejects a missing or negative version and profile writes require the editing version`() = runBlocking {
+        val repo = HttpAuthRepository.create(server.url("/"))
+        enqueue(profileJson.replace(",\"version\":3", ""))
+        assertTrue(repo.me("access") is AuthResult.Failure)
+        enqueue(profileJson.replace("\"version\":3", "\"version\":-1"))
+        assertTrue(repo.me("access") is AuthResult.Failure)
+        val count = server.requestCount
+        assertTrue(repo.patchProfile("access", ProfilePatch(nickname = "새이름")) is AuthResult.Failure)
+        assertEquals(count, server.requestCount)
+    }
+
 }

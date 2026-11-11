@@ -57,11 +57,14 @@ fun ScanTargetPopup(
     onMemberCheckedChange: (memberId: String, checked: Boolean) -> Unit,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    statusMessage: String? = null,
+    enabled: Boolean = true,
+    onRefresh: (() -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier
             .width(240.dp)
-            .height(306.dp)
+            .height(if (statusMessage == null) 306.dp else 378.dp)
             .border(
                 width = 1.dp,
                 color = JjikmukTheme.colors.disabled,
@@ -77,6 +80,12 @@ fun ScanTargetPopup(
             ScanTargetPopupHeader(
                 onDismissRequest = onDismissRequest,
             )
+            if (statusMessage != null) {
+                Text(statusMessage, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.bodySmall, color = JjikmukTheme.colors.textSecondary, maxLines = 2)
+                if (onRefresh != null) Text("최신 선택 다시 확인", Modifier.clickable(onClick = onRefresh).padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall, color = JjikmukTheme.colors.brand)
+            }
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -87,7 +96,7 @@ fun ScanTargetPopup(
                     ScanTargetMemberRow(
                         member = member,
                         onCheckedChange = { checked ->
-                            onMemberCheckedChange(member.id, checked)
+                            if (enabled) onMemberCheckedChange(member.id, checked)
                         },
                     )
                 }

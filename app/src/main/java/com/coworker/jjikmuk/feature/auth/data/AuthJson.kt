@@ -18,6 +18,7 @@ private class ProfilePatchAdapter : TypeAdapter<ProfilePatch>() {
         out.serializeNulls = true
         try {
             out.beginObject()
+            value.version?.let { require(it >= 0); out.name("version").value(it) }
             value.nickname?.let { out.name("nickname").value(normalizeAuthNickname(it)) }
             out.field("allergies", value.allergies)
             out.field("diseases", value.diseases)

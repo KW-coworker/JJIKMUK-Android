@@ -13,6 +13,7 @@ class ProfilePatch(
     val diseases: ProfileField = ProfileField.Unchanged,
     val specialDiet: ProfileField = ProfileField.Unchanged,
     val dislikedIngredients: ProfileField = ProfileField.Unchanged,
+    val version: Long? = null,
 ) {
     init { require(nickname == null || normalizeAuthNickname(nickname).isNotEmpty()) }
 }
@@ -21,5 +22,5 @@ class AuthProfile(
     val id: Long, val email: String, val nickname: String,
     val allergies: String?, val diseases: String?, val specialDiet: String?, val dislikedIngredients: String?,
     val role: String, val authProvider: AuthProvider, val profileCompleted: Boolean,
-    val hasPassword: Boolean, val photoUrl: String?,
+    val hasPassword: Boolean, val photoUrl: String?, val version: Long = 0,
 )

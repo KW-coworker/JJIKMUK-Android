@@ -82,6 +82,8 @@ class AuthSessionManager(
                     val saved = current.credentials
                     if (current.generation != generation || saved == null) return@withLock rejected("SESSION_CHANGED")
                     if (saved.refreshPending) return@withLock rejected("REFRESH_RETRY_UNCONFIRMED")
+                    if (current.profile?.let { it.version > profile.version } == true)
+                        return@withLock rejected("PROFILE_STALE_RESPONSE")
                     if (profile.id != saved.userId || normalizeAuthEmail(profile.email) != normalizeAuthEmail(saved.email))
                         return@withLock AuthResult.Failure(AuthFailure(AuthFailureKind.InvalidResponse))
                     val updated = SessionCredentials(saved.accessToken, saved.userId, saved.email, saved.expiresAtMillis,

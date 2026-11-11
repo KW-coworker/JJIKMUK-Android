@@ -139,11 +139,11 @@ class AccountResourcesHttpTest {
     }
 
     @Test fun `profile completion requires completed server profile and no fabricated local flag`() = runBlocking {
-        val profile = """{"data":{"id":1,"email":"u@example.com","nickname":"이름","role":"USER","authProvider":"GOOGLE","hasPassword":false,"profileCompleted":false}}"""
+        val profile = """{"data":{"id":1,"email":"u@example.com","nickname":"이름","role":"USER","authProvider":"GOOGLE","hasPassword":false,"profileCompleted":false,"version":1}}"""
         enqueue(profile)
-        assertTrue(repository.completeProfile("access", ProfileSubmission("이름")) is AuthResult.Failure)
+        assertTrue(repository.completeProfile("access", ProfileSubmission("이름", version = 0)) is AuthResult.Failure)
         enqueue(profile.replace("\"profileCompleted\":false", "\"profileCompleted\":true"))
-        assertTrue(repository.completeProfile("access", ProfileSubmission("이름")) is AuthResult.Success)
+        assertTrue(repository.completeProfile("access", ProfileSubmission("이름", version = 0)) is AuthResult.Success)
         val req = server.takeRequest()
         assertEquals("/api/users/me/profile/complete", req.url.encodedPath)
         assertFalse(JsonParser.parseString(req.body!!.utf8()).asJsonObject.has("profileCompleted"))

@@ -22,6 +22,7 @@ class FamilyProfileRepositoryImpl internal constructor(private val remote: Famil
     override fun captureAccount(): FamilyAccount? = sessions.state.value.let { state ->
         state.credentials?.takeIf { state.canEnterHome }?.let { FamilyAccount(it.userId, state.generation) }
     }
+    override fun currentState(): FamilyProfilesState? = mutableState.value.takeIf { it.account == captureAccount() }
     private fun current(account: FamilyAccount?) = account != null && captureAccount() == account
     private fun snapshot(account: FamilyAccount) = mutableState.value.takeIf { it.account == account }
         ?: FamilyProfilesState(account, loaded = false)

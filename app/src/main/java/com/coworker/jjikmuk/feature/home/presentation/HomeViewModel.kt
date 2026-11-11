@@ -11,6 +11,9 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(private val targets: AnalysisTargetRepository) : ViewModel() {
+    fun refreshTargets() { viewModelScope.launch { targets.refresh(confirmChanges = true) } }
+    fun syncTargets() { viewModelScope.launch { targets.refresh() } }
+    val targetState = targets.state
     val scanTargetMembers = targets.state.map { it.toScanTargetMembers() }.stateIn(viewModelScope,
         SharingStarted.WhileSubscribed(5_000, replayExpirationMillis = 0), emptyList())
     fun updateScanTargetSelection(memberId: String, checked: Boolean) {

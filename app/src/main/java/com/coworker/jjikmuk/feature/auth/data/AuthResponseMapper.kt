@@ -53,6 +53,6 @@ internal object AuthResponseMapper {
             requireNotNull(body.email).also { require(it.isNotBlank()) },
             requireNotNull(body.nickname).also { require(it.isNotBlank()) },
             body.allergies, body.diseases, body.specialDiet, body.dislikedIngredients,
-            requireNotNull(body.role), provider, requireNotNull(body.profileCompleted), hasPassword, body.photoUrl)
+            requireNotNull(body.role), provider, requireNotNull(body.profileCompleted), hasPassword, body.photoUrl, requireNotNull(body.version).also { require(it >= 0) })
     }
 }

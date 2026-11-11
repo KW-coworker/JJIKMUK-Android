@@ -44,6 +44,8 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
+    val targetState by viewModel.targetState.collectAsStateWithLifecycle()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { viewModel.syncTargets() }
     val scanTargetMembers by viewModel.scanTargetMembers.collectAsStateWithLifecycle()
     var showImageSourceSheet by rememberSaveable { mutableStateOf(false) }
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
@@ -73,6 +75,7 @@ fun HomeScreen(
         },
     ) { innerPadding ->
         HomeContent(
+            targetStatus = targetState.message, targetsReady = targetState.ready, onRefreshTargets = viewModel::refreshTargets,
             innerPadding = innerPadding,
             scanTargetMembers = scanTargetMembers,
             showScanTargetPopup = showScanTargetPopup,
@@ -109,6 +112,7 @@ fun HomeScreen(
 
 @Composable
 private fun HomeContent(
+    targetStatus: String?, targetsReady: Boolean, onRefreshTargets: () -> Unit,
     innerPadding: PaddingValues,
     scanTargetMembers: List<ScanTargetMemberUiModel>,
     showScanTargetPopup: Boolean,
@@ -154,6 +158,7 @@ private fun HomeContent(
 
         if (showScanTargetPopup) {
             ScanTargetPopup(
+                statusMessage = targetStatus, enabled = targetsReady, onRefresh = onRefreshTargets,
                 members = scanTargetMembers,
                 onMemberCheckedChange = onScanTargetCheckedChange,
                 onDismissRequest = onScanTargetDismiss,

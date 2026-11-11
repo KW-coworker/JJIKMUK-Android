@@ -154,18 +154,19 @@ class ProfileCompletionViewModel @Inject constructor(
             try {
                 // Completion is a full replacement. Preserve the server fields this form does not edit.
                 val result = profiles.complete(ProfileSubmission(name, conditions.allergies, conditions.specialDiet,
-                    previous.diseases, previous.dislikedIngredients), generation)
+                    previous.diseases, previous.dislikedIngredients, version = previous.version), generation)
                 if (!current(generation)) return@launch
                 when (result) {
                     is AuthResult.Success -> mutable.update { it.copy(form = it.form.copy(isSubmitting = false)) }
                     is AuthResult.Failure -> {
                         val error = result.error
-                        val readback = error.outcomeUnknown || error.code == "AUTH_REFRESHED_RETRY_REQUIRED"
+                        val readback = error.outcomeUnknown || error.code in setOf("AUTH_REFRESHED_RETRY_REQUIRED", "PROFILE_VERSION_CONFLICT")
                         mutable.update { it.copy(needsReadback = readback, form = it.form.copy(isSubmitting = false,
                             nicknameAvailable = if (error.code == "NICKNAME_ALREADY_EXISTS") false else it.form.nicknameAvailable,
                             nicknameError = if (error.code in setOf("NICKNAME_ALREADY_EXISTS", "NICKNAME_INVALID"))
                                 if (error.code == "NICKNAME_ALREADY_EXISTS") "이미 사용 중인 닉네임이에요. 다른 이름을 입력해 주세요." else NICKNAME_RULE else null,
-                            submitError = if (readback) "처리 결과를 확인해야 합니다. 완료 상태를 다시 확인해 주세요."
+                            submitError = if (error.code == "PROFILE_VERSION_CONFLICT") "다른 기기에서 프로필이 변경됐어요. 입력은 보관했으니 최신 정보를 확인한 뒤 다시 완료해 주세요."
+                                else if (readback) "처리 결과를 확인해야 합니다. 완료 상태를 다시 확인해 주세요."
                                 else if (error.code in setOf("NICKNAME_ALREADY_EXISTS", "NICKNAME_INVALID")) null else error.userMessage())) }
                     }
                 }
