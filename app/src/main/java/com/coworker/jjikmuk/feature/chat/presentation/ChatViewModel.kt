@@ -55,7 +55,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
                 } else if (state.account == owner && state.selection != null && selection != null && state.selection != selection) {
                     cancelCandidatePresentation()
                     selectedProduct = null; candidateQuestion = null
-                    _uiState.update { it.copy(error = null, canRetry = false, productCandidates = emptyList(), notice = "분석 대상이 바뀌었어요. 새 질문부터 변경한 조건을 적용해요.") }
+                    _uiState.update { it.copy(error = null, canRetry = false, productCandidates = emptyList(), suggestedQuestions = emptyList(), notice = "분석 대상이 바뀌었어요. 새 질문부터 변경한 조건을 적용해요.") }
                 }
                 if (state.account == owner && state.selection != null) selection = state.selection
             }
@@ -98,7 +98,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
     }
     private fun dispatch(message: String, product: ChatProductCandidate?) {
         val retryError = _uiState.value.error?.takeIf { it.isRetrying }
-        _uiState.update { it.copy(error = retryError) }
+        _uiState.update { it.copy(error = retryError, suggestedQuestions = emptyList()) }
         cancelCandidatePresentation(); candidateQuestion = null
         finishTyping()
         unsent = message to product
@@ -179,7 +179,10 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
         if (candidates.isNotEmpty()) selectedProduct = null
         render()
         if (freshAnswer) startTyping(turn.id * 2 + 1, turn.response!!.answer) else scheduleCandidatePresentation()
-        _uiState.update { it.copy(error = null, productCandidates = emptyList(), canRetry = false,
+        // 후속 질문 칩은 방금 받은 답변에만 보여 준다(다시 연 대화·조건이 바뀐 답변·상품 후보가 온 답변에는 없음).
+        val suggestions = turn.response?.recommendedQuestions.orEmpty()
+            .takeIf { freshAnswer && sameConditions && candidates.isEmpty() }.orEmpty()
+        _uiState.update { it.copy(error = null, productCandidates = emptyList(), canRetry = false, suggestedQuestions = suggestions,
             notice = if (sameConditions) null else "이 답변은 질문 당시의 조건으로 작성됐어요. 현재 조건은 새 질문에 적용돼요.") }
     }
     private suspend fun resolve(account: FamilyAccount, ticket: Long, value: Pending, resendAfterMissing: Boolean, retrySeconds: Long = 2) {
@@ -210,7 +213,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
     }
     fun retry() {
         if (_uiState.value.isLoading || _uiState.value.error?.retryable == false) return
-        _uiState.update { it.copy(error = it.error?.copy(isRetrying = true)) }
+        _uiState.update { it.copy(error = it.error?.copy(isRetrying = true), suggestedQuestions = emptyList()) }
         val value = pending
         if (value == null) {
             val draft = unsent ?: failed
@@ -230,7 +233,8 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
         finishTyping()
         val id = roomId ?: return
         val account = owner ?: return; val ticket = revision
-        _uiState.update { it.copy(isLoading = true, error = it.error?.takeIf { error -> error.isRetrying }, notice = null, canRetry = false) }
+        _uiState.update { it.copy(isLoading = true, error = it.error?.takeIf { error -> error.isRetrying }, notice = null, canRetry = false,
+            suggestedQuestions = emptyList()) }
         job = viewModelScope.launch {
             try {
                 when (val room = store.room(account, id)) {
@@ -347,7 +351,7 @@ class ChatViewModel @Inject constructor(private val store: StoredChatStore,
     }
     private fun showError(code: String?, description: String? = null) {
         val error = chatErrorFor(code).let { if (description == null) it else it.copy(description = description) }
-        _uiState.update { it.copy(error = error, notice = null, canRetry = error.retryable) }
+        _uiState.update { it.copy(error = error, notice = null, canRetry = error.retryable, suggestedQuestions = emptyList()) }
     }
     private fun notice(message: String) { showError(ChatErrorCodes.CHAT_REQUEST_FAILED, message) }
 }

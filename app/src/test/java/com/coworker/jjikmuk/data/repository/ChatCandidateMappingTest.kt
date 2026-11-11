@@ -31,4 +31,19 @@ class ChatCandidateMappingTest {
             {"product_name":"포키","barcode":"123","selection_type":"product_candidate"}]}""", ChatApiResponse::class.java)
         assertEquals(1, response.toProductCandidates().size)
     }
+
+    @Test fun recommendedQuestionsAreTrimmedDedupedAndLimitedToThree() {
+        val response = Gson().fromJson("""{"answer":"답변","recommended_questions":[
+            "  이거 먹어도 돼?  ","","   ","대두 들어 있어?","이거 먹어도 돼?","나트륨이 얼마야?","당류는?"]}""",
+            ChatApiResponse::class.java)
+        assertEquals(listOf("이거 먹어도 돼?", "대두 들어 있어?", "나트륨이 얼마야?"), response.toRecommendedQuestions())
+    }
+
+    @Test fun missingOrNullRecommendedQuestionsBecomeEmpty() {
+        assertTrue(Gson().fromJson("""{"answer":"답변"}""", ChatApiResponse::class.java).toRecommendedQuestions().isEmpty())
+        assertTrue(Gson().fromJson("""{"answer":"답변","recommended_questions":null}""", ChatApiResponse::class.java)
+            .toRecommendedQuestions().isEmpty())
+        assertTrue(Gson().fromJson("""{"answer":"답변","recommended_questions":["a",null," "]}""", ChatApiResponse::class.java)
+            .toRecommendedQuestions() == listOf("a"))
+    }
 }

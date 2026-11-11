@@ -33,7 +33,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.coworker.jjikmuk.R
 import com.coworker.jjikmuk.domain.model.ChatProductCandidate
 import com.coworker.jjikmuk.feature.chat.presentation.component.ChatErrorBubble
+import com.coworker.jjikmuk.feature.chat.presentation.component.ChatFollowUpChips
 import com.coworker.jjikmuk.feature.chat.presentation.component.ChatMessageBubble
+import com.coworker.jjikmuk.feature.chat.presentation.component.ChatTypingBubble
 import com.coworker.jjikmuk.feature.chat.presentation.component.ProductCandidatePicker
 import com.coworker.jjikmuk.ui.component.ImageSourceBottomSheet
 import com.coworker.jjikmuk.ui.component.JjikmukMessageInputBar
@@ -150,6 +152,12 @@ fun ChatScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {
+                // 후속 질문 칩은 가장 최근 봇 답변과 같은 item에 묶어 말풍선 아래 8dp에 붙인다(spacedBy 28dp 회피).
+                val lastMessage = uiState.messages.lastOrNull()
+                val suggestionsFor = lastMessage?.id?.takeIf {
+                    uiState.suggestedQuestions.isNotEmpty() && !lastMessage.isMine && !lastMessage.isTyping &&
+                        !uiState.isLoading && uiState.error == null && uiState.productCandidates.isEmpty()
+                }
                 items(uiState.messages, key = { message -> message.id }) { message ->
                     Column {
                         ChatMessageBubble(
@@ -159,6 +167,12 @@ fun ChatScreen(
                         if (message.isTyping) Text("전체 보기",
                             modifier = Modifier.padding(start = 36.dp, top = 6.dp).clickable(onClick = onFinishTyping).padding(vertical = 6.dp),
                             color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyS)
+                        if (message.id == suggestionsFor) {
+                            ChatFollowUpChips(
+                                questions = uiState.suggestedQuestions,
+                                onQuestionClick = onSendMessage,
+                            )
+                        }
                     }
                 }
                 item {
@@ -178,12 +192,7 @@ fun ChatScreen(
                     item(key = "chat-error") { ChatErrorBubble(error, onRetry) }
                 }
                 if (uiState.isLoading && uiState.error?.isRetrying != true) {
-                    item {
-                        ChatMessageBubble(
-                            text = "답변을 준비 중이에요.",
-                            isMine = false,
-                        )
-                    }
+                    item { ChatTypingBubble() }
                 }
             }
 
