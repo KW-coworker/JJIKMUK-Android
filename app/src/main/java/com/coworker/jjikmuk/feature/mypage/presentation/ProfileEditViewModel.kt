@@ -22,7 +22,12 @@ data class ProfileEditState(
     val busy: Boolean = false,
     val mustReload: Boolean = false,
     val message: String? = null,
-)
+    val savedNickname: String? = null,
+) {
+    /** 입력한 닉네임이 저장된 닉네임과 다를 때만 저장 버튼을 보여 준다. */
+    val hasNicknameChange: Boolean
+        get() = loaded && savedNickname != null && normalizeAuthNickname(nickname) != savedNickname
+}
 
 @HiltViewModel
 class ProfileEditViewModel @Inject constructor(
@@ -34,13 +39,12 @@ class ProfileEditViewModel @Inject constructor(
     private var request: Job? = null
     private var generation = -1L
     private var revision = 0L
-    private var savedNickname: String? = null
     private var profileVersion: Long? = null
 
     fun open() {
         close()
         generation = sessions.state.value.generation
-        savedNickname = null; profileVersion = null
+        profileVersion = null
         mutableState.value = ProfileEditState()
         reload()
     }
@@ -62,9 +66,9 @@ class ProfileEditViewModel @Inject constructor(
             if (!isCurrent(currentRevision)) return@launch
             when (result) {
                 is AuthResult.Success -> {
-                    savedNickname = result.value.nickname
                     profileVersion = result.value.version
                     mutableState.update { it.copy(nickname = if (keepDraft) it.nickname else result.value.nickname,
+                        savedNickname = result.value.nickname,
                         email = result.value.email, loaded = true, busy = false, mustReload = false,
                         message = if (keepDraft) "최신 정보를 확인했어요. 입력한 닉네임을 확인한 뒤 저장해 주세요" else null) }
                 }
@@ -81,19 +85,16 @@ class ProfileEditViewModel @Inject constructor(
             mutableState.update { it.copy(message = "닉네임은 한글·영문·숫자·밑줄로 2~20자 입력해 주세요") }
             return
         }
-        // Own nickname is valid even if public availability says false. PATCH performs the final check.
-        if (nickname == savedNickname) {
-            mutableState.update { it.copy(nickname = nickname, message = "현재 닉네임이에요") }
-            return
-        }
+        // 같은 닉네임이면 화면에 저장 버튼이 없으므로 여기서는 조용히 무시한다.
+        if (nickname == input.savedNickname) return
         val currentRevision = revision
         mutableState.update { it.copy(busy = true, message = null) }
         request = viewModelScope.launch {
             when (val result = profiles.patch(ProfilePatch(nickname = nickname, version = profileVersion))) {
                 is AuthResult.Success -> if (isCurrent(currentRevision)) {
-                    savedNickname = result.value.nickname
                     profileVersion = result.value.version
-                    mutableState.update { it.copy(nickname = result.value.nickname, busy = false, message = "저장했어요") }
+                    mutableState.update { it.copy(nickname = result.value.nickname, savedNickname = result.value.nickname,
+                        busy = false, message = "저장했어요") }
                 }
                 is AuthResult.Failure -> if (isCurrent(currentRevision)) {
                     val unknown = result.error.outcomeUnknown || result.error.code in setOf("AUTH_REFRESHED_RETRY_REQUIRED", "PROFILE_VERSION_CONFLICT")

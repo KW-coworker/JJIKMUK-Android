@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Android 12+는 앱 실행 시 시스템 스플래시(앱 아이콘)를 항상 먼저 보여 준다.
+      아이콘을 투명하게, 배경을 앱 스플래시(SplashScreen.kt)와 같은 흰색으로 맞춰
+      시스템 스플래시가 보이지 않고 애니메이션 스플래시만 보이게 한다.
+    -->
+    <style name="Theme.JJIKMUK" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_transparent</item>
+    </style>
+</resources>

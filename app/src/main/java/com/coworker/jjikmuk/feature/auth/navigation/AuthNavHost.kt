@@ -150,7 +150,18 @@ fun AuthNavHost(
                             launchSingleTop = true
                         }
                 }
-            } else SessionEntryScreen(entry, loginViewModel::checkSession, loginViewModel::logout)
+            }
+            // 홈으로 넘어가는 동안에도 빈 화면 대신 스플래시가 이어지도록 항상 그린다.
+            SessionEntryScreen(
+                state = entry,
+                onRetry = loginViewModel::checkSession,
+                onLogout = loginViewModel::logout,
+                splashLogoModifier = Modifier.sharedElement(
+                    rememberSharedContentState("launch-logo"),
+                    animatedVisibilityScope = this,
+                    boundsTransform = { _, _ -> tween(SPLASH_TRANSITION_MILLIS, easing = LaunchEasing) },
+                ),
+            )
         }
 
         composable(AuthRoute.ProfileCompletion) {

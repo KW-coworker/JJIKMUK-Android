@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -91,6 +92,8 @@ import com.coworker.jjikmuk.ui.component.MainTab
 import com.coworker.jjikmuk.ui.component.ScanTargetMemberUiModel
 import com.coworker.jjikmuk.ui.component.ScanTargetPopup
 import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
+import com.coworker.jjikmuk.ui.component.ScanTargetProfileStack
+import com.coworker.jjikmuk.ui.component.ScanTargetProfileUiModel
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 import com.coworker.jjikmuk.ui.theme.asEnglish
 
@@ -437,6 +440,7 @@ private fun ProductScreenContent(
                 ProductDestination.Detail -> {
                     ProductDetailContent(
                         detailUiState = detailUiState,
+                        targetProfiles = selectedProfiles,
                         favorites = favorites,
                         onRetryFavorite = onRetryFavorite,
                         onToggleLikedProduct = onToggleLikedProduct,
@@ -694,6 +698,7 @@ private fun ProductSearchInitialContent(
 @Composable
 private fun ProductDetailContent(
     detailUiState: ProductDetailUiState,
+    targetProfiles: List<ScanTargetProfileUiModel>,
     favorites: com.coworker.jjikmuk.domain.repository.LikedProductsState,
     onToggleLikedProduct: (ProductDetail) -> Unit,
     onRetryFavorite: () -> Unit = {},
@@ -733,6 +738,7 @@ private fun ProductDetailContent(
         detailUiState.product != null -> {
             ProductDetailDesign(
                 state = detailUiState,
+                targetProfiles = targetProfiles,
                 isLiked = favorites.statuses[detailUiState.product.productId] == true,
                 favoriteEnabled = detailUiState.product.productId?.let { it in favorites.statuses && it !in favorites.pendingIds } == true,
                 favoriteMessage = if (detailUiState.product.productId == null) "이 상품은 아직 즐겨찾기를 사용할 수 없어요."
@@ -930,7 +936,7 @@ private fun ProductDetailInfoSection(
         ProductNutritionRows(product = product)
 
         Text(
-            text = "1일 영양성분 기준치에 대한 비율(%)은 2,000kcal 기준이므로\n개인의 필요열량에 따라 다를 수 있습니다",
+            text = "위 그래프는 이 제품에 포함된 탄수화물·단백질·지방 구성 비율을 보여줍니다.",
             color = JjikmukTheme.colors.textPrimary,
             style = JjikmukTheme.typography.bodyS,
         )
@@ -943,6 +949,7 @@ private fun ProductDetailInfoSection(
 internal fun ProductDetailRiskWarningCard(
     product: ProductDetail,
     modifier: Modifier = Modifier,
+    targetProfiles: List<ScanTargetProfileUiModel> = emptyList(),
 ) {
     if (!product.personalConditionsApplied) {
         Text("선택한 대상 없음 · 개인 식이조건 미적용", modifier = modifier.padding(vertical = 12.dp),
@@ -1004,6 +1011,16 @@ internal fun ProductDetailRiskWarningCard(
                         color = JjikmukTheme.colors.textPrimary,
                         style = JjikmukTheme.typography.titleM,
                     )
+                    // 위험 상품일 때만 위험 판단에 쓰인 대상의 프로필을 제목 옆에 보여 준다.
+                    // 28dp 묶음이 제목 줄 높이를 늘리지 않도록 위아래로 넘치게 둔다.
+                    if (product.safetyStatus == ProductSafetyStatus.Danger && targetProfiles.isNotEmpty()) {
+                        Box(Modifier.height(22.dp), contentAlignment = Alignment.CenterStart) {
+                            ScanTargetProfileStack(
+                                selectedProfiles = targetProfiles,
+                                modifier = Modifier.wrapContentHeight(unbounded = true),
+                            )
+                        }
+                    }
                 }
                 Text(
                     text = message.orEmpty(),
@@ -1220,7 +1237,7 @@ private fun ProductMacroDonutChart(
         ?: 100.0
 
     Canvas(modifier = modifier) {
-        val strokeWidth = 20.dp.toPx()
+        val strokeWidth = 15.dp.toPx()
         val outerDiameter = size.minDimension
         val arcSize = outerDiameter - strokeWidth
         val arcTopLeft = androidx.compose.ui.geometry.Offset(

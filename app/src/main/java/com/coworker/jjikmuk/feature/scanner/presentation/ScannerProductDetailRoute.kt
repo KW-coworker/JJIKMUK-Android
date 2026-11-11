@@ -31,6 +31,9 @@ import com.coworker.jjikmuk.feature.product.presentation.ProductViewModel
 import com.coworker.jjikmuk.ui.component.JjikmukPrimaryButton
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBar
 import com.coworker.jjikmuk.ui.component.JjikmukTopAppBarLeading
+import com.coworker.jjikmuk.R
+import com.coworker.jjikmuk.ui.component.ScanTargetProfileUiModel
+import com.coworker.jjikmuk.ui.component.toScanTargetProfiles
 import com.coworker.jjikmuk.ui.theme.JjikmukTheme
 
 /**
@@ -50,6 +53,9 @@ internal fun ScannerProductDetailRoute(
 ) {
     val detail by viewModel.detailUiState.collectAsStateWithLifecycle()
     val favorites by viewModel.favoriteState.collectAsStateWithLifecycle()
+    // Product 탭 상세와 같은 분석 대상(앱 전역 선택)을 위험 카드에 표시한다.
+    val scanTargetMembers by viewModel.scanTargetMembers.collectAsStateWithLifecycle()
+    val targetProfiles = scanTargetMembers.toScanTargetProfiles(defaultImageResId = R.drawable.ic_launcher_foreground)
     // Same favorite refresh rule as the product tab detail.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.retryFavorites() }
     var showAlternatives by rememberSaveable { mutableStateOf(false) }
@@ -61,6 +67,7 @@ internal fun ScannerProductDetailRoute(
 
     ScannerProductDetailScreen(
         detail = detail,
+        targetProfiles = targetProfiles,
         isLiked = detail.product?.productId?.let { favorites.statuses[it] } == true,
         favoriteEnabled = detail.product?.productId?.let { it in favorites.statuses && it !in favorites.pendingIds } == true,
         favoriteMessage = detail.product?.let { product ->
@@ -101,6 +108,7 @@ internal fun ScannerProductDetailScreen(
     favoriteEnabled: Boolean = true,
     favoriteMessage: String? = null,
     onRetryFavorite: () -> Unit = {},
+    targetProfiles: List<ScanTargetProfileUiModel> = emptyList(),
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -148,6 +156,7 @@ internal fun ScannerProductDetailScreen(
 
                 detail.product != null -> ProductDetailDesign(
                     state = detail,
+                    targetProfiles = targetProfiles,
                     isLiked = isLiked,
                     onFavorite = onFavorite,
                     favoriteEnabled = favoriteEnabled,

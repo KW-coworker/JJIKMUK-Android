@@ -8,6 +8,7 @@ data class PreparedScannerPhoto internal constructor(
     val file: File,
     val width: Int,
     val height: Int,
+    val scanId: String = java.util.UUID.randomUUID().toString(),
 ) {
     val mimeType: String get() = "image/jpeg"
     val id: String get() = file.absolutePath

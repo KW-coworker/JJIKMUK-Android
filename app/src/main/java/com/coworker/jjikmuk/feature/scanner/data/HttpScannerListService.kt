@@ -1,0 +1,116 @@
+package com.coworker.jjikmuk.feature.scanner.data
+
+import com.coworker.jjikmuk.feature.scanner.domain.*
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.Authenticator
+import okhttp3.HttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
+import okio.BufferedSink
+import okio.source
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.http.Body
+import retrofit2.http.Header
+import retrofit2.http.POST
+import retrofit2.http.Streaming
+
+internal interface ScannerListApi {
+    @POST("api/product-scans")
+    @Streaming
+    suspend fun scan(@Header("Authorization") authorization: String, @Header("Idempotency-Key") scanId: String, @Body image: MultipartBody): Response<ResponseBody>
+}
+
+/** Explicit service Bearer only; no logging, redirect, authenticator or automatic upload replay. */
+class HttpScannerListService internal constructor(
+    private val api: ScannerListApi,
+) : ScannerListTransport {
+    private val inFlight = AtomicBoolean(false)
+    private var lastRequestNanos: Long? = null
+
+    override suspend fun scan(photo: PreparedScannerPhoto, accessToken: String): ScanListResult {
+        if (!inFlight.compareAndSet(false, true)) return failure(OcrFailure.Busy)
+        try {
+            val token = accessToken.takeIf { it.isNotBlank() && it.all { char -> char.code in 33..126 } }
+                ?: return failure(OcrFailure.Unauthorized)
+            return withContext(Dispatchers.IO) {
+                if (!photo.isUploadable() || !photo.hasJpegSignature()) {
+                    return@withContext failure(OcrFailure.InvalidImage)
+                }
+                val binary = object : RequestBody() {
+                    override fun contentType() = photo.mimeType.toMediaType()
+                    override fun contentLength() = photo.file.length()
+                    // Also prevents follow-up replay for 408/503/redirect/auth cases in OkHttp.
+                    override fun isOneShot() = true
+                    override fun writeTo(sink: BufferedSink) {
+                        photo.file.source().use { sink.writeAll(it) }
+                    }
+                }
+                val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+                    .addFormDataPart("image", "product.jpg", binary).build()
+                if (body.contentLength() > PreparedScannerPhoto.MAX_BYTES + 64 * 1024) {
+                    return@withContext failure(OcrFailure.InvalidImage)
+                }
+                val now = System.nanoTime()
+                val remaining = lastRequestNanos?.let { MIN_REQUEST_INTERVAL_NANOS - (now - it) } ?: 0L
+                if (remaining > 0) return@withContext failure(
+                    OcrFailure.RateLimited, retryAfterSeconds = ((remaining + 999_999_999L) / 1_000_000_000L).toInt())
+                lastRequestNanos = now
+                val response = api.scan("Bearer $token", photo.scanId, body)
+                val responseBody = response.body() ?: response.errorBody()
+                // Bound malformed proxy/server responses rather than reading unlimited data.
+                val raw = responseBody?.use { value ->
+                    val source = value.source()
+                    source.request(MAX_RESPONSE_BYTES + 1)
+                    if (source.buffer.size > MAX_RESPONSE_BYTES) null else source.readUtf8()
+                }
+                ScanListPayloadParser.parse(photo.scanId, response.code(), raw,
+                    response.headers()["X-Request-ID"], response.headers()["Retry-After"])
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: IOException) {
+            // The server may have received the image. Never silently resend.
+            return failure(OcrFailure.OutcomeUnknown)
+        } finally {
+            inFlight.set(false)
+        }
+    }
+
+    private fun failure(reason: OcrFailure, retryAfterSeconds: Int? = null) =
+        ScanListResult.Failure(OcrResult.Failure(reason, retryAfterSeconds = retryAfterSeconds))
+
+    private fun PreparedScannerPhoto.hasJpegSignature(): Boolean = file.inputStream().use {
+        it.read() == 0xff && it.read() == 0xd8 && it.read() == 0xff
+    }
+
+    companion object {
+        private const val MAX_RESPONSE_BYTES = 1024L * 1024
+        private const val MIN_REQUEST_INTERVAL_NANOS = 3_000_000_000L
+
+        fun client(): OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(150, TimeUnit.SECONDS)
+            .callTimeout(240, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
+            .followRedirects(false).followSslRedirects(false)
+            .authenticator(Authenticator.NONE).proxyAuthenticator(Authenticator.NONE)
+            .build()
+
+        fun create(baseUrl: HttpUrl): HttpScannerListService {
+            require(baseUrl.isHttps && baseUrl.encodedPath == "/" && baseUrl.query == null)
+            require(baseUrl.username.isEmpty() && baseUrl.password.isEmpty() && baseUrl.fragment == null)
+            val api = Retrofit.Builder().baseUrl(baseUrl).client(client()).build().create(ScannerListApi::class.java)
+            return HttpScannerListService(api)
+        }
+    }
+}

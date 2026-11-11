@@ -5,8 +5,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -39,6 +42,9 @@ fun JjikmukBottomNavigationBar(
     onTabClick: (MainTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 시스템 탐색 영역(제스처 바·3버튼)만큼 탭을 위로 올리되, 영역이 작으면 기존 디자인의 하단 여백 20dp를 유지한다.
+    val systemNavigationBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = JjikmukTheme.colors.surface,
@@ -47,8 +53,13 @@ fun JjikmukBottomNavigationBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(91.dp)
-                .padding(start = 15.dp, top = 8.dp, end = 15.dp, bottom = 20.dp),
+                .padding(
+                    start = 15.dp,
+                    top = 8.dp,
+                    end = 15.dp,
+                    bottom = maxOf(systemNavigationBottom, 20.dp),
+                )
+                .height(63.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top,
         ) {
