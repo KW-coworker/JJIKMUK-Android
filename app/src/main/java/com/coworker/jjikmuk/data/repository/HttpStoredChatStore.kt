@@ -8,8 +8,6 @@ import com.coworker.jjikmuk.feature.auth.data.AuthErrorMapper
 import com.coworker.jjikmuk.feature.auth.domain.*
 import com.coworker.jjikmuk.feature.auth.session.*
 import java.io.IOException
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import retrofit2.Response
@@ -95,7 +93,7 @@ class HttpStoredChatStore internal constructor(private val api: StoredChatApi,
     }
 }
 private fun RoomBody.domain() = ChatConversation(requireNotNull(id).also { require(it > 0) }.toString(),
-    requireNotNull(title), "", false, LocalDateTime.parse(requireNotNull(updatedAt)).toInstant(ZoneOffset.UTC).toEpochMilli())
+    requireNotNull(title), "", false, parseChatTimestamp(requireNotNull(updatedAt)))
 private fun ChatApiResponse.domain() = ChatResponse(answer, toProductCandidates())
 private fun TurnBody.domain(): StoredChatTurn {
     require(status in setOf("PENDING", "SUCCEEDED", "FAILED"))
