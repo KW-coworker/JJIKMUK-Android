@@ -40,7 +40,8 @@ class ChatRepositoryImpl @Inject constructor(
         }
         if (!targets.isCurrent(chosen)) return changed()
         return when (result) {
-            is AuthResult.Success -> ChatResponse(result.value.answer, result.value.toProductCandidates())
+            is AuthResult.Success -> ChatResponse(result.value.answer, result.value.toProductCandidates(),
+                recommendedQuestions = result.value.toRecommendedQuestions())
             is AuthResult.Failure -> ChatResponse(when (result.error.code) {
                 "ANALYSIS_SELECTION_CHANGED" -> "분석 대상이 바뀌었어요. 다시 질문해 주세요."
                 "FAMILY_NOT_FOUND" -> "선택한 가족을 확인할 수 없어요. 가족 목록을 새로고침해 주세요."
@@ -53,6 +54,16 @@ class ChatRepositoryImpl @Inject constructor(
     private fun changed() = ChatResponse("분석 대상이나 계정이 바뀌었어요. 다시 질문해 주세요.", errorCode = "ANALYSIS_SELECTION_CHANGED")
 
 }
+
+/** 후속 질문 칩: 앞뒤 공백 제거 → 빈 문자열 제거 → 중복 제거 → 최대 3개. 서버가 null을 보내도 안전하다. */
+@Suppress("USELESS_CAST") // Gson은 Kotlin 기본값을 무시하고 null을 넣을 수 있다.
+internal fun ChatApiResponse.toRecommendedQuestions(): List<String> =
+    (recommended_questions as List<String?>?).orEmpty()
+        .mapNotNull { it?.trim()?.takeIf(String::isNotEmpty) }
+        .distinct()
+        .take(MAX_RECOMMENDED_QUESTIONS)
+
+private const val MAX_RECOMMENDED_QUESTIONS = 3
 
 /** The deployed server uses product_candidates; older responses use recommended_products. */
 internal fun ChatApiResponse.toProductCandidates(): List<ChatProductCandidate> =

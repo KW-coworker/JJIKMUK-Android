@@ -94,7 +94,8 @@ class HttpStoredChatStore internal constructor(private val api: StoredChatApi,
 }
 private fun RoomBody.domain() = ChatConversation(requireNotNull(id).also { require(it > 0) }.toString(),
     requireNotNull(title), "", false, parseChatTimestamp(requireNotNull(updatedAt)))
-private fun ChatApiResponse.domain() = ChatResponse(answer, toProductCandidates())
+private fun ChatApiResponse.domain() = ChatResponse(answer, toProductCandidates(),
+    recommendedQuestions = toRecommendedQuestions())
 private fun TurnBody.domain(): StoredChatTurn {
     require(status in setOf("PENDING", "SUCCEEDED", "FAILED"))
     require(status != "SUCCEEDED" || response != null)

@@ -4,6 +4,8 @@ data class ChatResponse(
     val answer: String,
     val productCandidates: List<ChatProductCandidate> = emptyList(),
     val errorCode: String? = null,
+    /** 서버 recommended_questions를 정리한 후속 질문(최대 3개). */
+    val recommendedQuestions: List<String> = emptyList(),
 )
 
 data class ChatProductCandidate(
