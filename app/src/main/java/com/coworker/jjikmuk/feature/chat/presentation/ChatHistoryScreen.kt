@@ -2,6 +2,8 @@ package com.coworker.jjikmuk.feature.chat.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -24,6 +26,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -85,7 +90,24 @@ fun ChatHistoryScreen(
     var isEditMode by rememberSaveable { mutableStateOf(false) }
     var showScanTargetPopup by rememberSaveable { mutableStateOf(false) }
     val selectedChatIds = remember { mutableStateListOf<String>() }
+    var titleToEdit by remember { mutableStateOf<ChatHistoryUiModel?>(null) }
+    var titleDraft by remember { mutableStateOf("") }
     val targetState by viewModel.targetState.collectAsStateWithLifecycle()
+    val historyState by viewModel.historyState.collectAsStateWithLifecycle()
+    LaunchedEffect(targetState.account) { titleToEdit = null; titleDraft = "" }
+    titleToEdit?.let { history ->
+        val valid = titleDraft.trim().isNotEmpty() && titleDraft.trim().codePointCount(0, titleDraft.trim().length) <= 100 && titleDraft.none { it.isISOControl() }
+        AlertDialog(onDismissRequest = { titleToEdit = null },
+            title = { Text("대화 제목 변경") },
+            text = { OutlinedTextField(value = titleDraft, onValueChange = { titleDraft = it },
+                label = { Text("제목") }, singleLine = true,
+                supportingText = { Text("1~100자 · 이 기기에만 저장됩니다.") }) },
+            confirmButton = { TextButton(enabled = valid, onClick = {
+                viewModel.rename(history, titleDraft.trim()); titleToEdit = null
+            }) { Text("저장") } },
+            dismissButton = { TextButton(onClick = { titleToEdit = null }) { Text("취소") } })
+    }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { viewModel.syncTargets(); viewModel.refreshHistory() }
     val scanTargetMembers = targetState.toScanTargetMembers()
     val selectedProfiles = scanTargetMembers.toScanTargetProfiles(
         defaultImageResId = R.drawable.ic_launcher_foreground,
@@ -126,6 +148,15 @@ fun ChatHistoryScreen(
                 .background(JjikmukTheme.colors.background)
                 .padding(innerPadding),
         ) {
+            Column(Modifier.fillMaxSize()) {
+                if (historyState.loading) Text("대화 목록을 불러오고 있어요.", Modifier.padding(16.dp))
+                historyState.message?.let { message ->
+                    Text(message + " · 다시 확인", Modifier.clickable { viewModel.refreshHistory() }.padding(16.dp),
+                        color = JjikmukTheme.colors.textSecondary, style = JjikmukTheme.typography.bodyS)
+                }
+                if (historyState.hasNext && !historyState.loading) Text("이전 대화 더보기", Modifier.clickable { viewModel.loadMore() }.padding(16.dp),
+                    color = JjikmukTheme.colors.brand)
+                Box(Modifier.weight(1f)) {
             if (isEditMode) {
                 ChatHistoryEditContent(
                     histories = chatHistories,
@@ -157,6 +188,7 @@ fun ChatHistoryScreen(
                     onNewChatClick = onNewChatClick,
                     onChatClick = onChatClick,
                     onPinChatClick = viewModel::togglePinned,
+                    onRenameChatClick = { history -> titleDraft = history.title; titleToEdit = history },
                     onDeleteChatClick = { history ->
                         viewModel.deleteChat(history.id)
                         selectedChatIds.remove(history.id)
@@ -171,8 +203,11 @@ fun ChatHistoryScreen(
                 )
             }
 
+                }
+            }
             if (showScanTargetPopup) {
                 ScanTargetPopup(
+                    statusMessage = targetState.message, enabled = targetState.ready, onRefresh = viewModel::refreshTargets,
                     members = scanTargetMembers,
                     onMemberCheckedChange = viewModel::selectTarget,
                     onDismissRequest = { showScanTargetPopup = false },
@@ -196,6 +231,7 @@ private fun ChatHistoryContent(
     onPinChatClick: (ChatHistoryUiModel) -> Unit,
     onDeleteChatClick: (ChatHistoryUiModel) -> Unit,
     modifier: Modifier = Modifier,
+    onRenameChatClick: (ChatHistoryUiModel) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -219,6 +255,7 @@ private fun ChatHistoryContent(
                 }
             },
             onDeleteChatClick = onDeleteChatClick,
+            onRenameChatClick = onRenameChatClick,
             contentPadding = PaddingValues(bottom = 120.dp),
         )
     }
@@ -352,6 +389,7 @@ private fun ChatHistoryList(
     onDeleteChatClick: (ChatHistoryUiModel) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    onRenameChatClick: (ChatHistoryUiModel) -> Unit = {},
 ) {
     LazyColumn(
         state = listState,
@@ -364,6 +402,7 @@ private fun ChatHistoryList(
                 searchQuery = searchQuery,
                 onClick = { onChatClick(history) },
                 onPinClick = { onPinChatClick(history) },
+                onRename = { onRenameChatClick(history) },
                 onDeleteClick = { onDeleteChatClick(history) },
             )
         }
@@ -378,6 +417,7 @@ private fun SwipeableChatHistoryRow(
     onPinClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onRename: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     val revealWidthPx = with(density) { ChatHistorySwipeActionWidth.toPx() }
@@ -443,6 +483,7 @@ private fun SwipeableChatHistoryRow(
                 },
         ) {
             ChatHistoryRow(
+                onRename = onRename,
                 history = history,
                 searchQuery = searchQuery,
                 onClick = {
@@ -531,19 +572,21 @@ private fun ChatHistorySwipeActionBackground(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatHistoryRow(
     history: ChatHistoryUiModel,
     searchQuery: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onRename: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .height(80.dp)
             .background(JjikmukTheme.colors.surface)
-            .clickable(onClick = onClick),
+            .combinedClickable(onClick = onClick, onLongClick = onRename, onLongClickLabel = "대화 제목 변경"),
     ) {
         Column(
             modifier = Modifier
